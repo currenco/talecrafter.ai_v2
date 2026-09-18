@@ -1,0 +1,40 @@
+# dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# next.js
+client/.next/
+client/out/
+client/build/
+
+# production/build artifacts
+dist/
+server/dist/
+coverage/
+
+# env files
+.env
+.env.*
+client/.env
+client/.env.*
+server/.env
+server/.env.*
+!server/.env.example
+!client/.env.example
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# misc
+.DS_Store
+*.pem
+*.tsbuildinfo
+client/next-env.d.ts
+
+# hosting/tooling
+client/.vercel/
+.vercel/

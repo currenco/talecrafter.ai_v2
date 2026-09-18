@@ -1,0 +1,262 @@
+"use client";
+import { useCallback, useEffect, useRef, useState } from "react";
+import StoryItemCard from "../dashboard/_components/StoryItemCard";
+import { apiFetch } from "@/lib/api-client";
+import { motion } from "framer-motion";
+import CustomLoader from "./CustomLoader";
+import type { StoryItem } from "@/types/story";
+const MotionDiv = motion.div;
+
+const PAGE_SIZE = 12;
+const CACHE_KEY = "explore_stories_cache_v1";
+
+type ExploreCache = {
+  storyList: StoryItem[];
+  offset: number;
+  hasMoreStories: boolean;
+  scrollY: number;
+};
+
+const ExploreMore = () => {
+  const [loading, setLoading] = useState<boolean>(false);
+  const [offset, setOffset] = useState(0);
+  const [storyList, setStoryList] = useState<StoryItem[]>([]);
+  const [hasMoreStories, setHasMoreStories] = useState(true);
+  const [isRestored, setIsRestored] = useState(false);
+  const initializedRef = useRef(false);
+  const loadTriggerRef = useRef<HTMLDivElement | null>(null);
+  const loadingRef = useRef(false);
+  const offsetRef = useRef(0);
+  const hasMoreRef = useRef(true);
+
+  const fadeUp = {
+    hidden: { opacity: 0, y: 22 },
+    show: { opacity: 1, y: 0 },
+  };
+  const isInitialStoriesLoading = !isRestored || (loading && storyList.length === 0);
+
+  const persistState = useCallback(
+    (scrollY?: number) => {
+      try {
+        const cache: ExploreCache = {
+          storyList,
+          offset,
+          hasMoreStories,
+          scrollY: scrollY ?? window.scrollY ?? 0,
+        };
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+      } catch {
+        // ignore storage failures
+      }
+    },
+    [storyList, offset, hasMoreStories]
+  );
+
+  const GetAllStories = useCallback(async (newOffset: number) => {
+    if (loadingRef.current || !hasMoreRef.current) return;
+
+    loadingRef.current = true;
+    setLoading(true);
+
+    try {
+      const result = await apiFetch<StoryItem[]>(`/stories?limit=${PAGE_SIZE}&offset=${newOffset}`);
+
+      setOffset(newOffset);
+      setStoryList((prev) => {
+        const merged =
+          newOffset === 0 ? result : [...(prev || []), ...(result || [])];
+        const uniqueById = new Map<string, StoryItem>();
+        merged.forEach((item: StoryItem) => {
+          uniqueById.set(item.storyId, item);
+        });
+        return Array.from(uniqueById.values());
+      });
+
+      const nextHasMore = result.length >= PAGE_SIZE;
+      setHasMoreStories(nextHasMore);
+
+      if (newOffset === 0) {
+        setStoryList(result || []);
+      }
+    } catch {
+      setHasMoreStories(false);
+    } finally {
+      loadingRef.current = false;
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
+
+  useEffect(() => {
+    offsetRef.current = offset;
+  }, [offset]);
+
+  useEffect(() => {
+    hasMoreRef.current = hasMoreStories;
+  }, [hasMoreStories]);
+
+  useEffect(() => {
+    if (!initializedRef.current) return;
+    persistState();
+  }, [storyList, offset, hasMoreStories, persistState]);
+
+  useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
+    let restored = false;
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY);
+        if (raw) {
+          const parsed: ExploreCache = JSON.parse(raw);
+          if (Array.isArray(parsed.storyList) && parsed.storyList.length > 0) {
+            restored = true;
+            setStoryList(parsed.storyList);
+            setOffset(parsed.offset ?? 0);
+            const inferredHasMore =
+              parsed.hasMoreStories ??
+              (parsed.storyList.length % PAGE_SIZE === 0);
+            setHasMoreStories(inferredHasMore);
+            requestAnimationFrame(() => {
+              window.scrollTo({ top: parsed.scrollY ?? 0, behavior: "auto" });
+            });
+          }
+      }
+    } catch {
+      // ignore invalid cache
+    }
+
+    if (!restored) {
+      GetAllStories(0);
+    }
+    setIsRestored(true);
+
+    const onPageHide = () => persistState();
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      persistState();
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  }, [GetAllStories, persistState]);
+
+  useEffect(() => {
+    if (!isRestored) return;
+    const trigger = loadTriggerRef.current;
+    if (!trigger) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (!entry?.isIntersecting) return;
+        if (loadingRef.current || !hasMoreRef.current) return;
+        GetAllStories(offsetRef.current + PAGE_SIZE);
+      },
+      { root: null, rootMargin: "220px 0px", threshold: 0.01 }
+    );
+
+    observer.observe(trigger);
+    return () => observer.disconnect();
+  }, [GetAllStories, isRestored]);
+
+  useEffect(() => {
+    if (!isRestored) return;
+
+    const onScroll = () => {
+      if (loadingRef.current || !hasMoreRef.current) return;
+      const nearBottom =
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - 320;
+      if (nearBottom) {
+        GetAllStories(offsetRef.current + PAGE_SIZE);
+      }
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [GetAllStories, isRestored]);
+
+  useEffect(() => {
+    if (!isRestored || loading || !hasMoreStories) return;
+    const nearBottom =
+      window.innerHeight + window.scrollY >=
+      document.documentElement.scrollHeight - 320;
+    if (nearBottom) {
+      GetAllStories(offsetRef.current + PAGE_SIZE);
+    }
+  }, [GetAllStories, hasMoreStories, isRestored, loading, storyList.length]);
+
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-[#020b1f] px-5 py-8 md:px-16 lg:px-28 xl:px-40">
+      <div className="tc-hero-grid absolute inset-0 opacity-35" />
+      <div className="tc-hero-orb tc-hero-orb-one" />
+      <div className="tc-hero-orb tc-hero-orb-two" />
+
+      <div className="relative">
+        <MotionDiv
+          initial="hidden"
+          animate="show"
+          variants={fadeUp}
+          transition={{ duration: 0.55 }}
+          className="px-5 py-7 text-center md:px-8"
+        >
+          <h2 className="tc-title-gradient text-3xl font-extrabold sm:text-4xl md:text-5xl">
+            Explore Stories
+          </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-blue-100/75 md:text-base">
+            Discover storybooks created by the community across genres, styles,
+            and age groups.
+          </p>
+        </MotionDiv>
+
+        <MotionDiv
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, amount: 0.1 }}
+          variants={fadeUp}
+          transition={{ delay: 0.08, duration: 0.5 }}
+          className="mt-8"
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {storyList?.map((item: StoryItem) => (
+              <div key={item.storyId}>
+                <StoryItemCard story={item} currentUserEmail={""} />
+              </div>
+            ))}
+          </div>
+        </MotionDiv>
+
+        <div ref={loadTriggerRef} className="h-6" />
+
+        <CustomLoader isLoading={isInitialStoriesLoading} />
+
+        {loading && storyList.length > 0 && (
+          <div className="mt-5 flex justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-400 border-t-transparent" />
+          </div>
+        )}
+
+        {!hasMoreStories && storyList.length > 0 && (
+          <div className="mt-10 w-full text-center">
+            <p className="text-blue-100/70">
+              No more stories available right now. Check back later.
+            </p>
+          </div>
+        )}
+
+        {!isInitialStoriesLoading && storyList.length === 0 && (
+          <div className="mt-10 w-full text-center">
+            <p className="text-blue-100/70">
+              No stories found yet.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ExploreMore;

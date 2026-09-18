@@ -1,0 +1,124 @@
+import { useState, useEffect } from "react";
+import { IoPlayCircle, IoPauseCircle } from "react-icons/io5";
+import Image from "next/image";
+import { buildPollinationsImageUrl } from "@/lib/story-images";
+import type { StoryChapter } from "@/types/story";
+
+type StoryPagesProps = {
+  storyChapter: StoryChapter;
+  chapterKey: number;
+  activeNarrationKey?: number | null;
+  onStartNarration?: (chapterKey: number) => void;
+  onStopNarration?: (chapterKey: number) => void;
+};
+
+const StoryPages = ({
+  storyChapter,
+  chapterKey,
+  activeNarrationKey,
+  onStartNarration,
+  onStopNarration,
+}: StoryPagesProps) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false); // Track image loading state
+  const [imageError, setImageError] = useState(false);
+
+  // Function to toggle speech
+  const toggleSpeech = () => {
+    if (typeof window === "undefined") return;
+    const synth = window.speechSynthesis; // Get speech synthesis instance
+    if (!synth) return;
+
+    if (isPlaying) {
+      synth.cancel(); // Stop speech completely
+      onStopNarration?.(chapterKey);
+      setIsPlaying(false);
+    } else {
+      synth.cancel();
+      const utterance = new SpeechSynthesisUtterance(storyChapter?.textPrompt); // New instance per play
+      utterance.onend = () => {
+        setIsPlaying(false);
+        onStopNarration?.(chapterKey);
+      };
+      onStartNarration?.(chapterKey);
+      synth.speak(utterance);
+      setIsPlaying(true);
+    }
+  };
+
+  // Cleanup when unmounting
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const synth = window.speechSynthesis;
+    return () => synth.cancel();
+  }, []);
+
+  useEffect(() => {
+    if (activeNarrationKey === chapterKey || !isPlaying) return;
+    if (typeof window !== "undefined") {
+      window.speechSynthesis.cancel();
+    }
+    setIsPlaying(false);
+  }, [activeNarrationKey, chapterKey, isPlaying]);
+
+  const chapterImageSrc =
+    storyChapter?.imageUrl ||
+    buildPollinationsImageUrl(storyChapter?.imagePrompt ?? storyChapter?.title ?? "Story illustration", {
+      seed: 0,
+    });
+
+  return (
+    <div>
+      <h2 className="flex items-center justify-between text-2xl font-bold text-blue-700">
+        <span className="pr-3">{storyChapter?.title}</span>
+        <button
+          className="rounded-full bg-blue-100 p-1 text-3xl text-blue-700 transition hover:bg-blue-200"
+          onClick={toggleSpeech}
+          aria-label={isPlaying ? "Pause narration" : "Play narration"}
+        >
+          {isPlaying ? <IoPauseCircle /> : <IoPlayCircle />}
+        </button>
+      </h2>
+      <div className="relative w-full min-h-[300px] mt-2">
+        {!imageLoaded && !imageError && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-blue-50">
+            <span className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></span>
+          </div>
+        )}
+        {imageError ? (
+          <div className="flex min-h-[300px] w-full items-center justify-center rounded-lg border border-blue-200/40 bg-blue-50 px-6 text-center text-sm text-slate-600">
+            We couldn’t load this illustration right now. You can still continue reading this page.
+          </div>
+        ) : (
+          <Image
+            src={chapterImageSrc}
+            alt={storyChapter?.title ?? "story chapter illustration"}
+            className={`rounded-lg bg-slate-100 object-contain transition-opacity duration-300 ${
+              imageLoaded ? "opacity-100" : "opacity-0"
+            }`}
+            fill
+            sizes="(max-width: 768px) 100vw, 50vw"
+            unoptimized
+            loading="lazy"
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageError(true)}
+          />
+        )}
+      </div>
+      <div className="hsb2 max-h-52 overflow-y-scroll mt-2">
+        <p className="mt-3 rounded-lg bg-blue-50 p-4 text-lg text-slate-800 md:text-xl">
+          {storyChapter?.textPrompt
+            ?.split(storyChapter?.imagePrompt?.substring(0, 20) || "")[0]
+            ?.replace(/\{[^}]*\}/g, "")
+            ?.replace(
+              /(Water ?Color|Watercolor|Anime( style)?|3D ?Cartoon|Oil (Paint|painting)|Comic( book)?|Paper ?Cut|Papercut|Pixel ?Art)[\s\S]*/i,
+              ""
+            )
+            ?.trim()}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default StoryPages;
