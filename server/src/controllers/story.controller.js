@@ -10,6 +10,7 @@ import {
   listRelatedStories,
 } from '../services/story.service.js';
 import ApiError from '../utils/ApiError.js';
+import { getIdempotencyKey } from '../utils/idempotency.js';
 
 export const getPublicStories = asyncHandler(async (req, res) => {
   const stories = await listPublicStories(req.query ?? {});
@@ -59,6 +60,7 @@ export const deleteStory = asyncHandler(async (req, res) => {
 export const createStory = asyncHandler(async (req, res) => {
   const story = await createClassicStory({
     userId: req.auth.userId,
+    idempotencyKey: getIdempotencyKey(req),
     payload: req.validated.body,
   });
 

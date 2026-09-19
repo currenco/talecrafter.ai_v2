@@ -1,5 +1,6 @@
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
+import { getIdempotencyKey } from '../utils/idempotency.js';
 import {
   completeInteractiveStory,
   continueInteractiveStory,
@@ -12,6 +13,7 @@ import {
 export const createInteractiveStory = asyncHandler(async (req, res) => {
   const story = await createInteractiveStarter({
     userId: req.auth.userId,
+    idempotencyKey: getIdempotencyKey(req),
     payload: req.validated.body,
   });
 
@@ -44,6 +46,7 @@ export const getInteractiveStory = asyncHandler(async (req, res) => {
 export const chooseInteractiveStoryPath = asyncHandler(async (req, res) => {
   const story = await continueInteractiveStory({
     userId: req.auth.userId,
+    idempotencyKey: getIdempotencyKey(req),
     storyId: req.params.storyId,
     selectedChoice:
       req.validated.body.selectedChoice ?? req.validated.body.choice,
@@ -57,6 +60,7 @@ export const chooseInteractiveStoryPath = asyncHandler(async (req, res) => {
 export const completeInteractiveStoryPath = asyncHandler(async (req, res) => {
   const story = await completeInteractiveStory({
     userId: req.auth.userId,
+    idempotencyKey: getIdempotencyKey(req),
     storyId: req.params.storyId,
     selectedChoice:
       req.validated.body?.selectedChoice ??

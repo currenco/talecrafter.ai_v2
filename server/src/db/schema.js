@@ -249,11 +249,20 @@ export const GenerationJobs = appSchema.table(
       onDelete: 'set null',
     }),
     idempotencyKey: varchar('idempotency_key', { length: 255 }).notNull(),
+    requestHash: varchar('request_hash', { length: 64 })
+      .default('legacy')
+      .notNull(),
     kind: varchar('kind', { length: 40 }).notNull(),
+    provider: varchar('provider', { length: 40 }).default('unknown').notNull(),
+    model: varchar('model', { length: 120 }).default('unknown').notNull(),
+    creditCost: integer('credit_cost').default(0).notNull(),
+    attemptCount: integer('attempt_count').default(1).notNull(),
     status: varchar('status', { length: 20 }).default('pending').notNull(),
     request: jsonb('request').notNull(),
     result: jsonb('result'),
     errorCode: varchar('error_code', { length: 80 }),
+    errorMessage: text('error_message'),
+    durationMs: integer('duration_ms'),
     startedAt: timestamp('started_at', { withTimezone: true }),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     ...timestamps,
@@ -270,6 +279,15 @@ export const GenerationJobs = appSchema.table(
     check(
       'generation_jobs_status_check',
       sql`${table.status} IN ('pending', 'running', 'succeeded', 'failed', 'cancelled')`
+    ),
+    check('generation_jobs_credit_cost_check', sql`${table.creditCost} >= 0`),
+    check(
+      'generation_jobs_attempt_count_check',
+      sql`${table.attemptCount} > 0`
+    ),
+    check(
+      'generation_jobs_duration_check',
+      sql`${table.durationMs} IS NULL OR ${table.durationMs} >= 0`
     ),
   ]
 );

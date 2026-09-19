@@ -1,5 +1,5 @@
 "use client";
-import { useContext, useState } from "react";
+import { useContext, useRef, useState } from "react";
 import StorySubjectInput from "./(component)/StorySubjectInput";
 import StoryType from "./(component)/StoryType";
 import AgeCategory from "./(component)/AgeCategory";
@@ -12,7 +12,11 @@ import { useRouter } from "next/navigation";
 import { UserDetailContext } from "@/app/_context/UserDetailContext";
 import UploadImage from "./(component)/UploadImage";
 import { motion } from "framer-motion";
-import { apiFetch } from "@/lib/api-client";
+import {
+  apiFetch,
+  createIdempotencyKey,
+  shouldRetainIdempotencyKey,
+} from "@/lib/api-client";
 import type { UserDetail } from "@/app/_context/UserDetailContext";
 import type { StorySelection } from "@/types/story";
 const MotionDiv = motion.div;
@@ -45,6 +49,11 @@ const CreateStory = () => {
   const notifyError = (msg: string) => toast.error(msg);
   const { userDetail, setUserDetail } = useContext(UserDetailContext);
   const [storySubject, setStorySubject] = useState("");
+  const generationRequestRef = useRef<{
+    mode: "classic" | "interactive";
+    request: string;
+    key: string;
+  } | null>(null);
 
   const onHandleUserSelection = (data: StorySelection) => {
     setFormData((prev) => ({
@@ -100,11 +109,25 @@ const CreateStory = () => {
       const token = await getToken();
       const isInteractive = mode === "interactive";
       const endpoint = isInteractive ? "/interactive-stories" : "/stories";
+      const request = JSON.stringify(body);
+      if (
+        !generationRequestRef.current ||
+        generationRequestRef.current.mode !== mode ||
+        generationRequestRef.current.request !== request
+      ) {
+        generationRequestRef.current = {
+          mode,
+          request,
+          key: createIdempotencyKey(),
+        };
+      }
       const result = await apiFetch<ClassicStoryResponse | InteractiveStoryResponse>(endpoint, {
         method: "POST",
         token,
-        body: JSON.stringify(body),
+        idempotencyKey: generationRequestRef.current.key,
+        body: request,
       });
+      generationRequestRef.current = null;
 
       if (result.user) {
         setUserDetail(result.user);
@@ -118,6 +141,7 @@ const CreateStory = () => {
       if (!target) throw new Error("Story response did not include a navigation target");
       router.push((isInteractive ? "/interactive-story/" : "/story/") + target);
     } catch (error) {
+      if (!shouldRetainIdempotencyKey(error)) generationRequestRef.current = null;
       console.error("Error generating story:", error);
       notifyError("Server Error! Please try in a moment.");
     } finally {

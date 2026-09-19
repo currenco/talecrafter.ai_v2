@@ -3,6 +3,7 @@ const API_BASE_URL =
 
 type ApiRequestOptions = RequestInit & {
   token?: string | null;
+  idempotencyKey?: string;
 };
 
 export type ApiResponse<T> = {
@@ -12,15 +13,26 @@ export type ApiResponse<T> = {
   success: boolean;
 };
 
+export class ApiClientError extends Error {
+  constructor(
+    message: string,
+    public readonly statusCode: number
+  ) {
+    super(message);
+    this.name = 'ApiClientError';
+  }
+}
+
 export const apiFetch = async <T>(
   path: string,
-  { token, headers, ...init }: ApiRequestOptions = {}
+  { token, idempotencyKey, headers, ...init }: ApiRequestOptions = {}
 ): Promise<T> => {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
       ...headers,
     },
   });
@@ -30,8 +42,16 @@ export const apiFetch = async <T>(
     | null;
 
   if (!response.ok || !payload?.success) {
-    throw new Error(payload?.message || 'API request failed');
+    throw new ApiClientError(
+      payload?.message || 'API request failed',
+      response.status
+    );
   }
 
   return payload.data;
 };
+
+export const createIdempotencyKey = () => globalThis.crypto.randomUUID();
+
+export const shouldRetainIdempotencyKey = (error: unknown) =>
+  !(error instanceof ApiClientError) || error.statusCode === 425;

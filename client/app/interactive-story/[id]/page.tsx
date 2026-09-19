@@ -9,7 +9,11 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/neon-auth/client";
 import CustomLoader from "@/app/create-story/(component)/CustomLoader";
 import BookCoverPage from "@/app/view-story/_components/BookCoverPage";
-import { apiFetch } from "@/lib/api-client";
+import {
+  apiFetch,
+  createIdempotencyKey,
+  shouldRetainIdempotencyKey,
+} from "@/lib/api-client";
 
 const MAX_DEPTH = 7;
 
@@ -112,6 +116,8 @@ const InteractiveStoryPage = () => {
   const bookRef = useRef<FlipBookHandle | null>(null);
   const bookSectionRef = useRef<HTMLDivElement | null>(null);
   const treeSectionRef = useRef<HTMLDivElement | null>(null);
+  const continuationRequestRef = useRef<{ choice: string; key: string } | null>(null);
+  const completionRequestRef = useRef<{ choice: string; key: string } | null>(null);
 
   const [story, setStory] = useState<StoryRow | null>(null);
   const [nodes, setNodes] = useState<StoryNode[]>([]);
@@ -242,14 +248,19 @@ const InteractiveStoryPage = () => {
       setLoaderMessage("Compiling all choices and making final book...");
       setGeneratingNext(true);
       const token = await getToken();
+      if (!completionRequestRef.current || completionRequestRef.current.choice !== selectedChoice) {
+        completionRequestRef.current = { choice: selectedChoice, key: createIdempotencyKey() };
+      }
       const state = await apiFetch<InteractiveStoryState>(
         `/interactive-stories/${story.storyId}/complete`,
         {
           method: "POST",
           token,
+          idempotencyKey: completionRequestRef.current.key,
           body: JSON.stringify({ choice: selectedChoice }),
         }
       );
+      completionRequestRef.current = null;
 
       if (state.completedSlug) {
         router.replace(`/story/${state.completedSlug}`);
@@ -257,7 +268,8 @@ const InteractiveStoryPage = () => {
       }
 
       applyInteractiveState(state);
-    } catch {
+    } catch (error) {
+      if (!shouldRetainIdempotencyKey(error)) completionRequestRef.current = null;
       toast.error("Unable to finalize story right now");
     } finally {
       setGeneratingNext(false);
@@ -281,14 +293,19 @@ const InteractiveStoryPage = () => {
       setLoaderMessage("Expanding your chosen path...");
       setGeneratingNext(true);
       const token = await getToken();
+      if (!continuationRequestRef.current || continuationRequestRef.current.choice !== choice) {
+        continuationRequestRef.current = { choice, key: createIdempotencyKey() };
+      }
       const state = await apiFetch<InteractiveStoryState>(
         `/interactive-stories/${story.storyId}/choices`,
         {
           method: "POST",
           token,
+          idempotencyKey: continuationRequestRef.current.key,
           body: JSON.stringify({ choice }),
         }
       );
+      continuationRequestRef.current = null;
 
       if (state.completedSlug) {
         router.replace(`/story/${state.completedSlug}`);
@@ -305,7 +322,8 @@ const InteractiveStoryPage = () => {
         flipApi?.turnToPage?.(0);
         bookSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 180);
-    } catch {
+    } catch (error) {
+      if (!shouldRetainIdempotencyKey(error)) continuationRequestRef.current = null;
       toast.error("Failed to generate continuation");
     } finally {
       setGeneratingNext(false);

@@ -15,14 +15,19 @@ import {
   discardUploadedAssets,
   uploadAssetBatch,
 } from './asset.service.js';
-import { buildPollinationsImageUrl } from './image.service.js';
-import { generateGeminiText, generateStoryJson } from './gemini.service.js';
-import { generateUniqueStorySlug } from './story.service.js';
 import {
-  decrementUserCredits,
-  incrementUserCreditsByProfileId,
-  syncUserFromAuth,
-} from './user.service.js';
+  buildGeneratedImageSource,
+  generateNarrativeText,
+  generateStoryDraft,
+  getGenerationProviderMetadata,
+} from './generation.service.js';
+import {
+  buildGenerationSuccessUpdate,
+  failGenerationJob,
+  reserveGenerationForProfile,
+} from './generationJob.service.js';
+import { generateUniqueStorySlug } from './story.service.js';
+import { syncUserFromAuth } from './user.service.js';
 import {
   buildChoicePrompt,
   buildContinuationPrompt,
@@ -148,7 +153,7 @@ const mapGeneratedPages = async ({
     );
     return {
       prompt,
-      sourceUrl: buildPollinationsImageUrl(prompt, {
+      sourceUrl: buildGeneratedImageSource(prompt, {
         seed: `${Date.now()}_${seedPrefix}_${index}_${Math.floor(Math.random() * 100000)}`,
       }),
       purpose: `${seedPrefix}-${pageOffset + index + 1}`,
@@ -209,8 +214,29 @@ const buildCompletedStoryOutput = ({ pages, finalTitle }) => {
   return classicOutput;
 };
 
-export const createInteractiveStarter = async ({ userId, payload }) => {
-  const reservedUser = await decrementUserCredits(userId, 1);
+export const createInteractiveStarter = async ({
+  userId,
+  idempotencyKey,
+  payload,
+}) => {
+  const reservedUser = await syncUserFromAuth(userId);
+  const provider = getGenerationProviderMetadata();
+  const reservation = await reserveGenerationForProfile({
+    profileId: reservedUser.id,
+    idempotencyKey,
+    kind: 'interactive_starter',
+    request: payload,
+    provider: provider.provider,
+    model: provider.model,
+    creditCost: 1,
+  });
+  if (reservation.cached) {
+    return { ...reservation.result, user: reservation.user ?? reservedUser };
+  }
+
+  const jobId = reservation.job.id;
+  const startedAt = Date.now();
+  const chargedUser = reservation.user;
   const formData = payload ?? {};
   const storyId = randomUUID();
   const internalStoryId = randomUUID();
@@ -218,7 +244,7 @@ export const createInteractiveStarter = async ({ userId, payload }) => {
   let uploads = [];
 
   try {
-    const story = await generateStoryJson({ formData, interactive: true });
+    const story = await generateStoryDraft({ formData, interactive: true });
     const interactiveTitle = String(story?.title ?? 'Interactive Story');
     const slug = await generateUniqueStorySlug(interactiveTitle);
     const chapters = Array.isArray(story?.chapters) ? story.chapters : [];
@@ -238,7 +264,7 @@ export const createInteractiveStarter = async ({ userId, payload }) => {
     const coverPrompt = coverPromptSource.replace(/\s+/g, '-');
     const defaultStyleCoverPrompt = `Add-title-"${coverTitle}"-in-bold-text-for-book-cover-image,-${coverPrompt}`;
     const coverSeed = `${Date.now()}${Math.floor(Math.random() * 100000)}`;
-    const coverImageUrl = buildPollinationsImageUrl(defaultStyleCoverPrompt, {
+    const coverImageUrl = buildGeneratedImageSource(defaultStyleCoverPrompt, {
       width: 410,
       height: 630,
       seed: coverSeed,
@@ -249,14 +275,14 @@ export const createInteractiveStarter = async ({ userId, payload }) => {
       );
       return {
         prompt,
-        sourceUrl: buildPollinationsImageUrl(prompt, {
+        sourceUrl: buildGeneratedImageSource(prompt, {
           seed: `${Date.now()}_${index}_${Math.floor(Math.random() * 100000)}`,
         }),
         purpose: `starter-${index + 1}`,
       };
     });
     uploads = await uploadAssetBatch({
-      ownerId: reservedUser.id,
+      ownerId: chargedUser.id,
       publicStoryId: storyId,
       images: [
         ...starterSources.map(({ sourceUrl, purpose }) => ({
@@ -277,7 +303,7 @@ export const createInteractiveStarter = async ({ userId, payload }) => {
 
     let starterChoices = STARTER_FALLBACK_CHOICES;
     try {
-      const starterChoiceText = await generateGeminiText({
+      const starterChoiceText = await generateNarrativeText({
         prompt: buildChoicePrompt(makePageContext(starterPages, 4)),
         mode: 'text',
       });
@@ -293,7 +319,7 @@ export const createInteractiveStarter = async ({ userId, payload }) => {
       db.insert(Stories).values({
         id: internalStoryId,
         storyId,
-        ownerId: reservedUser.id,
+        ownerId: chargedUser.id,
         slug,
         kind: 'interactive',
         status: 'draft',
@@ -310,6 +336,7 @@ export const createInteractiveStarter = async ({ userId, payload }) => {
         storyId: internalStoryId,
         version: 1,
         output: { title: interactiveTitle, chapters: starterPages },
+        providerPayload: provider,
       }),
       db.insert(InteractiveStories).values({
         storyId: internalStoryId,
@@ -332,20 +359,25 @@ export const createInteractiveStarter = async ({ userId, payload }) => {
         createdAt: now,
       }),
       buildStoryAssetsInsert({
-        ownerId: reservedUser.id,
+        ownerId: chargedUser.id,
         storyId: internalStoryId,
         uploads,
       }),
+      buildGenerationSuccessUpdate({
+        jobId,
+        storyId: internalStoryId,
+        result: { storyId },
+        startedAt,
+      }),
     ]);
 
-    return { storyId, user: reservedUser };
+    return { storyId, user: chargedUser };
   } catch (error) {
-    await discardUploadedAssets(uploads);
-    await db.delete(Stories).where(eq(Stories.storyId, storyId));
-    await incrementUserCreditsByProfileId(reservedUser.id, 1, {
-      reason: 'generation_refund',
-      idempotencyKey: `interactive-refund:${reservedUser.id}:${storyId}`,
-    });
+    await Promise.allSettled([
+      discardUploadedAssets(uploads),
+      db.delete(Stories).where(eq(Stories.storyId, storyId)),
+    ]);
+    await failGenerationJob({ jobId, error, startedAt });
     throw error;
   }
 };
@@ -382,10 +414,11 @@ export const deleteCurrentUserInteractiveStory = async ({
 
 export const completeInteractiveStory = async ({
   userId,
+  idempotencyKey,
   storyId,
   selectedChoice = 'End Story',
 }) => {
-  const { story } = await ensureOwnedStory({ userId, storyId });
+  const { user, story } = await ensureOwnedStory({ userId, storyId });
   if (story.status === 'completed') {
     const completedSlug = await getCompletedStorySlug(story.storyId);
     return {
@@ -394,48 +427,69 @@ export const completeInteractiveStory = async ({
     };
   }
 
-  const nodes = await listStoryNodes(story.id, story.storyId);
-  const activeNode = getActiveNode(nodes);
-  if (!activeNode) throw new ApiError(404, 'Active story node not found');
-  if (activeNode.selectedChoice)
-    throw new ApiError(409, 'This branch is already locked');
-
-  const linearNodes = getLinearNodes({ activeNode, nodes });
-  const linearPages = linearNodes.flatMap(node => node.pages ?? []);
-  const finalPrompt = buildContinuationPrompt({
-    title: story.title,
-    selectedChoice,
-    context: makePageContext(linearPages, 6),
-    minPages: 3,
-    maxPages: 5,
-    finalResolution: true,
+  const provider = getGenerationProviderMetadata();
+  const reservation = await reserveGenerationForProfile({
+    profileId: user.id,
+    idempotencyKey,
+    kind: 'interactive_complete',
+    request: { storyId: story.storyId, selectedChoice },
+    provider: provider.provider,
+    model: provider.model,
+    creditCost: 0,
+    storyId: story.id,
   });
-  const finalText = await generateGeminiText({
-    prompt: finalPrompt,
-    mode: 'text',
-  });
-  const resolutionPages = parsePages(finalText).slice(0, 5);
-
-  if (resolutionPages.length < 3) {
-    throw new ApiError(502, 'Final resolution must have at least 3 pages');
+  if (reservation.cached) {
+    return getInteractiveState(story);
   }
 
-  const finalNodeId = randomUUID();
-  const { pages: persistedResolution, uploads } = await mapGeneratedPages({
-    pages: resolutionPages,
-    pageOffset: linearPages.length,
-    seedPrefix: 'final',
-    ownerId: story.ownerId,
-    publicStoryId: story.storyId,
-  });
-  const compiledPages = [...linearPages, ...persistedResolution];
-  const classicOutput = buildCompletedStoryOutput({
-    pages: compiledPages,
-    finalTitle: story.title,
-  });
-  const now = new Date();
+  const jobId = reservation.job.id;
+  const startedAt = Date.now();
+  let uploads = [];
 
   try {
+    const nodes = await listStoryNodes(story.id, story.storyId);
+    const activeNode = getActiveNode(nodes);
+    if (!activeNode) throw new ApiError(404, 'Active story node not found');
+    if (activeNode.selectedChoice)
+      throw new ApiError(409, 'This branch is already locked');
+
+    const linearNodes = getLinearNodes({ activeNode, nodes });
+    const linearPages = linearNodes.flatMap(node => node.pages ?? []);
+    const finalPrompt = buildContinuationPrompt({
+      title: story.title,
+      selectedChoice,
+      context: makePageContext(linearPages, 6),
+      minPages: 3,
+      maxPages: 5,
+      finalResolution: true,
+    });
+    const finalText = await generateNarrativeText({
+      prompt: finalPrompt,
+      mode: 'text',
+    });
+    const resolutionPages = parsePages(finalText).slice(0, 5);
+
+    if (resolutionPages.length < 3) {
+      throw new ApiError(502, 'Final resolution must have at least 3 pages');
+    }
+
+    const finalNodeId = randomUUID();
+    const persisted = await mapGeneratedPages({
+      pages: resolutionPages,
+      pageOffset: linearPages.length,
+      seedPrefix: 'final',
+      ownerId: story.ownerId,
+      publicStoryId: story.storyId,
+    });
+    uploads = persisted.uploads;
+    const compiledPages = [...linearPages, ...persisted.pages];
+    const classicOutput = buildCompletedStoryOutput({
+      pages: compiledPages,
+      finalTitle: story.title,
+    });
+    const now = new Date();
+    const result = { storyId: story.storyId, completedSlug: story.slug };
+
     await db.batch([
       db
         .update(InteractiveStoryNodes)
@@ -449,7 +503,7 @@ export const completeInteractiveStory = async ({
         choiceTaken: selectedChoice,
         choices: null,
         selectedChoice: null,
-        pages: persistedResolution,
+        pages: persisted.pages,
         isActive: false,
         createdAt: now,
       }),
@@ -483,36 +537,44 @@ export const completeInteractiveStory = async ({
         storyId: story.id,
         uploads,
       }),
+      buildGenerationSuccessUpdate({
+        jobId,
+        storyId: story.id,
+        result,
+        startedAt,
+      }),
     ]);
+
+    const refreshedNodes = await listStoryNodes(story.id, story.storyId);
+
+    return {
+      completedSlug: story.slug,
+      story: {
+        ...story,
+        status: 'completed',
+        currentNodeId: finalNodeId,
+        totalPages: compiledPages.length,
+        compiledPages,
+      },
+      nodes: refreshedNodes,
+    };
   } catch (error) {
-    await discardUploadedAssets(uploads);
+    await Promise.allSettled([discardUploadedAssets(uploads)]);
+    await failGenerationJob({ jobId, error, startedAt });
     throw error;
   }
-
-  const refreshedNodes = await listStoryNodes(story.id, story.storyId);
-
-  return {
-    completedSlug: story.slug,
-    story: {
-      ...story,
-      status: 'completed',
-      currentNodeId: finalNodeId,
-      totalPages: compiledPages.length,
-      compiledPages,
-    },
-    nodes: refreshedNodes,
-  };
 };
 
 export const continueInteractiveStory = async ({
   userId,
+  idempotencyKey,
   storyId,
   selectedChoice,
 }) => {
   const safeChoice = String(selectedChoice ?? '').trim();
   if (!safeChoice) throw new ApiError(400, 'Selected choice is required');
 
-  const { story } = await ensureOwnedStory({ userId, storyId });
+  const { user, story } = await ensureOwnedStory({ userId, storyId });
   if (story.status === 'completed')
     throw new ApiError(409, 'Story is already completed');
 
@@ -522,48 +584,65 @@ export const continueInteractiveStory = async ({
   if (activeNode.selectedChoice)
     throw new ApiError(409, 'This branch is already locked');
 
-  if (Number(activeNode.depth ?? 0) >= MAX_DEPTH) {
-    return completeInteractiveStory({
-      userId,
-      storyId,
-      selectedChoice: safeChoice,
-    });
+  const provider = getGenerationProviderMetadata();
+  const reservation = await reserveGenerationForProfile({
+    profileId: user.id,
+    idempotencyKey,
+    kind: 'interactive_continue',
+    request: { storyId: story.storyId, selectedChoice: safeChoice },
+    provider: provider.provider,
+    model: provider.model,
+    creditCost: 0,
+    storyId: story.id,
+  });
+  if (reservation.cached) {
+    return getInteractiveState(story);
   }
 
-  const linearNodes = getLinearNodes({ activeNode, nodes });
-  const linearPages = linearNodes.flatMap(node => node.pages ?? []);
-  const continuationPrompt = buildContinuationPrompt({
-    title: story.title,
-    selectedChoice: safeChoice,
-    context: makePageContext(linearPages, 6),
-    minPages: 3,
-    maxPages: 6,
-  });
+  const jobId = reservation.job.id;
+  const startedAt = Date.now();
+  let uploads = [];
 
-  const continuationText = await generateGeminiText({
-    prompt: continuationPrompt,
-    mode: 'text',
-  });
-  const payload = parseContinuationPayload(continuationText);
-  const pages = payload.pages.slice(0, 6);
-  const choices =
-    payload.choices.length >= 2
-      ? payload.choices.slice(0, 2)
-      : CONTINUATION_FALLBACK_CHOICES;
-
-  if (pages.length < 3) {
-    throw new ApiError(502, 'Each continuation must have minimum 3 pages');
-  }
-
-  const nextNodeId = randomUUID();
-  const { pages: persistedPages, uploads } = await mapGeneratedPages({
-    pages,
-    pageOffset: linearPages.length,
-    seedPrefix: 'branch',
-    ownerId: story.ownerId,
-    publicStoryId: story.storyId,
-  });
   try {
+    if (Number(activeNode.depth ?? 0) >= MAX_DEPTH) {
+      throw new ApiError(409, 'Maximum depth reached; complete the story');
+    }
+
+    const linearNodes = getLinearNodes({ activeNode, nodes });
+    const linearPages = linearNodes.flatMap(node => node.pages ?? []);
+    const continuationPrompt = buildContinuationPrompt({
+      title: story.title,
+      selectedChoice: safeChoice,
+      context: makePageContext(linearPages, 6),
+      minPages: 3,
+      maxPages: 6,
+    });
+
+    const continuationText = await generateNarrativeText({
+      prompt: continuationPrompt,
+      mode: 'text',
+    });
+    const payload = parseContinuationPayload(continuationText);
+    const pages = payload.pages.slice(0, 6);
+    const choices =
+      payload.choices.length >= 2
+        ? payload.choices.slice(0, 2)
+        : CONTINUATION_FALLBACK_CHOICES;
+
+    if (pages.length < 3) {
+      throw new ApiError(502, 'Each continuation must have minimum 3 pages');
+    }
+
+    const nextNodeId = randomUUID();
+    const persisted = await mapGeneratedPages({
+      pages,
+      pageOffset: linearPages.length,
+      seedPrefix: 'branch',
+      ownerId: story.ownerId,
+      publicStoryId: story.storyId,
+    });
+    uploads = persisted.uploads;
+
     await db.batch([
       db
         .update(InteractiveStoryNodes)
@@ -577,7 +656,7 @@ export const continueInteractiveStory = async ({
         choiceTaken: safeChoice,
         choices,
         selectedChoice: null,
-        pages: persistedPages,
+        pages: persisted.pages,
         isActive: true,
         createdAt: new Date(),
       }),
@@ -585,7 +664,7 @@ export const continueInteractiveStory = async ({
         .update(InteractiveStories)
         .set({
           currentNodeId: nextNodeId,
-          totalPages: linearPages.length + persistedPages.length,
+          totalPages: linearPages.length + persisted.pages.length,
           updatedAt: new Date(),
         })
         .where(eq(InteractiveStories.storyId, story.id)),
@@ -594,16 +673,23 @@ export const continueInteractiveStory = async ({
         storyId: story.id,
         uploads,
       }),
+      buildGenerationSuccessUpdate({
+        jobId,
+        storyId: story.id,
+        result: { storyId: story.storyId, nodeId: nextNodeId },
+        startedAt,
+      }),
     ]);
+
+    const refreshedStory = {
+      ...story,
+      currentNodeId: nextNodeId,
+      totalPages: linearPages.length + persisted.pages.length,
+    };
+    return getInteractiveState(refreshedStory);
   } catch (error) {
-    await discardUploadedAssets(uploads);
+    await Promise.allSettled([discardUploadedAssets(uploads)]);
+    await failGenerationJob({ jobId, error, startedAt });
     throw error;
   }
-
-  const refreshedStory = {
-    ...story,
-    currentNodeId: nextNodeId,
-    totalPages: linearPages.length + persistedPages.length,
-  };
-  return getInteractiveState(refreshedStory);
 };

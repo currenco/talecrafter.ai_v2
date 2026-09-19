@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { CreditAccounts, UserProfiles } from '../db/schema.js';
@@ -22,6 +21,27 @@ const selectUserByAuthId = async authUserId => {
     .limit(1);
 
   return rows[0] ?? null;
+};
+
+export const getUserByProfileId = async profileId => {
+  const rows = await db
+    .select({
+      id: UserProfiles.id,
+      authUserId: UserProfiles.authUserId,
+      userEmail: UserProfiles.userEmail,
+      userName: UserProfiles.userName,
+      userImage: UserProfiles.userImage,
+      role: UserProfiles.role,
+      accountId: CreditAccounts.id,
+      credit: CreditAccounts.balance,
+    })
+    .from(UserProfiles)
+    .innerJoin(CreditAccounts, eq(CreditAccounts.userId, UserProfiles.id))
+    .where(eq(UserProfiles.id, profileId))
+    .limit(1);
+
+  if (!rows[0]) throw new ApiError(404, 'User profile not found');
+  return rows[0];
 };
 
 export const getCurrentAuthUser = async userId => {
@@ -88,86 +108,4 @@ export const syncUserFromAuth = async userId => {
   const user = await selectUserByAuthId(userId);
   if (!user) throw new ApiError(500, 'Unable to initialize user profile');
   return user;
-};
-
-const mutateCredits = async ({ profileId, amount, reason, idempotencyKey }) => {
-  const safeAmount = Number(amount);
-  if (!Number.isInteger(safeAmount) || safeAmount === 0) {
-    throw new ApiError(400, 'Credit amount must be a non-zero integer');
-  }
-
-  const key = String(idempotencyKey || `${reason}:${randomUUID()}`);
-  const result = await db.execute(sql`
-    WITH updated AS (
-      UPDATE app.credit_accounts
-      SET balance = balance + ${safeAmount}, updated_at = now()
-      WHERE user_id = ${profileId}
-        AND balance + ${safeAmount} >= 0
-        AND NOT EXISTS (SELECT 1 FROM app.credit_ledger WHERE idempotency_key = ${key})
-      RETURNING id, user_id, balance
-    ), recorded AS (
-      INSERT INTO app.credit_ledger (account_id, amount, balance_after, reason, idempotency_key)
-      SELECT id, ${safeAmount}, balance, ${reason}, ${key} FROM updated
-      RETURNING account_id
-    )
-    SELECT
-      profile.id,
-      profile.auth_user_id AS "authUserId",
-      profile.email AS "userEmail",
-      profile.display_name AS "userName",
-      profile.avatar_url AS "userImage",
-      profile.role,
-      updated.id AS "accountId",
-      updated.balance AS credit
-    FROM updated
-    INNER JOIN recorded ON recorded.account_id = updated.id
-    INNER JOIN app.user_profiles profile ON profile.id = updated.user_id
-  `);
-
-  const user = result.rows?.[0];
-  if (!user) {
-    if (safeAmount < 0) throw new ApiError(402, 'Insufficient credits');
-    throw new ApiError(409, 'Credit mutation was already applied');
-  }
-  return user;
-};
-
-export const incrementUserCreditsByProfileId = async (
-  profileId,
-  amount = 1,
-  options = {}
-) =>
-  mutateCredits({
-    profileId,
-    amount: Math.abs(Number(amount)),
-    reason: options.reason || 'refund',
-    idempotencyKey: options.idempotencyKey,
-  });
-
-export const incrementUserCredits = async (
-  userId,
-  amount = 1,
-  options = {}
-) => {
-  const user = await syncUserFromAuth(userId);
-  return incrementUserCreditsByProfileId(user.id, amount, options);
-};
-
-export const decrementUserCredits = async (
-  userId,
-  amount = 1,
-  options = {}
-) => {
-  const safeAmount = Number(amount);
-  if (!Number.isInteger(safeAmount) || safeAmount <= 0) {
-    throw new ApiError(400, 'Credit amount must be a positive integer');
-  }
-
-  const user = await syncUserFromAuth(userId);
-  return mutateCredits({
-    profileId: user.id,
-    amount: -safeAmount,
-    reason: options.reason || 'generation',
-    idempotencyKey: options.idempotencyKey,
-  });
 };

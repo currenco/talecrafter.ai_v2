@@ -16,6 +16,7 @@
     "test": "node --test test/env.test.js test/storage.test.js",
     "test:auth": "RUN_AUTH_TESTS=true node --test test/auth.integration.test.js",
     "test:integration": "RUN_INTEGRATION_TESTS=true node --test test/payment.integration.test.js",
+    "test:generation": "RUN_GENERATION_TESTS=true node --test test/generation.integration.test.js",
     "test:storage": "RUN_STORAGE_TESTS=true node --test test/storage.integration.test.js",
     "check": "npm run lint && npm run format:check",
     "lint": "eslint .",

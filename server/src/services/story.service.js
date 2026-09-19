@@ -4,18 +4,22 @@ import { db } from '../db/index.js';
 import { Stories, StoryVersions, UserProfiles } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
 import {
+  buildStoryAssetsInsert,
   deleteStoryAssets,
   discardUploadedAssets,
-  recordStoryAssets,
   uploadAssetBatch,
 } from './asset.service.js';
-import { buildPollinationsImageUrl } from './image.service.js';
-import { generateStoryJson } from './gemini.service.js';
 import {
-  decrementUserCredits,
-  incrementUserCreditsByProfileId,
-  syncUserFromAuth,
-} from './user.service.js';
+  buildGeneratedImageSource,
+  generateStoryDraft,
+  getGenerationProviderMetadata,
+} from './generation.service.js';
+import {
+  buildGenerationSuccessUpdate,
+  failGenerationJob,
+  reserveGeneration,
+} from './generationJob.service.js';
+import { syncUserFromAuth } from './user.service.js';
 
 const MAX_BASE_SLUG_LENGTH = 70;
 
@@ -146,7 +150,7 @@ export const getStoryBySlug = async slug => {
   if (!safeSlug) throw new ApiError(400, 'Story slug is required');
 
   const result = await selectStories()
-    .where(eq(Stories.slug, safeSlug))
+    .where(and(eq(Stories.slug, safeSlug), eq(Stories.status, 'published')))
     .limit(1);
 
   return result[0] ?? null;
@@ -157,7 +161,9 @@ export const getStoryByStoryId = async storyId => {
   if (!safeStoryId) throw new ApiError(400, 'Story ID is required');
 
   const result = await selectStories()
-    .where(eq(Stories.storyId, safeStoryId))
+    .where(
+      and(eq(Stories.storyId, safeStoryId), eq(Stories.status, 'published'))
+    )
     .limit(1);
 
   return result[0] ?? null;
@@ -212,7 +218,7 @@ const prepareClassicStoryImages = async ({
       `${title} ${imageStyle ?? 'illustration'} book cover`
   );
   const coverPrompt = `Add-title-"${title.replace(/\s+/g, '-')}"-in-bold-text-for-book-cover-image,-${coverPromptSource.replace(/\s+/g, '-')}`;
-  const coverUrl = buildPollinationsImageUrl(coverPrompt, {
+  const coverUrl = buildGeneratedImageSource(coverPrompt, {
     width: 410,
     height: 630,
     seed: Date.now(),
@@ -224,7 +230,7 @@ const prepareClassicStoryImages = async ({
     ).trim();
     return {
       prompt,
-      sourceUrl: buildPollinationsImageUrl(prompt, {
+      sourceUrl: buildGeneratedImageSource(prompt, {
         seed: `${Date.now()}_${index}_${Math.floor(Math.random() * 100000)}`,
       }),
       purpose: `chapter-${index + 1}`,
@@ -258,13 +264,34 @@ const prepareClassicStoryImages = async ({
   };
 };
 
-export const createClassicStory = async ({ userId, payload }) => {
-  const reservedUser = await decrementUserCredits(userId, 1);
+export const createClassicStory = async ({
+  userId,
+  idempotencyKey,
+  payload,
+}) => {
+  const provider = getGenerationProviderMetadata();
+  const reservation = await reserveGeneration({
+    userId,
+    idempotencyKey,
+    kind: 'classic',
+    request: payload,
+    provider: provider.provider,
+    model: provider.model,
+    creditCost: 1,
+  });
+  if (reservation.cached) {
+    return { ...reservation.result, user: reservation.user };
+  }
+
+  const reservedUser = reservation.user;
+  const jobId = reservation.job.id;
+  const startedAt = Date.now();
   const storyId = randomUUID();
+  const internalStoryId = randomUUID();
   let uploads = [];
 
   try {
-    const generatedStory = await generateStoryJson({ formData: payload });
+    const generatedStory = await generateStoryDraft({ formData: payload });
     const prepared = await prepareClassicStoryImages({
       output: generatedStory,
       imageStyle: payload?.imageStyle,
@@ -278,9 +305,10 @@ export const createClassicStory = async ({ userId, payload }) => {
     });
     const slug = await generateUniqueStorySlug(title);
 
-    const inserted = await db
-      .insert(Stories)
-      .values({
+    const result = { id: internalStoryId, storyId, slug };
+    await db.batch([
+      db.insert(Stories).values({
+        id: internalStoryId,
         storyId,
         ownerId: reservedUser.id,
         slug,
@@ -293,35 +321,36 @@ export const createClassicStory = async ({ userId, payload }) => {
         imageStyle: payload?.imageStyle,
         coverImage: prepared.coverImage,
         publishedAt: new Date(),
-      })
-      .returning({
-        id: Stories.id,
-        storyId: Stories.storyId,
-        slug: Stories.slug,
-      });
-
-    await db.insert(StoryVersions).values({
-      storyId: inserted[0].id,
-      version: 1,
-      output: prepared.output,
-    });
-    await recordStoryAssets({
-      ownerId: reservedUser.id,
-      storyId: inserted[0].id,
-      uploads,
-    });
+      }),
+      db.insert(StoryVersions).values({
+        storyId: internalStoryId,
+        version: 1,
+        output: prepared.output,
+        providerPayload: provider,
+      }),
+      buildStoryAssetsInsert({
+        ownerId: reservedUser.id,
+        storyId: internalStoryId,
+        uploads,
+      }),
+      buildGenerationSuccessUpdate({
+        jobId,
+        storyId: internalStoryId,
+        result,
+        startedAt,
+      }),
+    ]);
 
     return {
-      ...inserted[0],
+      ...result,
       user: reservedUser,
     };
   } catch (error) {
-    await discardUploadedAssets(uploads);
-    await db.delete(Stories).where(eq(Stories.storyId, storyId));
-    await incrementUserCreditsByProfileId(reservedUser.id, 1, {
-      reason: 'generation_refund',
-      idempotencyKey: `classic-refund:${reservedUser.id}:${storyId}`,
-    });
+    await Promise.allSettled([
+      discardUploadedAssets(uploads),
+      db.delete(Stories).where(eq(Stories.storyId, storyId)),
+    ]);
+    await failGenerationJob({ jobId, error, startedAt });
     throw error;
   }
 };

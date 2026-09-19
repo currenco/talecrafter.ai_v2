@@ -54,9 +54,9 @@ Neon Functions and Neon AI Gateway are future options, not requirements for the 
 
 ## Current Status
 
-- Completed through: Phase 4 - Storage Boundary And Cloudinary Hardening
-- Next phase: Phase 5 - Core Domain And Generation Refactor (`not started`)
-- Current checkpoint: Neon Managed Auth, the fresh Neon PostgreSQL foundation, and provider-isolated Cloudinary media storage are integrated; Clerk and the temporary Neon Object Storage proof path are removed.
+- Completed through: Phase 5 - Core Domain And Generation Refactor
+- Next phase: Phase 6 - Payments And Credit Ledger (`not started`)
+- Current checkpoint: retained story workflows use stable ownership, provider-isolated generation and storage services, atomic generation jobs, idempotent retries, and auditable credit reservations/refunds.
 
 ## Phase 0 - Repository Reset And Baseline
 
@@ -331,9 +331,24 @@ Exit criteria:
 
 ## Phase 5 - Core Domain And Generation Refactor
 
-Status: not started
+Status: complete
 
 Goal: adapt retained product workflows to the new schema and identity model.
+
+Completed:
+
+- Added required `Idempotency-Key` handling for classic creation, interactive starters, continuations, and completion.
+- Added atomic generation claims that create the job, reserve credits, and write the charge ledger entry in one Neon statement.
+- Added cached success replay, request-hash conflict detection, in-progress responses, and one-time failure refunds.
+- Recorded provider, model, request hash, credit cost, attempt count, status, result, error details, and duration in `generation_jobs`.
+- Committed classic and interactive story mutations, assets, and successful job completion in atomic Neon batches.
+- Added a backend generation facade so controllers and domain services no longer import Gemini or Pollinations adapters directly.
+- Removed the legacy client-callable credit decrement endpoint so generation jobs exclusively own generation charges and refunds.
+- Preserved stable public IDs and unique human-readable slugs independently from internal primary keys.
+- Retained public exploration and slug reading, with public detail routes restricted to published stories.
+- Preserved browser PDF export and the interactive story-to-published-book completion workflow.
+- Added live concurrency coverage proving one key creates one charge and one story, successful retries replay cached identifiers, and failures refund once.
+- Recorded the implementation in `docs/architecture/phase-5-core-domain-generation.md`.
 
 Implementation tasks:
 

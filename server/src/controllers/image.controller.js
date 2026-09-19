@@ -1,11 +1,11 @@
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { persistStandaloneAsset } from '../services/asset.service.js';
-import { buildPollinationsImageUrl } from '../services/image.service.js';
+import { buildGeneratedImageSource } from '../services/generation.service.js';
 import { syncUserFromAuth } from '../services/user.service.js';
 
 export const createPollinationsImageUrl = asyncHandler(async (req, res) => {
-  const imageUrl = buildPollinationsImageUrl(req.validated.body.prompt, {
+  const imageUrl = buildGeneratedImageSource(req.validated.body.prompt, {
     seed: req.validated.body.seed,
     width: req.validated.body.width,
     height: req.validated.body.height,

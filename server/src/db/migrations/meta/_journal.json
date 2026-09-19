@@ -15,6 +15,13 @@
       "when": 1789825317456,
       "tag": "0001_fine_vampiro",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789830735886,
+      "tag": "0002_thankful_starfox",
+      "breakpoints": true
     }
   ]
 }

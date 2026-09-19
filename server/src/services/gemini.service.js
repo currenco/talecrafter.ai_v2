@@ -75,7 +75,8 @@ const storyHistory = [
   },
 ];
 
-const getModelName = () => process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
+export const getGeminiModelName = () =>
+  process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
 
 const createStoryChatSession = ({ apiKey, modelName }) => {
   const genAI = new GoogleGenerativeAI(apiKey);
@@ -99,7 +100,7 @@ export const generateGeminiText = async ({
     throw new ApiError(400, 'Prompt is required');
   }
 
-  const modelName = getModelName();
+  const modelName = getGeminiModelName();
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
