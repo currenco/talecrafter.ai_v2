@@ -95,9 +95,26 @@ Exit criteria:
 
 ## Phase 1 - Platform Proof Of Concept
 
-Status: not started
+Status: complete
 
 Goal: validate the new managed services before coupling the application to them.
+
+Implemented and verified:
+
+- Provisioned the fresh Neon project in `aws-us-east-2` with separate `production` and `dev/platform-poc` branches.
+- Enabled Managed Better Auth and public/private Object Storage buckets on the isolated development branch.
+- Added safe Neon/Auth/Storage variable names to the tracked client and server environment examples; real branch credentials remain ignored.
+- Added isolated Next.js Auth proxy and proof routes without replacing the active Clerk integration.
+- Verified email/password signup, login, logout, session restoration, protected navigation redirects, JWT validation from Express, and stable-user-ID admin authorization.
+- Verified email-code delivery and consumption, password reset followed by login with the replacement password, and Google OAuth consent followed by protected session restoration.
+- Verified backend upload, anonymous public read, denied anonymous private read, signed private read, content type, cache headers, application size/type validation, deletion, and missing-object behavior.
+- Recorded measured results, platform limits, production prerequisites, and decisions in `docs/architecture/phase-1-platform-poc.md`.
+
+Decision:
+
+- Use Neon Managed Better Auth. Keep authorization roles in application-owned tables keyed by the stable Auth user ID because managed JWT claims are fixed.
+- Use Neon Object Storage with immutable object keys, presigned private access, and a CDN in front of hot public assets.
+- Remove Clerk in Phase 3 and Cloudinary in Phase 4; Phase 1 intentionally leaves both active so the existing product remains runnable.
 
 Infrastructure tasks:
 

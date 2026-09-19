@@ -8,6 +8,8 @@ const environmentSchema = z.object({
     .default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(8000),
   DATABASE_URL: z.string().trim().min(1, 'DATABASE_URL is required'),
+  NEON_AUTH_BASE_URL: optionalString,
+  NEON_AUTH_JWKS_URL: optionalString,
   CLERK_SECRET_KEY: z.string().trim().min(1, 'CLERK_SECRET_KEY is required'),
   CORS_ORIGIN: optionalString,
   CLIENT_ORIGIN: optionalString,

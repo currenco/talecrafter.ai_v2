@@ -3,7 +3,8 @@ import {
   clerkMiddleware,
   createRouteMatcher,
 } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
+import { getNeonPocAuth } from "@/lib/neon-auth/server";
 
 const ADMIN_EMAIL = (
   process.env.ADMIN_EMAIL ??
@@ -20,7 +21,7 @@ const isProtectedRoute = createRouteMatcher([
 ]);
 const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 
-export default clerkMiddleware(async (auth, req) => {
+const handleClerkRequest = clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req) || isAdminRoute(req)) {
     await auth.protect();
   }
@@ -53,6 +54,26 @@ export default clerkMiddleware(async (auth, req) => {
     }
   }
 });
+
+export default function proxy(request: NextRequest, event: NextFetchEvent) {
+  const hasNeonVerifier = request.nextUrl.searchParams.has(
+    "neon_auth_session_verifier"
+  );
+
+  if (
+    request.nextUrl.pathname.startsWith("/platform-poc/protected") ||
+    hasNeonVerifier
+  ) {
+    return getNeonPocAuth()
+      .middleware({
+        loginUrl: hasNeonVerifier
+          ? "/platform-poc/oauth-session-required"
+          : "/platform-poc/sign-in",
+      })(request);
+  }
+
+  return handleClerkRequest(request, event);
+}
 
 export const config = {
   matcher: [

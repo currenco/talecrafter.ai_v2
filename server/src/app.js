@@ -17,6 +17,7 @@ import interactiveStoryRouter from './routes/interactiveStory.route.js';
 import paymentRouter from './routes/payment.route.js';
 import { handleStripeWebhook } from './controllers/payment.controller.js';
 import adminRouter from './routes/admin.route.js';
+import platformPocRouter from './routes/platformPoc.route.js';
 
 const app = express();
 
@@ -64,6 +65,7 @@ app.use(cookieParser());
 app.use(API_PREFIX, apiRateLimit);
 
 app.use(`${API_PREFIX}/health`, healthRouter);
+app.use(`${API_PREFIX}/platform-poc`, platformPocRouter);
 
 app.use(clerkMiddleware());
 
