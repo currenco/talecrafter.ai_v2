@@ -12,20 +12,20 @@ Status: complete.
 - Proof branch: `dev/platform-poc`
 - The proof used only branch-scoped development credentials and temporary data on `dev/platform-poc`.
 - Temporary users, verification records, and storage objects created by automated checks were deleted.
-- Existing Clerk and Cloudinary application paths remain active. Their removal belongs to Phases 3 and 4.
+- At the time of this proof, the existing Clerk and Cloudinary application paths remained active. Phase 3 later removed Clerk, and Phase 4 retained Cloudinary behind an application-owned storage boundary.
 
 The selected region supports the required Neon services. The eventual Express deployment should use the same region or the region decision must be revisited before production launch.
 
 ## Reproducible Checks
 
-From `server/`, with the repository root `.env` linked to `dev/platform-poc`:
+The original proof commands were:
 
 ```bash
 npm run poc:auth
 npm run poc:storage
 ```
 
-Both scripts refuse to run unless `NEON_BRANCH` starts with `dev/`. They generate unique test identities/object keys and clean up their own records and objects.
+The proof scripts refused to run unless `NEON_BRANCH` started with `dev/`. These temporary scripts are no longer runnable: the authentication proof was retired after Phase 3, and the storage script and its AWS SDK dependencies were removed after Cloudinary was selected in Phase 4. The results below remain as the decision record.
 
 ## Authentication Results
 
@@ -74,12 +74,12 @@ Passed:
 
 Observed single-run development latency:
 
-| Operation | Time |
-| --- | ---: |
-| Public upload | 388 ms |
-| Public read | 956 ms |
-| Private upload | 1180 ms |
-| Signed private read | 257 ms |
+| Operation           |    Time |
+| ------------------- | ------: |
+| Public upload       |  388 ms |
+| Public read         |  956 ms |
+| Private upload      | 1180 ms |
+| Signed private read |  257 ms |
 
 These are connectivity checks, not a benchmark. Production monitoring must measure representative object sizes and user regions.
 
@@ -93,6 +93,6 @@ Current Neon limits and delivery considerations:
 
 ## Decision Gate
 
-Storage decision: use Neon Object Storage for new product assets. Keep object keys as durable identity, use immutable keys and cache headers, presign private reads, and add a CDN for public delivery. Retain Cloudinary only if Phase 4 confirms a product requirement for dynamic transformations that the backend cannot reasonably own.
+Storage decision at Phase 1: provisionally use Neon Object Storage for new product assets. Phase 4 superseded this decision and selected Cloudinary for its free-media runway, integrated delivery, and transformation support. Durable object identity and the application-owned adapter remain part of the final design.
 
-Auth decision: use Neon Managed Better Auth. The verified contract fits the current requirements, with application-owned role lookup compensating for fixed JWT claims. Move to self-hosted Better Auth only if a later requirement needs unsupported features such as custom plugins, MFA, passkeys, or custom JWT claims; that would not require changing Neon PostgreSQL or Object Storage.
+Auth decision: use Neon Managed Better Auth. The verified contract fits the current requirements, with application-owned role lookup compensating for fixed JWT claims. Move to self-hosted Better Auth only if a later requirement needs unsupported features such as custom plugins, MFA, passkeys, or custom JWT claims; that would not require changing Neon PostgreSQL or Cloudinary storage.

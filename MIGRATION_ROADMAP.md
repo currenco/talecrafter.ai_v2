@@ -27,7 +27,7 @@ Express API
       |
       +-- Neon Managed Better Auth
       +-- Neon PostgreSQL + Drizzle
-      +-- Neon Object Storage
+      +-- Cloudinary media storage
       +-- Stripe
       +-- AI and image-generation providers
 ```
@@ -37,7 +37,7 @@ Preferred choices:
 - Database: a fresh Neon PostgreSQL project.
 - ORM and migrations: Drizzle, owned by `server/`.
 - Authentication: Neon Managed Better Auth, subject to the Phase 1 proof of concept.
-- File storage: Neon Object Storage, subject to the Phase 1 proof of concept.
+- File storage: Cloudinary behind a backend-owned `ObjectStorage` boundary.
 - API: keep the existing Express service during the migration.
 - Payments: keep Stripe behind the Express API.
 - AI providers: keep provider-specific code behind backend-owned service interfaces.
@@ -51,6 +51,12 @@ Neon Functions and Neon AI Gateway are future options, not requirements for the 
 - `in progress`: implementation or verification is underway.
 - `blocked`: a documented decision or external prerequisite prevents progress.
 - `complete`: implementation, tests, and review are finished.
+
+## Current Status
+
+- Completed through: Phase 4 - Storage Boundary And Cloudinary Hardening
+- Next phase: Phase 5 - Core Domain And Generation Refactor (`not started`)
+- Current checkpoint: Neon Managed Auth, the fresh Neon PostgreSQL foundation, and provider-isolated Cloudinary media storage are integrated; Clerk and the temporary Neon Object Storage proof path are removed.
 
 ## Phase 0 - Repository Reset And Baseline
 
@@ -84,7 +90,7 @@ Retained baseline capabilities:
 Deferred or removed from the baseline:
 
 - Feedback collection will be reconsidered with the new product UI.
-- Product branding, Clerk, Cloudinary, and the current database schema remain temporarily and are replaced only in their dedicated phases.
+- Product branding remains temporary; the database, authentication, and storage foundations are now handled by Phases 2 through 4.
 
 Exit criteria:
 
@@ -113,8 +119,8 @@ Implemented and verified:
 Decision:
 
 - Use Neon Managed Better Auth. Keep authorization roles in application-owned tables keyed by the stable Auth user ID because managed JWT claims are fixed.
-- Use Neon Object Storage with immutable object keys, presigned private access, and a CDN in front of hot public assets.
-- Remove Clerk in Phase 3 and Cloudinary in Phase 4; Phase 1 intentionally leaves both active so the existing product remains runnable.
+- The Phase 1 storage proof selected Neon Object Storage provisionally. Phase 4 superseded that choice after the product selected Cloudinary for its longer free-media runway and integrated delivery/transformation service.
+- Remove Clerk in Phase 3 and revisit the active Cloudinary path in Phase 4; Phase 1 intentionally leaves both active so the existing product remains runnable.
 
 Infrastructure tasks:
 
@@ -148,8 +154,8 @@ Decision gate:
 
 - Use Neon Managed Better Auth if the proof covers all product requirements.
 - Use self-hosted Better Auth in Express with Neon PostgreSQL if custom plugins or handlers are required.
-- Use Neon Object Storage if persistence and delivery are sufficient.
-- Retain Cloudinary only if required image transformation or delivery features are missing.
+- Compare Neon Object Storage and Cloudinary against the product's current cost, delivery, and transformation needs before Phase 4.
+- Record the final provider decision before replacing the active persistence path.
 - Stop and document the decision before Phase 2.
 
 Exit criteria:
@@ -275,11 +281,23 @@ Exit criteria:
 - Every protected server operation derives identity from a validated session.
 - Client and server checks pass.
 
-## Phase 4 - Storage Migration
+## Phase 4 - Storage Boundary And Cloudinary Hardening
 
-Status: not started
+Status: complete
 
-Goal: replace provider-specific image persistence with an application-owned storage boundary.
+Goal: retain Cloudinary for media while removing provider-specific persistence from product workflows.
+
+Completed:
+
+- Selected Cloudinary as the project media provider and documented the decision in `docs/architecture/phase-4-storage-boundary.md`.
+- Added an application-owned `ObjectStorage` contract with a single Cloudinary adapter.
+- Added stable per-user/per-story object paths and persisted ownership, provider, key, MIME type, size, access, and status in `app.assets`.
+- Routed classic generation, interactive generation, and the authenticated image-persistence endpoint through the storage boundary.
+- Removed temporary source-URL fallbacks so completed stories only reference durable Cloudinary assets.
+- Added provider cleanup to owner, admin, interactive-story, and admin-user deletion paths.
+- Added source-host, MIME, byte-size, timeout, provider-failure, idempotent-delete, asset-uniqueness, and cascade-deletion coverage.
+- Removed the Neon Object Storage proof script, AWS SDK dependencies, bucket declaration, and S3 environment template values.
+- Verified a real Cloudinary upload, CDN read, and deletion without leaving the smoke-test object behind.
 
 Implementation tasks:
 
@@ -290,24 +308,25 @@ Implementation tasks:
 - Use predictable object paths such as `users/{userId}/stories/{storyId}/{assetId}`.
 - Validate source domains, MIME types, content lengths, decoded sizes, and request timeouts.
 - Keep uploads backend-owned unless a later design explicitly approves short-lived signed direct uploads.
-- Update story generation, interactive generation, avatars, exports, and deletion flows.
+- Update story generation, interactive generation, and deletion flows. Avatars remain Auth-owned URLs and PDF exports remain browser-generated, so neither is an application storage path today.
 
 Removal tasks:
 
-- Remove Cloudinary code, environment variables, and dependency only after all active upload paths use the new adapter.
+- Keep Cloudinary code, environment variables, and dependency isolated to the selected adapter.
+- Remove the temporary Neon Object Storage proof runtime and AWS SDK dependencies.
 - Preserve old remote URLs only for optional imported records.
 
 Verification:
 
-- Public and private upload tests.
+- Public upload, delivery, and deletion tests. Private media is not an active product requirement.
 - Invalid MIME, oversized source, timeout, and provider failure tests.
 - Asset ownership and deletion tests.
-- Story generation tests confirming persisted images survive provider source expiry.
+- Delivery tests confirming persisted Cloudinary images remain available independently of the temporary source response.
 
 Exit criteria:
 
 - All new assets are represented in the database and selected object storage.
-- No active application path depends directly on Cloudinary.
+- No active domain workflow depends directly on Cloudinary; only the storage adapter imports its SDK.
 - Failed storage operations cannot leave completed story records with missing required assets.
 
 ## Phase 5 - Core Domain And Generation Refactor

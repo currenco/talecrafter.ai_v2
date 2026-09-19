@@ -10,9 +10,12 @@ import {
 } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
 import {
-  buildPollinationsImageUrl,
-  uploadImageToCloudinary,
-} from './image.service.js';
+  buildStoryAssetsInsert,
+  deleteStoryAssets,
+  discardUploadedAssets,
+  uploadAssetBatch,
+} from './asset.service.js';
+import { buildPollinationsImageUrl } from './image.service.js';
 import { generateGeminiText, generateStoryJson } from './gemini.service.js';
 import { generateUniqueStorySlug } from './story.service.js';
 import {
@@ -39,15 +42,6 @@ const STARTER_FALLBACK_CHOICES = [
   'Follow the hopeful path',
   'Explore the unknown path',
 ];
-
-const persistWithFallback = async imageUrl => {
-  try {
-    const result = await uploadImageToCloudinary(imageUrl);
-    return result.secureUrl || imageUrl;
-  } catch {
-    return imageUrl;
-  }
-};
 
 const mapStoryNode = (item, publicStoryId) => ({
   nodeId: String(item.nodeId),
@@ -141,26 +135,40 @@ const getLinearNodes = ({ activeNode, nodes }) => {
   return chain.reverse();
 };
 
-const mapGeneratedPages = async ({ pages, pageOffset, seedPrefix }) => {
-  const mappedPages = await Promise.all(
-    pages.map(async (page, index) => {
-      const prompt = String(
-        page.imagePrompt || page.text || 'Story illustration'
-      );
-      const imageUrl = buildPollinationsImageUrl(prompt, {
+const mapGeneratedPages = async ({
+  pages,
+  pageOffset,
+  seedPrefix,
+  ownerId,
+  publicStoryId,
+}) => {
+  const sources = pages.map((page, index) => {
+    const prompt = String(
+      page.imagePrompt || page.text || 'Story illustration'
+    );
+    return {
+      prompt,
+      sourceUrl: buildPollinationsImageUrl(prompt, {
         seed: `${Date.now()}_${seedPrefix}_${index}_${Math.floor(Math.random() * 100000)}`,
-      });
+      }),
+      purpose: `${seedPrefix}-${pageOffset + index + 1}`,
+    };
+  });
+  const uploads = await uploadAssetBatch({
+    ownerId,
+    publicStoryId,
+    images: sources.map(({ sourceUrl, purpose }) => ({ sourceUrl, purpose })),
+  });
 
-      return {
-        ...page,
-        pageNumber: pageOffset + index + 1,
-        imagePrompt: prompt,
-        imageUrl: await persistWithFallback(imageUrl),
-      };
-    })
-  );
-
-  return mappedPages;
+  return {
+    pages: pages.map((page, index) => ({
+      ...page,
+      pageNumber: pageOffset + index + 1,
+      imagePrompt: sources[index].prompt,
+      imageUrl: uploads[index].url,
+    })),
+    uploads,
+  };
 };
 
 const getCompletedStorySlug = async storyId => {
@@ -187,7 +195,7 @@ const getInteractiveState = async story => {
   };
 };
 
-const saveCompletedToClassicStory = async ({ story, pages, finalTitle }) => {
+const buildCompletedStoryOutput = ({ pages, finalTitle }) => {
   const classicOutput = {
     title: finalTitle,
     chapters: pages.map((page, index) => ({
@@ -198,35 +206,16 @@ const saveCompletedToClassicStory = async ({ story, pages, finalTitle }) => {
       imageUrl: page.imageUrl,
     })),
   };
-
-  const slug = String(story.slug ?? '').trim();
-
-  await db
-    .update(Stories)
-    .set({
-      status: 'published',
-      title: finalTitle || story.title,
-      coverImage: pages[0]?.imageUrl ?? story.coverImage,
-      publishedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(eq(Stories.id, story.id));
-
-  await db
-    .update(StoryVersions)
-    .set({ output: classicOutput })
-    .where(
-      and(eq(StoryVersions.storyId, story.id), eq(StoryVersions.version, 1))
-    );
-
-  return slug;
+  return classicOutput;
 };
 
 export const createInteractiveStarter = async ({ userId, payload }) => {
   const reservedUser = await decrementUserCredits(userId, 1);
   const formData = payload ?? {};
   const storyId = randomUUID();
+  const internalStoryId = randomUUID();
   const rootNodeId = randomUUID();
+  let uploads = [];
 
   try {
     const story = await generateStoryJson({ formData, interactive: true });
@@ -234,24 +223,7 @@ export const createInteractiveStarter = async ({ userId, payload }) => {
     const slug = await generateUniqueStorySlug(interactiveTitle);
     const chapters = Array.isArray(story?.chapters) ? story.chapters : [];
 
-    const starterPages = await Promise.all(
-      chapters.map(async (chapter, index) => {
-        const prompt = String(
-          chapter?.imagePrompt ?? chapter?.textPrompt ?? 'Story illustration'
-        );
-        const seed = `${Date.now()}_${index}_${Math.floor(Math.random() * 100000)}`;
-        const pollinationsUrl = buildPollinationsImageUrl(prompt, { seed });
-        return {
-          pageNumber: index + 1,
-          title: String(chapter?.title ?? `Chapter ${index + 1}`),
-          text: String(chapter?.textPrompt ?? ''),
-          imagePrompt: prompt,
-          imageUrl: await persistWithFallback(pollinationsUrl),
-        };
-      })
-    );
-
-    if (starterPages.length < MIN_STARTER_PAGES) {
+    if (chapters.length < MIN_STARTER_PAGES) {
       throw new ApiError(400, 'Starter story must have at least 5 pages');
     }
 
@@ -271,7 +243,37 @@ export const createInteractiveStarter = async ({ userId, payload }) => {
       height: 630,
       seed: coverSeed,
     });
-    const persistedCoverImageUrl = await persistWithFallback(coverImageUrl);
+    const starterSources = chapters.map((chapter, index) => {
+      const prompt = String(
+        chapter?.imagePrompt ?? chapter?.textPrompt ?? 'Story illustration'
+      );
+      return {
+        prompt,
+        sourceUrl: buildPollinationsImageUrl(prompt, {
+          seed: `${Date.now()}_${index}_${Math.floor(Math.random() * 100000)}`,
+        }),
+        purpose: `starter-${index + 1}`,
+      };
+    });
+    uploads = await uploadAssetBatch({
+      ownerId: reservedUser.id,
+      publicStoryId: storyId,
+      images: [
+        ...starterSources.map(({ sourceUrl, purpose }) => ({
+          sourceUrl,
+          purpose,
+        })),
+        { sourceUrl: coverImageUrl, purpose: 'cover' },
+      ],
+    });
+    const starterPages = chapters.map((chapter, index) => ({
+      pageNumber: index + 1,
+      title: String(chapter?.title ?? `Chapter ${index + 1}`),
+      text: String(chapter?.textPrompt ?? ''),
+      imagePrompt: starterSources[index].prompt,
+      imageUrl: uploads[index].url,
+    }));
+    const persistedCoverImageUrl = uploads.at(-1).url;
 
     let starterChoices = STARTER_FALLBACK_CHOICES;
     try {
@@ -287,9 +289,9 @@ export const createInteractiveStarter = async ({ userId, payload }) => {
 
     const now = new Date();
 
-    const [insertedStory] = await db
-      .insert(Stories)
-      .values({
+    await db.batch([
+      db.insert(Stories).values({
+        id: internalStoryId,
         storyId,
         ownerId: reservedUser.id,
         slug,
@@ -303,42 +305,42 @@ export const createInteractiveStarter = async ({ userId, payload }) => {
         coverImage: persistedCoverImageUrl,
         createdAt: now,
         updatedAt: now,
-      })
-      .returning({ id: Stories.id });
-
-    await db.insert(StoryVersions).values({
-      storyId: insertedStory.id,
-      version: 1,
-      output: {
-        title: interactiveTitle,
-        chapters: starterPages,
-      },
-    });
-
-    await db.insert(InteractiveStories).values({
-      storyId: insertedStory.id,
-      rootNodeId,
-      currentNodeId: rootNodeId,
-      totalPages: starterPages.length,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await db.insert(InteractiveStoryNodes).values({
-      nodeId: rootNodeId,
-      storyId: insertedStory.id,
-      parentNodeId: null,
-      depth: 0,
-      choiceTaken: null,
-      choices: starterChoices,
-      selectedChoice: null,
-      pages: starterPages,
-      isActive: true,
-      createdAt: now,
-    });
+      }),
+      db.insert(StoryVersions).values({
+        storyId: internalStoryId,
+        version: 1,
+        output: { title: interactiveTitle, chapters: starterPages },
+      }),
+      db.insert(InteractiveStories).values({
+        storyId: internalStoryId,
+        rootNodeId,
+        currentNodeId: rootNodeId,
+        totalPages: starterPages.length,
+        createdAt: now,
+        updatedAt: now,
+      }),
+      db.insert(InteractiveStoryNodes).values({
+        nodeId: rootNodeId,
+        storyId: internalStoryId,
+        parentNodeId: null,
+        depth: 0,
+        choiceTaken: null,
+        choices: starterChoices,
+        selectedChoice: null,
+        pages: starterPages,
+        isActive: true,
+        createdAt: now,
+      }),
+      buildStoryAssetsInsert({
+        ownerId: reservedUser.id,
+        storyId: internalStoryId,
+        uploads,
+      }),
+    ]);
 
     return { storyId, user: reservedUser };
   } catch (error) {
+    await discardUploadedAssets(uploads);
     await db.delete(Stories).where(eq(Stories.storyId, storyId));
     await incrementUserCreditsByProfileId(reservedUser.id, 1, {
       reason: 'generation_refund',
@@ -369,6 +371,7 @@ export const deleteCurrentUserInteractiveStory = async ({
 }) => {
   const { story } = await ensureOwnedStory({ userId, storyId });
 
+  await deleteStoryAssets(story.id);
   const deleted = await db
     .delete(Stories)
     .where(eq(Stories.id, story.id))
@@ -418,56 +421,78 @@ export const completeInteractiveStory = async ({
   }
 
   const finalNodeId = randomUUID();
-  const persistedResolution = await mapGeneratedPages({
+  const { pages: persistedResolution, uploads } = await mapGeneratedPages({
     pages: resolutionPages,
     pageOffset: linearPages.length,
     seedPrefix: 'final',
+    ownerId: story.ownerId,
+    publicStoryId: story.storyId,
   });
-
-  await db
-    .update(InteractiveStoryNodes)
-    .set({ isActive: false, selectedChoice })
-    .where(eq(InteractiveStoryNodes.nodeId, activeNode.nodeId));
-
-  await db.insert(InteractiveStoryNodes).values({
-    nodeId: finalNodeId,
-    storyId: story.id,
-    parentNodeId: activeNode.nodeId,
-    depth: Math.min(MAX_DEPTH, Number(activeNode.depth ?? 0) + 1),
-    choiceTaken: selectedChoice,
-    choices: null,
-    selectedChoice: null,
-    pages: persistedResolution,
-    isActive: false,
-    createdAt: new Date(),
-  });
-
-  const refreshedNodes = await listStoryNodes(story.id, story.storyId);
-  const finalNode = refreshedNodes.find(node => node.nodeId === finalNodeId);
-  const chain = getLinearNodes({
-    activeNode: finalNode,
-    nodes: refreshedNodes,
-  });
-  const compiledPages = chain.flatMap(node => node.pages ?? []);
-
-  await db
-    .update(InteractiveStories)
-    .set({
-      currentNodeId: finalNodeId,
-      totalPages: compiledPages.length,
-      compiledPages,
-      updatedAt: new Date(),
-    })
-    .where(eq(InteractiveStories.storyId, story.id));
-
-  const finalSlug = await saveCompletedToClassicStory({
-    story,
+  const compiledPages = [...linearPages, ...persistedResolution];
+  const classicOutput = buildCompletedStoryOutput({
     pages: compiledPages,
     finalTitle: story.title,
   });
+  const now = new Date();
+
+  try {
+    await db.batch([
+      db
+        .update(InteractiveStoryNodes)
+        .set({ isActive: false, selectedChoice })
+        .where(eq(InteractiveStoryNodes.nodeId, activeNode.nodeId)),
+      db.insert(InteractiveStoryNodes).values({
+        nodeId: finalNodeId,
+        storyId: story.id,
+        parentNodeId: activeNode.nodeId,
+        depth: Math.min(MAX_DEPTH, Number(activeNode.depth ?? 0) + 1),
+        choiceTaken: selectedChoice,
+        choices: null,
+        selectedChoice: null,
+        pages: persistedResolution,
+        isActive: false,
+        createdAt: now,
+      }),
+      db
+        .update(InteractiveStories)
+        .set({
+          currentNodeId: finalNodeId,
+          totalPages: compiledPages.length,
+          compiledPages,
+          updatedAt: now,
+        })
+        .where(eq(InteractiveStories.storyId, story.id)),
+      db
+        .update(Stories)
+        .set({
+          status: 'published',
+          title: story.title,
+          coverImage: compiledPages[0]?.imageUrl ?? story.coverImage,
+          publishedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(Stories.id, story.id)),
+      db
+        .update(StoryVersions)
+        .set({ output: classicOutput })
+        .where(
+          and(eq(StoryVersions.storyId, story.id), eq(StoryVersions.version, 1))
+        ),
+      buildStoryAssetsInsert({
+        ownerId: story.ownerId,
+        storyId: story.id,
+        uploads,
+      }),
+    ]);
+  } catch (error) {
+    await discardUploadedAssets(uploads);
+    throw error;
+  }
+
+  const refreshedNodes = await listStoryNodes(story.id, story.storyId);
 
   return {
-    completedSlug: finalSlug,
+    completedSlug: story.slug,
     story: {
       ...story,
       status: 'completed',
@@ -531,38 +556,49 @@ export const continueInteractiveStory = async ({
   }
 
   const nextNodeId = randomUUID();
-  const persistedPages = await mapGeneratedPages({
+  const { pages: persistedPages, uploads } = await mapGeneratedPages({
     pages,
     pageOffset: linearPages.length,
     seedPrefix: 'branch',
+    ownerId: story.ownerId,
+    publicStoryId: story.storyId,
   });
-
-  await db
-    .update(InteractiveStoryNodes)
-    .set({ isActive: false, selectedChoice: safeChoice })
-    .where(eq(InteractiveStoryNodes.nodeId, activeNode.nodeId));
-
-  await db.insert(InteractiveStoryNodes).values({
-    nodeId: nextNodeId,
-    storyId: story.id,
-    parentNodeId: activeNode.nodeId,
-    depth: Number(activeNode.depth ?? 0) + 1,
-    choiceTaken: safeChoice,
-    choices,
-    selectedChoice: null,
-    pages: persistedPages,
-    isActive: true,
-    createdAt: new Date(),
-  });
-
-  await db
-    .update(InteractiveStories)
-    .set({
-      currentNodeId: nextNodeId,
-      totalPages: linearPages.length + persistedPages.length,
-      updatedAt: new Date(),
-    })
-    .where(eq(InteractiveStories.storyId, story.id));
+  try {
+    await db.batch([
+      db
+        .update(InteractiveStoryNodes)
+        .set({ isActive: false, selectedChoice: safeChoice })
+        .where(eq(InteractiveStoryNodes.nodeId, activeNode.nodeId)),
+      db.insert(InteractiveStoryNodes).values({
+        nodeId: nextNodeId,
+        storyId: story.id,
+        parentNodeId: activeNode.nodeId,
+        depth: Number(activeNode.depth ?? 0) + 1,
+        choiceTaken: safeChoice,
+        choices,
+        selectedChoice: null,
+        pages: persistedPages,
+        isActive: true,
+        createdAt: new Date(),
+      }),
+      db
+        .update(InteractiveStories)
+        .set({
+          currentNodeId: nextNodeId,
+          totalPages: linearPages.length + persistedPages.length,
+          updatedAt: new Date(),
+        })
+        .where(eq(InteractiveStories.storyId, story.id)),
+      buildStoryAssetsInsert({
+        ownerId: story.ownerId,
+        storyId: story.id,
+        uploads,
+      }),
+    ]);
+  } catch (error) {
+    await discardUploadedAssets(uploads);
+    throw error;
+  }
 
   const refreshedStory = {
     ...story,

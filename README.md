@@ -24,7 +24,7 @@ The following capabilities are intentionally retained while the infrastructure i
 
 Feedback collection is not part of the retained baseline and will be reconsidered with the new product experience.
 
-Clerk, the current Neon database schema, and Cloudinary are temporary implementation dependencies. They remain only until their dedicated migration phases replace them. The target direction is a fresh Neon PostgreSQL project, stable user-ID ownership, managed or self-hosted Better Auth based on the proof of concept, and object storage behind a backend-owned adapter.
+The infrastructure foundation now uses Neon PostgreSQL, Neon Managed Auth, and Cloudinary media storage behind a backend-owned adapter. Application ownership uses stable Auth user IDs, while storage records retain provider and object-key identity independently from delivery URLs.
 
 ## Local Development
 

@@ -3,11 +3,13 @@ import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   CreditAccounts,
+  Payments,
   Stories,
   StoryVersions,
   UserProfiles,
 } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
+import { deleteStoryAssets, deleteUserAssets } from './asset.service.js';
 
 export const listAdminStories = async () =>
   db
@@ -51,12 +53,20 @@ export const deleteAdminStory = async storyId => {
   const safeStoryId = String(storyId ?? '').trim();
   if (!safeStoryId) throw new ApiError(400, 'Story ID is required');
 
+  const [story] = await db
+    .select({ id: Stories.id })
+    .from(Stories)
+    .where(eq(Stories.storyId, safeStoryId))
+    .limit(1);
+
+  if (!story) throw new ApiError(404, 'Story not found');
+
+  await deleteStoryAssets(story.id);
   const [deleted] = await db
     .delete(Stories)
-    .where(eq(Stories.storyId, safeStoryId))
+    .where(eq(Stories.id, story.id))
     .returning({ storyId: Stories.storyId });
 
-  if (!deleted) throw new ApiError(404, 'Story not found');
   return deleted;
 };
 
@@ -64,12 +74,28 @@ export const deleteAdminUser = async userId => {
   const safeUserId = String(userId ?? '').trim();
   if (!safeUserId) throw new ApiError(400, 'User ID is required');
 
+  const [user] = await db
+    .select({ id: UserProfiles.id })
+    .from(UserProfiles)
+    .where(eq(UserProfiles.id, safeUserId))
+    .limit(1);
+  if (!user) throw new ApiError(404, 'User not found');
+
+  const [payment] = await db
+    .select({ id: Payments.id })
+    .from(Payments)
+    .where(eq(Payments.userId, safeUserId))
+    .limit(1);
+  if (payment) {
+    throw new ApiError(409, 'Users with payment history cannot be deleted');
+  }
+
+  await deleteUserAssets(safeUserId);
   const [deleted] = await db
     .delete(UserProfiles)
     .where(eq(UserProfiles.id, safeUserId))
     .returning({ id: UserProfiles.id });
 
-  if (!deleted) throw new ApiError(404, 'User not found');
   return deleted;
 };
 

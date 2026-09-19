@@ -20,6 +20,7 @@ test(
       import('../src/db/schema.js'),
     ]);
     const {
+      Assets,
       CreditAccounts,
       CreditLedger,
       GenerationJobs,
@@ -71,9 +72,35 @@ test(
         slug: `schema-test-${suffix}`,
         title: 'Schema Test Story',
       });
-      await db
-        .insert(StoryVersions)
-        .values({ storyId, version: 1, output: { chapters: [] } });
+      const assetId = randomUUID();
+      await db.batch([
+        db
+          .insert(StoryVersions)
+          .values({ storyId, version: 1, output: { chapters: [] } }),
+        db.insert(Assets).values({
+          id: assetId,
+          ownerId: profileId,
+          storyId,
+          provider: 'cloudinary',
+          bucket: 'schema-test',
+          objectKey: `schema-test/${suffix}`,
+          access: 'public',
+          mimeType: 'image/png',
+          byteSize: 4,
+        }),
+      ]);
+      await assert.rejects(
+        db.insert(Assets).values({
+          ownerId: profileId,
+          storyId,
+          provider: 'cloudinary',
+          bucket: 'schema-test',
+          objectKey: `schema-test/${suffix}`,
+          access: 'public',
+          mimeType: 'image/png',
+          byteSize: 4,
+        })
+      );
       await db.insert(GenerationJobs).values({
         ownerId: profileId,
         idempotencyKey: `generation:${suffix}`,
@@ -95,6 +122,11 @@ test(
         .from(Stories)
         .where(eq(Stories.id, storyId));
       assert.equal(remainingStory, undefined);
+      const [remainingAsset] = await db
+        .select()
+        .from(Assets)
+        .where(eq(Assets.id, assetId));
+      assert.equal(remainingAsset, undefined);
     } finally {
       await db.delete(UserProfiles).where(eq(UserProfiles.id, profileId));
     }

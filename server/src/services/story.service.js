@@ -4,15 +4,18 @@ import { db } from '../db/index.js';
 import { Stories, StoryVersions, UserProfiles } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
 import {
+  deleteStoryAssets,
+  discardUploadedAssets,
+  recordStoryAssets,
+  uploadAssetBatch,
+} from './asset.service.js';
+import { buildPollinationsImageUrl } from './image.service.js';
+import { generateStoryJson } from './gemini.service.js';
+import {
   decrementUserCredits,
   incrementUserCreditsByProfileId,
   syncUserFromAuth,
 } from './user.service.js';
-import {
-  buildPollinationsImageUrl,
-  uploadImageToCloudinary,
-} from './image.service.js';
-import { generateStoryJson } from './gemini.service.js';
 
 const MAX_BASE_SLUG_LENGTH = 70;
 
@@ -195,35 +198,12 @@ export const listRelatedStories = async ({
   };
 };
 
-const persistImageWithFallback = async imageUrl => {
-  try {
-    const result = await uploadImageToCloudinary(imageUrl);
-    return result.secureUrl || imageUrl;
-  } catch {
-    return imageUrl;
-  }
-};
-
-const mapWithConcurrency = async (items, concurrency, mapper) => {
-  const results = new Array(items.length);
-  let cursor = 0;
-
-  const workers = Array.from(
-    { length: Math.min(concurrency, Math.max(1, items.length)) },
-    async () => {
-      while (cursor < items.length) {
-        const index = cursor;
-        cursor += 1;
-        results[index] = await mapper(items[index], index);
-      }
-    }
-  );
-
-  await Promise.all(workers);
-  return results;
-};
-
-const prepareClassicStoryImages = async ({ output, imageStyle }) => {
+const prepareClassicStoryImages = async ({
+  output,
+  imageStyle,
+  ownerId,
+  publicStoryId,
+}) => {
   const story = output ?? {};
   const title = String(story?.title ?? 'Story');
   const chapters = Array.isArray(story?.chapters) ? story.chapters : [];
@@ -238,44 +218,60 @@ const prepareClassicStoryImages = async ({ output, imageStyle }) => {
     seed: Date.now(),
   });
 
-  const [coverImage, persistedChapters] = await Promise.all([
-    persistImageWithFallback(coverUrl),
-    mapWithConcurrency(chapters, 3, async (chapter, index) => {
-      const sourcePrompt = String(
-        chapter?.imagePrompt ?? chapter?.textPrompt ?? `${title} illustration`
-      ).trim();
-      const generatedImageUrl = buildPollinationsImageUrl(sourcePrompt, {
+  const chapterSources = chapters.map((chapter, index) => {
+    const prompt = String(
+      chapter?.imagePrompt ?? chapter?.textPrompt ?? `${title} illustration`
+    ).trim();
+    return {
+      prompt,
+      sourceUrl: buildPollinationsImageUrl(prompt, {
         seed: `${Date.now()}_${index}_${Math.floor(Math.random() * 100000)}`,
-      });
-
-      return {
-        ...chapter,
-        chapterNumber: Number(chapter?.chapterNumber ?? index + 1),
-        imagePrompt: sourcePrompt,
-        imageUrl: await persistImageWithFallback(generatedImageUrl),
-      };
-    }),
-  ]);
+      }),
+      purpose: `chapter-${index + 1}`,
+    };
+  });
+  const uploads = await uploadAssetBatch({
+    ownerId,
+    publicStoryId,
+    images: [
+      { sourceUrl: coverUrl, purpose: 'cover' },
+      ...chapterSources.map(({ sourceUrl, purpose }) => ({
+        sourceUrl,
+        purpose,
+      })),
+    ],
+  });
+  const persistedChapters = chapters.map((chapter, index) => ({
+    ...chapter,
+    chapterNumber: Number(chapter?.chapterNumber ?? index + 1),
+    imagePrompt: chapterSources[index].prompt,
+    imageUrl: uploads[index + 1].url,
+  }));
 
   return {
     output: {
       ...story,
       chapters: persistedChapters,
     },
-    coverImage,
+    coverImage: uploads[0].url,
+    uploads,
   };
 };
 
 export const createClassicStory = async ({ userId, payload }) => {
   const reservedUser = await decrementUserCredits(userId, 1);
+  const storyId = randomUUID();
+  let uploads = [];
 
   try {
-    const storyId = randomUUID();
     const generatedStory = await generateStoryJson({ formData: payload });
     const prepared = await prepareClassicStoryImages({
       output: generatedStory,
       imageStyle: payload?.imageStyle,
+      ownerId: reservedUser.id,
+      publicStoryId: storyId,
     });
+    uploads = prepared.uploads;
     const title = extractStoryTitle({
       output: prepared.output,
       storySubject: payload?.storySubject,
@@ -309,15 +305,22 @@ export const createClassicStory = async ({ userId, payload }) => {
       version: 1,
       output: prepared.output,
     });
+    await recordStoryAssets({
+      ownerId: reservedUser.id,
+      storyId: inserted[0].id,
+      uploads,
+    });
 
     return {
       ...inserted[0],
       user: reservedUser,
     };
   } catch (error) {
+    await discardUploadedAssets(uploads);
+    await db.delete(Stories).where(eq(Stories.storyId, storyId));
     await incrementUserCreditsByProfileId(reservedUser.id, 1, {
       reason: 'generation_refund',
-      idempotencyKey: `classic-refund:${reservedUser.id}:${Date.now()}`,
+      idempotencyKey: `classic-refund:${reservedUser.id}:${storyId}`,
     });
     throw error;
   }
@@ -329,14 +332,21 @@ export const deleteCurrentUserStory = async ({ userId, storyId }) => {
 
   if (!safeStoryId) throw new ApiError(400, 'Story ID is required');
 
-  const deleted = await db
-    .delete(Stories)
+  const [ownedStory] = await db
+    .select({ id: Stories.id })
+    .from(Stories)
     .where(and(eq(Stories.storyId, safeStoryId), eq(Stories.ownerId, user.id)))
-    .returning({ storyId: Stories.storyId });
+    .limit(1);
 
-  if (!deleted[0]) {
+  if (!ownedStory) {
     throw new ApiError(404, 'Story not found or you do not have access');
   }
 
-  return deleted[0];
+  await deleteStoryAssets(ownedStory.id);
+  const [deleted] = await db
+    .delete(Stories)
+    .where(eq(Stories.id, ownedStory.id))
+    .returning({ storyId: Stories.storyId });
+
+  return deleted;
 };
