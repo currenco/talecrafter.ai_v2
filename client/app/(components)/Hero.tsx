@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useUser } from "@clerk/nextjs";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -14,11 +13,9 @@ import {
   ImageIcon,
   Languages,
   Mic2,
-  PlayCircle,
   Upload,
 } from "lucide-react";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
-import Video from "./Video";
 
 const MotionDiv = motion.div;
 
@@ -234,10 +231,6 @@ const fadeUp = {
 };
 
 const Hero = () => {
-  const { isSignedIn } = useUser();
-  const secondaryHeroHref = isSignedIn ? "/dashboard" : "#demo";
-  const secondaryHeroLabel = isSignedIn ? "Open dashboard" : "Watch the demo";
-
   return (
     <main className="overflow-hidden bg-[#020b1f] text-blue-100">
       <section className="section-spacing relative flex min-h-[100svh] w-full flex-col justify-center px-5 md:px-16 lg:px-32 xl:px-44">
@@ -281,15 +274,6 @@ const Hero = () => {
             >
               Create your first story
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-            <Link
-              href={secondaryHeroHref}
-              className="tc-btn-ghost inline-flex min-h-12 items-center gap-2 px-7 py-3 text-base"
-            >
-              {!isSignedIn && (
-                <PlayCircle className="h-4 w-4" aria-hidden="true" />
-              )}
-              {secondaryHeroLabel}
             </Link>
         </div>
       </section>
@@ -418,12 +402,6 @@ const Hero = () => {
               </p>
             </MotionDiv>
           </div>
-        </div>
-      </section>
-
-      <section id="demo" className="scroll-mt-24 bg-[#020b1f] px-6 py-20 sm:px-8 lg:px-12 lg:py-28">
-        <div className="mx-auto max-w-6xl">
-          <Video />
         </div>
       </section>
 

@@ -1,4 +1,3 @@
-import { DEFAULT_OG_IMAGE, toAbsoluteUrl } from "@/lib/seo";
 import type { StoryOutput } from "@/types/story";
 
 export type StoryRecord = {
@@ -35,32 +34,6 @@ const backendFetch = async <T>(path: string): Promise<T | null> => {
   return payload?.data ?? null;
 };
 
-const cleanText = (value: string) =>
-  value
-    .replace(/\{[^}]*\}/g, "")
-    .replace(
-      /(Water ?Color|Watercolor|Anime( style)?|3D ?Cartoon|Oil (Paint|painting)|Comic( book)?|Paper ?Cut|Papercut|Pixel ?Art)[\s\S]*/i,
-      ""
-    )
-    .trim();
-
-export const extractStorySummary = (story: StoryRecord | null | undefined) => {
-  const output = story?.output;
-  const chapterText =
-    output?.chapters?.find((chapter) => chapter?.textPrompt)?.textPrompt ??
-    "";
-  const summary = cleanText(String(chapterText)).slice(0, 220);
-
-  if (summary.length > 30) return summary;
-  return `Read ${output?.title ?? "an AI-generated story"} on TaleCrafter AI.`;
-};
-
-export const storyOgImage = (story: StoryRecord | null | undefined) => {
-  const coverImage = story?.coverImage?.trim();
-  if (coverImage) return coverImage;
-  return toAbsoluteUrl(DEFAULT_OG_IMAGE);
-};
-
 export const getStoryByStoryId = async (storyId: string) => {
   return backendFetch<StoryRecord>(`/stories/id/${encodeURIComponent(storyId)}`);
 };
@@ -83,14 +56,6 @@ export const storyRoutePath = (story: StoryRecord | null | undefined) => {
   if (slug) return `/story/${slug}`;
   if (storyId) return `/view-story/${storyId}`;
   return "/explore";
-};
-
-export const getPublicStories = async () => {
-  return (
-    (await backendFetch<Array<{ storyId: string | null; slug: string | null }>>(
-      "/stories/sitemap"
-    )) ?? []
-  );
 };
 
 export const getRelatedStories = async (storyId: string, storyType?: string) => {

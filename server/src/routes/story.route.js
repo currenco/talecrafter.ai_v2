@@ -6,8 +6,6 @@ import {
   getPublicStories,
   getRelatedStoryList,
   getStoryIdDetail,
-  getStorySitemapEntries,
-  getStorySitemapPage,
   getStorySlugDetail,
 } from '../controllers/story.controller.js';
 import { requireAuth } from '../middlewares/clerkAuth.middleware.js';
@@ -30,8 +28,6 @@ router.post(
   createStory
 );
 router.get('/me', requireAuth, getCurrentUserStories);
-router.get('/sitemap', getStorySitemapEntries);
-router.get('/sitemap/page', getStorySitemapPage);
 router.get('/slug/:slug', getStorySlugDetail);
 router.get('/id/:storyId', getStoryIdDetail);
 router.get(

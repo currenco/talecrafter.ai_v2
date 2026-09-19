@@ -3,21 +3,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import Script from "next/script";
 import dynamic from "next/dynamic";
 import { IoIosArrowDropleftCircle, IoIosArrowDroprightCircle } from "react-icons/io";
 import { toast } from "react-toastify";
 import BookCoverPage from "@/app/view-story/_components/BookCoverPage";
 import StoryPages from "@/app/view-story/_components/StoryPages";
 import { buildPollinationsImageUrl } from "@/lib/story-images";
-import { DEFAULT_OG_IMAGE, toAbsoluteUrl } from "@/lib/seo";
 import { apiFetch } from "@/lib/api-client";
 import type { StoryRecord } from "@/lib/story-data";
 import type { StoryChapter } from "@/types/story";
 
 type StoryPageClientProps = {
   initialStory: StoryRecord;
-  slug: string;
 };
 
 type FlipBookHandle = {
@@ -91,16 +88,7 @@ const getStorySummary = (story: StoryRecord) => {
   return `Read '${getOutputTitle(story)}', an AI generated story created with TaleCrafter AI.`;
 };
 
-const getStoryPublishedDate = (story: StoryRecord) => {
-  const rawDate = story?.createdAt ?? story?.updatedAt;
-  if (!rawDate) return undefined;
-
-  const parsed = new Date(rawDate);
-  if (Number.isNaN(parsed.getTime())) return undefined;
-  return parsed.toISOString();
-};
-
-export default function StoryPageClient({ initialStory, slug }: StoryPageClientProps) {
+export default function StoryPageClient({ initialStory }: StoryPageClientProps) {
   const RELATED_PAGE_SIZE = 10;
   const bookRef = useRef<FlipBookHandle | null>(null);
   const [story] = useState<StoryRecord>(initialStory);
@@ -116,7 +104,6 @@ export default function StoryPageClient({ initialStory, slug }: StoryPageClientP
 
   const title = getOutputTitle(story);
   const summary = useMemo(() => getStorySummary(story), [story]);
-  const publishedDate = useMemo(() => getStoryPublishedDate(story), [story]);
   const chapters = story?.output?.chapters ?? [];
 
   const introText = useMemo(() => {
@@ -339,38 +326,8 @@ export default function StoryPageClient({ initialStory, slug }: StoryPageClientP
     };
   }, []);
 
-  const structuredData = useMemo(() => {
-    const base: Record<string, unknown> = {
-      "@context": "https://schema.org",
-      "@type": "CreativeWork",
-      headline: title,
-      author: {
-        "@type": "Organization",
-        name: "TaleCrafter AI",
-      },
-      description: summary,
-      image: story?.coverImage || toAbsoluteUrl(DEFAULT_OG_IMAGE),
-      url: toAbsoluteUrl(`/story/${slug}`),
-    };
-
-    if (publishedDate) {
-      base.datePublished = publishedDate;
-    }
-
-    return JSON.stringify(base);
-  }, [publishedDate, slug, story.coverImage, summary, title]);
-
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#020b1f] px-5 py-8 md:px-16 lg:px-28 xl:px-40">
-      <Script
-        id={`story-structured-data-${slug}`}
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: structuredData,
-        }}
-        strategy="beforeInteractive"
-      />
-
       <div className="tc-hero-grid absolute inset-0 opacity-35" />
       <div className="tc-hero-orb tc-hero-orb-one" />
       <div className="tc-hero-orb tc-hero-orb-two" />

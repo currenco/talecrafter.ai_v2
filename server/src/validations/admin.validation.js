@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { nonEmptyString, positiveInteger } from './common.validation.js';
+import { nonEmptyString } from './common.validation.js';
 
 export const adminBackfillSlugsSchema = z.object({
   body: z
@@ -30,11 +30,5 @@ export const adminUpdateUserCreditSchema = z.object({
   params: z.object({
     userEmail: z.string().trim().email('Valid user email is required'),
   }),
-  query: z.object({}).optional(),
-});
-
-export const adminSitemapPageSchema = z.object({
-  body: z.object({}).optional(),
-  params: z.object({ page: positiveInteger('Sitemap page') }),
   query: z.object({}).optional(),
 });

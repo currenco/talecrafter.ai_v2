@@ -4,9 +4,9 @@ import { getStoryByStoryId } from "@/lib/story-data";
 export default async function LegacyViewStoryPage({
   params,
 }: {
-  params: { id: string } | Promise<{ id: string }>;
+  params: Promise<{ id: string }>;
 }) {
-  const resolvedParams = await Promise.resolve(params);
+  const resolvedParams = await params;
   const id = decodeURIComponent(resolvedParams.id);
   const story = await getStoryByStoryId(id);
 

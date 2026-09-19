@@ -54,7 +54,6 @@ const Header = () => {
     { name: "Home", link: "/" },
     { name: "About", link: "/about" },
     { name: "Explore Stories", link: "/explore" },
-    { name: "Contact", link: "/contact" },
   ];
 
   const userItems = [

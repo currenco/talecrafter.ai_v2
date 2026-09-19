@@ -9,14 +9,6 @@ const Footer = () => {
     { label: "About", href: "/about" },
     { label: "Create Story", href: "/create-story" },
     { label: "Explore Stories", href: "/explore" },
-    { label: "Contact", href: "/contact" },
-  ];
-
-  const exploreLinks = [
-    { label: "Fantasy Generator", href: "/ai-fantasy-story-generator" },
-    { label: "Bedtime Generator", href: "/ai-bedtime-story-generator" },
-    { label: "Privacy Policy", href: "/privacy-policy" },
-    { label: "Terms and Conditions", href: "/terms-and-conditions" },
   ];
 
   const connectLinks = [
@@ -30,7 +22,7 @@ const Footer = () => {
   return (
     <footer className="border-t border-blue-300/15 bg-[#020817] text-blue-100/78">
       <div className="mx-auto w-full max-w-screen-xl px-6 py-16 sm:px-8 lg:px-10 lg:py-20">
-        <div className="grid gap-12 md:grid-cols-[1.4fr_0.8fr_1fr_1fr] lg:gap-16">
+        <div className="grid gap-12 md:grid-cols-[1.4fr_1fr_1fr] lg:gap-16">
           <div className="max-w-sm">
             <Link href="/" className="tc-title-gradient text-3xl font-extrabold tracking-tight">
               TaleCrafter AI
@@ -54,19 +46,6 @@ const Footer = () => {
             </ul>
           </nav>
 
-          <nav aria-label="Explore links">
-            <h2 className="text-base font-bold text-white">Explore</h2>
-            <ul className="mt-6 space-y-4">
-              {exploreLinks.map((item) => (
-                <li key={item.href}>
-                  <Link href={item.href} className={footerLinkClass}>
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-
           <nav aria-label="Connect links">
             <h2 className="text-base font-bold text-white">Connect</h2>
             <ul className="mt-6 space-y-4">
@@ -81,18 +60,10 @@ const Footer = () => {
           </nav>
         </div>
 
-        <div className="mt-14 border-t border-blue-300/15 pt-8 md:mt-16 md:flex md:items-center md:justify-between">
+        <div className="mt-14 border-t border-blue-300/15 pt-8 md:mt-16">
           <p className="text-sm text-blue-100/50">
             (c) {year} TaleCrafter AI. All rights reserved.
           </p>
-          <div className="mt-5 flex flex-wrap gap-x-8 gap-y-3 md:mt-0">
-            <Link href="/privacy-policy" className="text-sm font-medium text-blue-100/70 transition hover:text-cyan-100">
-              Privacy Policy
-            </Link>
-            <Link href="/terms-and-conditions" className="text-sm font-medium text-blue-100/70 transition hover:text-cyan-100">
-              Terms and Conditions
-            </Link>
-          </div>
         </div>
       </div>
     </footer>

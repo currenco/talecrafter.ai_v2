@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, isNotNull, like, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, like, ne, sql } from 'drizzle-orm';
 import { db, dbV2 } from '../db/index.js';
 import { StoryData } from '../db/schema.js';
 import { InteractiveStories, InteractiveStoryNodes } from '../db/schemaV2.js';
@@ -138,26 +138,6 @@ export const getStoryByStoryId = async storyId => {
     .limit(1);
 
   return result[0] ?? null;
-};
-
-export const listStorySitemapPage = async ({ limit, offset }) => {
-  return db
-    .select({ slug: StoryData.slug })
-    .from(StoryData)
-    .where(isNotNull(StoryData.slug))
-    .orderBy(desc(StoryData.id))
-    .limit(clampLimit(limit))
-    .offset(normalizeOffset(offset));
-};
-
-export const listStorySitemapEntries = async () => {
-  return db
-    .select({
-      storyId: StoryData.storyId,
-      slug: StoryData.slug,
-    })
-    .from(StoryData)
-    .orderBy(desc(StoryData.id));
 };
 
 export const listRelatedStories = async ({
