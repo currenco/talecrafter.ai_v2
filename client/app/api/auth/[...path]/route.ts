@@ -1,4 +1,4 @@
-import { getNeonPocAuth } from '@/lib/neon-auth/server'
+import { getAuth } from '@/lib/neon-auth/server'
 
 type RouteContext = { params: Promise<{ path: string[] }> }
 
@@ -6,7 +6,7 @@ const handle = async (
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
   request: Request,
   context: RouteContext
-) => getNeonPocAuth().handler()[method](request, context)
+) => getAuth().handler()[method](request, context)
 
 export const GET = (request: Request, context: RouteContext) =>
   handle('GET', request, context)

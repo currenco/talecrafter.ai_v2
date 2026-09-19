@@ -3,7 +3,7 @@ import {
   createStripeCheckout,
   getStripeCheckout,
 } from '../controllers/payment.controller.js';
-import { requireAuth } from '../middlewares/clerkAuth.middleware.js';
+import { requireAuth } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { checkoutRateLimit } from '../middlewares/rateLimit.middleware.js';
 import {

@@ -6,7 +6,8 @@ const baseEnvironment = {
   NODE_ENV: 'development',
   PORT: '8000',
   DATABASE_URL: 'postgresql://user:password@example.com/database',
-  CLERK_SECRET_KEY: 'sk_test_clerk',
+  NEON_AUTH_BASE_URL: 'https://auth.example.com/api/auth',
+  NEON_AUTH_JWKS_URL: 'https://auth.example.com/.well-known/jwks.json',
 };
 
 test('accepts a valid development environment', () => {
@@ -23,6 +24,17 @@ test('rejects an invalid client origin', () => {
         CLIENT_ORIGIN: 'javascript:alert(1)',
       }),
     /CLIENT_ORIGIN/
+  );
+});
+
+test('rejects invalid Neon Auth URLs', () => {
+  assert.throws(
+    () =>
+      validateEnvironment({
+        ...baseEnvironment,
+        NEON_AUTH_BASE_URL: 'not-a-url',
+      }),
+    /NEON_AUTH_BASE_URL must be an http\(s\) URL/
   );
 });
 

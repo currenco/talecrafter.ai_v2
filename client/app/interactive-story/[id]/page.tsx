@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import { IoIosArrowDropleftCircle, IoIosArrowDroprightCircle } from "react-icons/io";
 import { toast } from "react-toastify";
 import { useParams, useRouter } from "next/navigation";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/neon-auth/client";
 import CustomLoader from "@/app/create-story/(component)/CustomLoader";
 import BookCoverPage from "@/app/view-story/_components/BookCoverPage";
 import { apiFetch } from "@/lib/api-client";

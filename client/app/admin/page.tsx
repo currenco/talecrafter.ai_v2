@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/neon-auth/client";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { apiFetch } from "@/lib/api-client";
@@ -10,7 +10,7 @@ type StoryOutput = {
 };
 
 type StoryItemType = {
-  id: number;
+  id: string;
   storyId: string;
   storyType: string | null;
   ageGroup: string | null;
@@ -22,7 +22,7 @@ type StoryItemType = {
 };
 
 type UserType = {
-  id: number;
+  id: string;
   userName: string | null;
   userEmail: string;
   userImage?: string | null;
@@ -94,25 +94,25 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleDeleteUser = async (userEmail: string) => {
+  const handleDeleteUser = async (userId: string) => {
     try {
       const token = await getAuthToken();
-      await apiFetch(`/admin/users/${encodeURIComponent(userEmail)}`, {
+      await apiFetch(`/admin/users/${encodeURIComponent(userId)}`, {
         method: "DELETE",
         token,
       });
-      setUsers((prev) => prev.filter((u) => u.userEmail !== userEmail));
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
       toast.success("User deleted successfully");
     } catch {
       toast.error("Failed to delete user");
     }
   };
 
-  const handleUpdateUserCredit = async (userEmail: string) => {
-    const user = users.find((u) => u.userEmail === userEmail);
+  const handleUpdateUserCredit = async (userId: string) => {
+    const user = users.find((u) => u.id === userId);
     if (!user) return;
 
-    const newCredit = editedCredits[userEmail] ?? user.credit;
+    const newCredit = editedCredits[userId] ?? user.credit;
     if (!Number.isInteger(newCredit) || newCredit < 0) {
       toast.error("Invalid credit value");
       return;
@@ -121,7 +121,7 @@ const AdminDashboard = () => {
     try {
       const token = await getAuthToken();
       const updatedUser = await apiFetch<UserType>(
-        `/admin/users/${encodeURIComponent(userEmail)}/credit`,
+        `/admin/users/${encodeURIComponent(userId)}/credit`,
         {
           method: "PATCH",
           token,
@@ -129,7 +129,7 @@ const AdminDashboard = () => {
         }
       );
       setUsers((prev) =>
-        prev.map((u) => (u.userEmail === userEmail ? updatedUser : u))
+        prev.map((u) => (u.id === userId ? updatedUser : u))
       );
       toast.success("User credit updated");
     } catch {
@@ -315,7 +315,7 @@ const AdminDashboard = () => {
                 </thead>
                 <tbody>
                   {filteredUsers.map((u) => (
-                    <tr key={u.userEmail} className="border-t border-blue-300/10">
+                    <tr key={u.id} className="border-t border-blue-300/10">
                       <td className="px-3 py-2">{u.userName ?? "-"}</td>
                       <td className="px-3 py-2">{u.userEmail ?? "-"}</td>
                       <td className="px-3 py-2">
@@ -326,7 +326,7 @@ const AdminDashboard = () => {
                           onChange={(e) => {
                             setEditedCredits((prev) => ({
                               ...prev,
-                              [u.userEmail]: Number(e.target.value),
+                              [u.id]: Number(e.target.value),
                             }));
                           }}
                         />
@@ -334,13 +334,13 @@ const AdminDashboard = () => {
                       <td className="px-3 py-2">
                         <div className="flex flex-wrap gap-2">
                           <button
-                            onClick={() => handleUpdateUserCredit(u.userEmail)}
+                            onClick={() => handleUpdateUserCredit(u.id)}
                             className="rounded-lg bg-blue-600 px-3 py-1 font-semibold text-white hover:bg-blue-700"
                           >
                             Save Credit
                           </button>
                           <button
-                            onClick={() => handleDeleteUser(u.userEmail)}
+                            onClick={() => handleDeleteUser(u.id)}
                             className="rounded-lg bg-red-500 px-3 py-1 font-semibold text-white hover:bg-red-600"
                           >
                             Delete User

@@ -7,7 +7,7 @@ import {
   getCurrentUserInteractiveStories,
   getInteractiveStory,
 } from '../controllers/interactiveStory.controller.js';
-import { requireAuth } from '../middlewares/clerkAuth.middleware.js';
+import { requireAuth } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { generationRateLimit } from '../middlewares/rateLimit.middleware.js';
 import {

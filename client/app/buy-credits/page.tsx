@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { AiOutlineCheck } from "react-icons/ai";
 import { motion } from "framer-motion";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/neon-auth/client";
 import { apiFetch } from "@/lib/api-client";
 import type { UserDetail } from "../_context/UserDetailContext";
 

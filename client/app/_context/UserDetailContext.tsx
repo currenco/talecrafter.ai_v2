@@ -1,10 +1,12 @@
 import { createContext } from 'react';
 
 export type UserDetail = {
-  id: number;
+  id: string;
+  authUserId: string;
   userEmail: string;
   userName: string | null;
   userImage: string | null;
+  role: 'user' | 'admin';
   credit: number;
 };
 

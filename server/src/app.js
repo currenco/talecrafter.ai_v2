@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import { clerkMiddleware } from '@clerk/express';
 import { API_PREFIX } from './constants.js';
 import ApiError from './utils/ApiError.js';
 import { attachRequestId } from './middlewares/request.middleware.js';
@@ -17,7 +16,6 @@ import interactiveStoryRouter from './routes/interactiveStory.route.js';
 import paymentRouter from './routes/payment.route.js';
 import { handleStripeWebhook } from './controllers/payment.controller.js';
 import adminRouter from './routes/admin.route.js';
-import platformPocRouter from './routes/platformPoc.route.js';
 
 const app = express();
 
@@ -35,9 +33,25 @@ const configuredOrigins = process.env.CORS_ORIGIN
       .filter(Boolean)
   : [];
 
-const devOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+const devOrigins =
+  process.env.NODE_ENV === 'production'
+    ? []
+    : [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3001',
+      ];
 
-const allowedOrigins = new Set([...configuredOrigins, ...devOrigins]);
+const clientOrigins = process.env.CLIENT_ORIGIN
+  ? [process.env.CLIENT_ORIGIN]
+  : [];
+
+const allowedOrigins = new Set([
+  ...configuredOrigins,
+  ...clientOrigins,
+  ...devOrigins,
+]);
 
 app.use(
   cors({
@@ -65,10 +79,6 @@ app.use(cookieParser());
 app.use(API_PREFIX, apiRateLimit);
 
 app.use(`${API_PREFIX}/health`, healthRouter);
-app.use(`${API_PREFIX}/platform-poc`, platformPocRouter);
-
-app.use(clerkMiddleware());
-
 app.use(`${API_PREFIX}/users`, userRouter);
 app.use(`${API_PREFIX}/ai`, aiRouter);
 app.use(`${API_PREFIX}/images`, imageRouter);

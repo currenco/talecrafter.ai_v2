@@ -3,7 +3,7 @@ import {
   createPollinationsImageUrl,
   persistImage,
 } from '../controllers/image.controller.js';
-import { requireAuth } from '../middlewares/clerkAuth.middleware.js';
+import { requireAuth } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import {
   persistImageSchema,

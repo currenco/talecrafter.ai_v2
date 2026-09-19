@@ -3,7 +3,7 @@ import {
   decrementCurrentUserCredits,
   getCurrentUser,
 } from '../controllers/user.controller.js';
-import { requireAuth } from '../middlewares/clerkAuth.middleware.js';
+import { requireAuth } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { decrementCreditsSchema } from '../validations/user.validation.js';
 

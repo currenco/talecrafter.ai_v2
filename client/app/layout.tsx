@@ -1,7 +1,6 @@
 import "./globals.css";
 import Provider from "./Provider";
 import Header from "./(components)/Header";
-import { ClerkProvider } from "@clerk/nextjs";
 import Footer from "./(components)/Footer";
 import { Inter, Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
@@ -16,16 +15,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider dynamic>
-      <html lang="en" className={cn("dark", "font-sans", geist.variable)}>
-        <body className={inter.className}>
-          <Provider>
-            <Header />
-            {children}
-            <Footer />
-          </Provider>
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="en" className={cn("dark", "font-sans", geist.variable)}>
+      <body className={inter.className}>
+        <Provider>
+          <Header />
+          {children}
+          <Footer />
+        </Provider>
+      </body>
+    </html>
   );
 }

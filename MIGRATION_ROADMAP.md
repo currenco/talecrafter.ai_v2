@@ -221,9 +221,21 @@ Exit criteria:
 
 ## Phase 3 - Authentication Migration
 
-Status: not started
+Status: complete
 
 Goal: replace Clerk end to end without leaving mixed authorization paths.
+
+Completed:
+
+- Replaced Clerk with Neon Managed Auth across the Next.js client and Express API.
+- Added product sign-up, sign-in, email verification, password reset, Google OAuth, session restoration, and sign-out flows.
+- Added protected navigation with return-path redirects and centralized browser token retrieval.
+- Added Express JWT verification against Neon JWKS and stable-subject profile synchronization.
+- Moved admin authorization and admin user mutations to application roles and stable profile IDs.
+- Removed Clerk packages, imports, middleware, environment examples, and temporary Auth proof routes.
+- Added a stable Auth-ID administrator bootstrap command and live branch integration coverage.
+- Verified protected API behavior, cross-user denial, admin deny/allow, CORS, logout, OAuth handoff, client build/typecheck/lint, and server checks.
+- Recorded the implementation and operational model in `docs/architecture/phase-3-authentication-migration.md`.
 
 Client tasks:
 

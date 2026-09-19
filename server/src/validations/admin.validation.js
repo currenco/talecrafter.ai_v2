@@ -15,10 +15,10 @@ export const adminStoryIdParamSchema = z.object({
   query: z.object({}).optional(),
 });
 
-export const adminUserEmailParamSchema = z.object({
+export const adminUserIdParamSchema = z.object({
   body: z.object({}).optional(),
   params: z.object({
-    userEmail: z.string().trim().email('Valid user email is required'),
+    userId: z.string().uuid('Valid user ID is required'),
   }),
   query: z.object({}).optional(),
 });
@@ -28,7 +28,7 @@ export const adminUpdateUserCreditSchema = z.object({
     credit: z.coerce.number().int().min(0, 'Credit cannot be negative'),
   }),
   params: z.object({
-    userEmail: z.string().trim().email('Valid user email is required'),
+    userId: z.string().uuid('Valid user ID is required'),
   }),
   query: z.object({}).optional(),
 });

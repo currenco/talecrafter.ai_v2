@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/neon-auth/client";
 import { apiFetch } from "@/lib/api-client";
 
 export default function UploadImage({

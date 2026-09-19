@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { toast } from "react-toastify";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/neon-auth/client";
 import { apiFetch } from "@/lib/api-client";
 
 type InteractiveStory = {

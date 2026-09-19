@@ -3,8 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserButton, useUser } from "@clerk/nextjs";
-import { useState } from "react";
+import { LogOut, UserRound } from "lucide-react";
+import { useContext, useState } from "react";
+import { useRouter } from "next/navigation";
+import { authClient, useUser } from "@/lib/neon-auth/client";
+import { UserDetailContext } from "@/app/_context/UserDetailContext";
 import {
   MobileNav,
   MobileNavHeader,
@@ -44,11 +47,10 @@ const HeaderLogo = ({ href, onClick }: HeaderLogoProps) => (
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
-  const { isLoaded, isSignedIn, user } = useUser();
-  const adminEmail = (process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "").toLowerCase();
-  const currentUserEmail =
-    user?.primaryEmailAddress?.emailAddress?.toLowerCase() ?? "";
-  const isAdmin = adminEmail !== "" && currentUserEmail === adminEmail;
+  const router = useRouter();
+  const { isLoaded, isSignedIn } = useUser();
+  const { userDetail, setUserDetail } = useContext(UserDetailContext);
+  const isAdmin = userDetail?.role === "admin";
 
   const visitorItems = [
     { name: "Home", link: "/" },
@@ -67,6 +69,35 @@ const Header = () => {
   const navItems = !isLoaded ? [] : isAuthenticated ? userItems : visitorItems;
   const logoHref = isAuthenticated ? "/dashboard" : "/";
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
+  const signOut = async () => {
+    await authClient.signOut();
+    setUserDetail(undefined);
+    closeMobileMenu();
+    router.push("/");
+    router.refresh();
+  };
+
+  const accountControls = (
+    <div className="flex items-center gap-1">
+      <Link
+        href="/dashboard"
+        aria-label="Open account dashboard"
+        title="Account"
+        className="rounded-full p-2 text-blue-100 hover:bg-white/10"
+      >
+        <UserRound size={19} aria-hidden="true" />
+      </Link>
+      <button
+        type="button"
+        aria-label="Sign out"
+        title="Sign out"
+        className="rounded-full p-2 text-blue-100 hover:bg-white/10"
+        onClick={signOut}
+      >
+        <LogOut size={19} aria-hidden="true" />
+      </button>
+    </div>
+  );
 
   return (
     <Navbar className="px-3 py-2">
@@ -85,7 +116,7 @@ const Header = () => {
                   Create
                 </NavbarButton>
               </Link>
-              <UserButton />
+              {accountControls}
             </>
           ) : (
             <>
@@ -116,7 +147,7 @@ const Header = () => {
         <MobileNavHeader>
           <HeaderLogo href={logoHref} onClick={closeMobileMenu} />
           <div className="flex items-center gap-3">
-            {isAuthenticated && <UserButton />}
+            {isAuthenticated && accountControls}
             <button
               type="button"
               aria-label="Toggle navigation menu"

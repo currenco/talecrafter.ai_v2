@@ -1,5 +1,5 @@
 "use client";
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useAuth, useUser } from "@/lib/neon-auth/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import StoryItemCard from "./StoryItemCard";
 import { apiFetch } from "@/lib/api-client";
@@ -18,7 +18,7 @@ type DashboardCache = {
 const UserStoryList = () => {
   const user = useUser();
   const { getToken } = useAuth();
-  const userEmail = user.user?.primaryEmailAddress?.emailAddress;
+  const userId = user.user?.id;
   const [storyList, setStoryList] = useState<StoryItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [offset, setOffset] = useState(0);
@@ -29,13 +29,13 @@ const UserStoryList = () => {
   const offsetRef = useRef(0);
   const hasMoreRef = useRef(true);
   const storyListRef = useRef<StoryItem[]>([]);
-  const userEmailRef = useRef<string | undefined>(userEmail);
+  const userIdRef = useRef<string | undefined>(userId);
 
-  const cacheKey = userEmail ? `${CACHE_PREFIX}${userEmail}` : null;
+  const cacheKey = userId ? `${CACHE_PREFIX}${userId}` : null;
 
   const persistStateSnapshot = useCallback((scrollY?: number) => {
-    if (!userEmailRef.current) return;
-    const currentKey = `${CACHE_PREFIX}${userEmailRef.current}`;
+    if (!userIdRef.current) return;
+    const currentKey = `${CACHE_PREFIX}${userIdRef.current}`;
     try {
       const cache: DashboardCache = {
         storyList: storyListRef.current,
@@ -49,7 +49,7 @@ const UserStoryList = () => {
     }
   }, []);
 
-  const getUserStory = useCallback(async (_email: string, newOffset: number) => {
+  const getUserStory = useCallback(async (newOffset: number) => {
     if (loadingRef.current || !hasMoreRef.current) return;
     loadingRef.current = true;
     setLoading(true);
@@ -92,16 +92,16 @@ const UserStoryList = () => {
   }, [hasMoreStories]);
 
   useEffect(() => {
-    userEmailRef.current = userEmail;
-  }, [userEmail]);
+    userIdRef.current = userId;
+  }, [userId]);
 
   useEffect(() => {
-    if (!userEmail) return;
+    if (!userId) return;
     persistStateSnapshot();
-  }, [storyList, offset, hasMoreStories, userEmail, persistStateSnapshot]);
+  }, [storyList, offset, hasMoreStories, userId, persistStateSnapshot]);
 
   useEffect(() => {
-    if (!userEmail) {
+    if (!userId) {
       setStoryList([]);
       setOffset(0);
       setHasMoreStories(true);
@@ -134,7 +134,7 @@ const UserStoryList = () => {
     }
 
     if (!restored) {
-      getUserStory(userEmail, 0);
+      getUserStory(0);
     }
     setIsRestored(true);
 
@@ -144,10 +144,10 @@ const UserStoryList = () => {
       persistStateSnapshot();
       window.removeEventListener("pagehide", onPageHide);
     };
-  }, [userEmail, cacheKey, getUserStory, persistStateSnapshot]);
+  }, [userId, cacheKey, getUserStory, persistStateSnapshot]);
 
   useEffect(() => {
-    if (!userEmail || !isRestored) return;
+    if (!userId || !isRestored) return;
     const trigger = loadTriggerRef.current;
     if (!trigger) return;
 
@@ -156,17 +156,17 @@ const UserStoryList = () => {
         const [entry] = entries;
         if (!entry?.isIntersecting) return;
         if (loadingRef.current || !hasMoreRef.current) return;
-        getUserStory(userEmail, offsetRef.current + PAGE_SIZE);
+        getUserStory(offsetRef.current + PAGE_SIZE);
       },
       { root: null, rootMargin: "220px 0px", threshold: 0.01 }
     );
 
     observer.observe(trigger);
     return () => observer.disconnect();
-  }, [userEmail, isRestored, getUserStory]);
+  }, [userId, isRestored, getUserStory]);
 
   useEffect(() => {
-    if (!userEmail || !isRestored) return;
+    if (!userId || !isRestored) return;
 
     const onScroll = () => {
       if (loadingRef.current || !hasMoreRef.current) return;
@@ -174,13 +174,13 @@ const UserStoryList = () => {
         window.innerHeight + window.scrollY >=
         document.documentElement.scrollHeight - 320;
       if (nearBottom) {
-        getUserStory(userEmail, offsetRef.current + PAGE_SIZE);
+        getUserStory(offsetRef.current + PAGE_SIZE);
       }
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [userEmail, isRestored, getUserStory]);
+  }, [userId, isRestored, getUserStory]);
 
   const handleStoryDeleted = (storyId: string) => {
     setStoryList((prev) => prev.filter((item) => item.storyId !== storyId));
@@ -203,7 +203,7 @@ const UserStoryList = () => {
           <StoryItemCard
             key={item.storyId}
             story={item}
-            currentUserEmail={userEmail ?? ""}
+            canDelete
             onDeleteSuccess={handleStoryDeleted}
           />
         ))}

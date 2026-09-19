@@ -7,18 +7,18 @@ import {
   removeAdminUser,
   setAdminUserCredit,
 } from '../controllers/admin.controller.js';
-import { requireAdmin } from '../middlewares/clerkAuth.middleware.js';
+import { requireAdmin, requireAuth } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import {
   adminBackfillSlugsSchema,
   adminStoryIdParamSchema,
   adminUpdateUserCreditSchema,
-  adminUserEmailParamSchema,
+  adminUserIdParamSchema,
 } from '../validations/admin.validation.js';
 
 const router = Router();
 
-router.use(requireAdmin);
+router.use(requireAuth, requireAdmin);
 
 router.get('/stories', getAdminStories);
 router.get('/users', getAdminUsers);
@@ -33,12 +33,12 @@ router.delete(
   removeAdminStory
 );
 router.delete(
-  '/users/:userEmail',
-  validate(adminUserEmailParamSchema),
+  '/users/:userId',
+  validate(adminUserIdParamSchema),
   removeAdminUser
 );
 router.patch(
-  '/users/:userEmail/credit',
+  '/users/:userId/credit',
   validate(adminUpdateUserCreditSchema),
   setAdminUserCredit
 );

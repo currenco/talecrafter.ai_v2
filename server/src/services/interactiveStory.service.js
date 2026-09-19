@@ -18,7 +18,7 @@ import { generateUniqueStorySlug } from './story.service.js';
 import {
   decrementUserCredits,
   incrementUserCreditsByProfileId,
-  syncUserFromClerk,
+  syncUserFromAuth,
 } from './user.service.js';
 import {
   buildChoicePrompt,
@@ -97,7 +97,7 @@ const interactiveStoryQuery = () =>
     .innerJoin(InteractiveStories, eq(InteractiveStories.storyId, Stories.id));
 
 const ensureOwnedStory = async ({ userId, storyId }) => {
-  const user = await syncUserFromClerk(userId);
+  const user = await syncUserFromAuth(userId);
   const safeStoryId = String(storyId ?? '').trim();
 
   if (!safeStoryId) throw new ApiError(400, 'Interactive story ID is required');
@@ -349,7 +349,7 @@ export const createInteractiveStarter = async ({ userId, payload }) => {
 };
 
 export const listCurrentUserInteractiveStories = async ({ userId }) => {
-  const user = await syncUserFromClerk(userId);
+  const user = await syncUserFromAuth(userId);
 
   const stories = await interactiveStoryQuery()
     .where(eq(Stories.ownerId, user.id))

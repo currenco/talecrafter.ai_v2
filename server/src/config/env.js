@@ -10,7 +10,6 @@ const environmentSchema = z.object({
   DATABASE_URL: z.string().trim().min(1, 'DATABASE_URL is required'),
   NEON_AUTH_BASE_URL: optionalString,
   NEON_AUTH_JWKS_URL: optionalString,
-  CLERK_SECRET_KEY: z.string().trim().min(1, 'CLERK_SECRET_KEY is required'),
   CORS_ORIGIN: optionalString,
   CLIENT_ORIGIN: optionalString,
   STRIPE_SECRET_KEY: optionalString,
@@ -23,6 +22,8 @@ const environmentSchema = z.object({
 });
 
 const productionRequired = [
+  'NEON_AUTH_BASE_URL',
+  'NEON_AUTH_JWKS_URL',
   'CORS_ORIGIN',
   'CLIENT_ORIGIN',
   'STRIPE_SECRET_KEY',
@@ -73,6 +74,14 @@ export const validateEnvironment = (source = process.env) => {
 
   if (env.CLIENT_ORIGIN && !isHttpUrl(env.CLIENT_ORIGIN)) {
     issues.push('CLIENT_ORIGIN must be an http(s) URL');
+  }
+
+  if (env.NEON_AUTH_BASE_URL && !isHttpUrl(env.NEON_AUTH_BASE_URL)) {
+    issues.push('NEON_AUTH_BASE_URL must be an http(s) URL');
+  }
+
+  if (env.NEON_AUTH_JWKS_URL && !isHttpUrl(env.NEON_AUTH_JWKS_URL)) {
+    issues.push('NEON_AUTH_JWKS_URL must be an http(s) URL');
   }
 
   if (

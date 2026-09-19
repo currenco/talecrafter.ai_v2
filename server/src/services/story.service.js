@@ -6,7 +6,7 @@ import ApiError from '../utils/ApiError.js';
 import {
   decrementUserCredits,
   incrementUserCreditsByProfileId,
-  syncUserFromClerk,
+  syncUserFromAuth,
 } from './user.service.js';
 import {
   buildPollinationsImageUrl,
@@ -129,7 +129,7 @@ export const listPublicStories = async ({ limit, offset }) => {
 };
 
 export const listCurrentUserStories = async ({ userId, limit, offset }) => {
-  const user = await syncUserFromClerk(userId);
+  const user = await syncUserFromAuth(userId);
 
   return selectStories()
     .where(eq(Stories.ownerId, user.id))
@@ -324,7 +324,7 @@ export const createClassicStory = async ({ userId, payload }) => {
 };
 
 export const deleteCurrentUserStory = async ({ userId, storyId }) => {
-  const user = await syncUserFromClerk(userId);
+  const user = await syncUserFromAuth(userId);
   const safeStoryId = String(storyId ?? '').trim();
 
   if (!safeStoryId) throw new ApiError(400, 'Story ID is required');

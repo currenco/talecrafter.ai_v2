@@ -60,27 +60,23 @@ export const deleteAdminStory = async storyId => {
   return deleted;
 };
 
-export const deleteAdminUser = async userEmail => {
-  const safeEmail = String(userEmail ?? '')
-    .trim()
-    .toLowerCase();
-  if (!safeEmail) throw new ApiError(400, 'User email is required');
+export const deleteAdminUser = async userId => {
+  const safeUserId = String(userId ?? '').trim();
+  if (!safeUserId) throw new ApiError(400, 'User ID is required');
 
   const [deleted] = await db
     .delete(UserProfiles)
-    .where(eq(UserProfiles.userEmail, safeEmail))
-    .returning({ userEmail: UserProfiles.userEmail });
+    .where(eq(UserProfiles.id, safeUserId))
+    .returning({ id: UserProfiles.id });
 
   if (!deleted) throw new ApiError(404, 'User not found');
   return deleted;
 };
 
-export const updateAdminUserCredit = async ({ userEmail, credit }) => {
-  const safeEmail = String(userEmail ?? '')
-    .trim()
-    .toLowerCase();
+export const updateAdminUserCredit = async ({ userId, credit }) => {
+  const safeUserId = String(userId ?? '').trim();
   const safeCredit = Number(credit);
-  if (!safeEmail) throw new ApiError(400, 'User email is required');
+  if (!safeUserId) throw new ApiError(400, 'User ID is required');
   if (!Number.isInteger(safeCredit) || safeCredit < 0) {
     throw new ApiError(400, 'Credit must be a non-negative integer');
   }
@@ -91,9 +87,7 @@ export const updateAdminUserCredit = async ({ userEmail, credit }) => {
       SELECT profile.id, account.id AS account_id, account.balance
       FROM app.user_profiles profile
       INNER JOIN app.credit_accounts account ON account.user_id = profile.id
-      WHERE lower(profile.email) = ${safeEmail}
-      ORDER BY profile.created_at DESC
-      LIMIT 1
+      WHERE profile.id = ${safeUserId}
     ), updated AS (
       UPDATE app.credit_accounts account
       SET balance = ${safeCredit}, updated_at = now()

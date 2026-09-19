@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { NextUIProvider } from "@nextui-org/react";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useAuth, useUser } from "@/lib/neon-auth/client";
 import {
   UserDetailContext,
   type UserDetail,
@@ -15,6 +15,7 @@ const Provider = ({ children }: { children: React.ReactNode }) => {
   const [userDetail, setUserDetail] = useState<UserDetail>();
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
+  const authUserId = user?.id;
 
   useEffect(() => {
     let ignore = false;
@@ -22,7 +23,7 @@ const Provider = ({ children }: { children: React.ReactNode }) => {
     const syncCurrentUser = async () => {
       if (!isLoaded) return;
 
-      if (!user) {
+      if (!authUserId) {
         setUserDetail(undefined);
         return;
       }
@@ -42,7 +43,7 @@ const Provider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       ignore = true;
     };
-  }, [getToken, isLoaded, user]);
+  }, [authUserId, getToken, isLoaded]);
 
   return (
     <UserDetailContext.Provider value={{ userDetail, setUserDetail }}>

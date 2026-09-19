@@ -3,7 +3,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { Payments } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
-import { syncUserFromClerk } from './user.service.js';
+import { syncUserFromAuth } from './user.service.js';
 
 export const CREDIT_PLANS = [
   {
@@ -115,7 +115,7 @@ const assertSessionMatchesPlan = ({ session, payment }) => {
 };
 
 export const createStripeCheckoutSession = async ({ userId, planId }) => {
-  const user = await syncUserFromClerk(userId);
+  const user = await syncUserFromAuth(userId);
   const plan = getPlan(planId);
   const appOrigin = getAppOrigin();
   const stripe = getStripe();
@@ -181,7 +181,7 @@ export const getStripeCheckoutStatus = async ({ userId, sessionId }) => {
   const safeSessionId = String(sessionId ?? '').trim();
   if (!safeSessionId) throw new ApiError(400, 'Stripe session ID is required');
 
-  const user = await syncUserFromClerk(userId);
+  const user = await syncUserFromAuth(userId);
   const payment = await getPaymentBySessionId(safeSessionId);
 
   if (!payment) throw new ApiError(404, 'Payment not found');

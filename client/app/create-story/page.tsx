@@ -6,7 +6,7 @@ import AgeCategory from "./(component)/AgeCategory";
 import ImageStyle from "./(component)/ImageStyle";
 import { Button } from "@nextui-org/button";
 import CustomLoader from "./(component)/CustomLoader";
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useAuth, useUser } from "@/lib/neon-auth/client";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 import { UserDetailContext } from "@/app/_context/UserDetailContext";

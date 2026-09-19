@@ -5,13 +5,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { toast } from "react-toastify";
 import { useState } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/neon-auth/client";
 import { apiFetch } from "@/lib/api-client";
 import type { StoryItem } from "@/types/story";
 
 type StoryItemType = {
   story: StoryItem;
-  currentUserEmail: string;
+  canDelete?: boolean;
   onDeleteSuccess?: (storyId: string) => void;
 };
 
@@ -43,8 +43,7 @@ const removeStoryFromCachedLists = (storyId: string) => {
   });
 };
 
-const StoryItemCard = ({ story, currentUserEmail, onDeleteSuccess }: StoryItemType) => {
-  const isOwner = story.userEmail === currentUserEmail;
+const StoryItemCard = ({ story, canDelete = false, onDeleteSuccess }: StoryItemType) => {
   const [imgFailed, setImgFailed] = useState(false);
   const { getToken } = useAuth();
   const storyHref = story?.slug ? `/story/${story.slug}` : `/view-story/${story?.storyId}`;
@@ -92,7 +91,7 @@ const StoryItemCard = ({ story, currentUserEmail, onDeleteSuccess }: StoryItemTy
           <p className="text-xl text-black/80 truncate max-w-[80%]">
             {story?.output?.title}
           </p>
-          {isOwner ? (
+          {canDelete ? (
             <Button
               onClick={handleDelete}
               className="text-tiny text-white bg-black/20"

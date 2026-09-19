@@ -1,25 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { clerkClient } from '@clerk/express';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { CreditAccounts, UserProfiles } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
-
-const getPrimaryEmail = clerkUser =>
-  String(
-    clerkUser.primaryEmailAddress?.emailAddress ||
-      clerkUser.emailAddresses?.[0]?.emailAddress ||
-      ''
-  )
-    .trim()
-    .toLowerCase();
-
-const getDisplayName = clerkUser =>
-  String(
-    clerkUser.fullName ||
-      [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') ||
-      getPrimaryEmail(clerkUser)
-  ).trim();
 
 const selectUserByAuthId = async authUserId => {
   const rows = await db
@@ -41,22 +24,32 @@ const selectUserByAuthId = async authUserId => {
   return rows[0] ?? null;
 };
 
-export const getCurrentClerkUser = async userId => {
+export const getCurrentAuthUser = async userId => {
   if (!userId) throw new ApiError(401, 'Unauthorized');
-  return clerkClient.users.getUser(userId);
+  const result = await db.execute(sql`
+    SELECT id, email, name, image
+    FROM neon_auth."user"
+    WHERE id = ${userId}
+    LIMIT 1
+  `);
+  const user = result.rows?.[0];
+  if (!user) throw new ApiError(401, 'Authenticated user no longer exists');
+  return user;
 };
 
-export const syncUserFromClerk = async userId => {
-  const clerkUser = await getCurrentClerkUser(userId);
-  const userEmail = getPrimaryEmail(clerkUser);
+export const syncUserFromAuth = async userId => {
+  const authUser = await getCurrentAuthUser(userId);
+  const userEmail = String(authUser.email ?? '')
+    .trim()
+    .toLowerCase();
   if (!userEmail)
-    throw new ApiError(400, 'Authenticated Clerk user has no email address');
+    throw new ApiError(400, 'Authenticated user has no email address');
 
   const values = {
     authUserId: userId,
     userEmail,
-    userName: getDisplayName(clerkUser),
-    userImage: clerkUser.imageUrl || '',
+    userName: String(authUser.name || userEmail).trim(),
+    userImage: String(authUser.image || ''),
     updatedAt: new Date(),
   };
 
@@ -156,7 +149,7 @@ export const incrementUserCredits = async (
   amount = 1,
   options = {}
 ) => {
-  const user = await syncUserFromClerk(userId);
+  const user = await syncUserFromAuth(userId);
   return incrementUserCreditsByProfileId(user.id, amount, options);
 };
 
@@ -170,7 +163,7 @@ export const decrementUserCredits = async (
     throw new ApiError(400, 'Credit amount must be a positive integer');
   }
 
-  const user = await syncUserFromClerk(userId);
+  const user = await syncUserFromAuth(userId);
   return mutateCredits({
     profileId: user.id,
     amount: -safeAmount,
