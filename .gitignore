@@ -38,3 +38,4 @@ client/next-env.d.ts
 # hosting/tooling
 client/.vercel/
 .vercel/
+.neon
