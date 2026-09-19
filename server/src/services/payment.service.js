@@ -61,7 +61,12 @@ const getPaymentBySessionId = async sessionId => {
   const rows = await db
     .select()
     .from(Payments)
-    .where(eq(Payments.providerSessionId, sessionId))
+    .where(
+      and(
+        eq(Payments.provider, 'stripe'),
+        eq(Payments.providerSessionId, sessionId)
+      )
+    )
     .limit(1);
 
   return rows[0] ?? null;
@@ -101,7 +106,7 @@ const assertSessionMatchesPlan = ({ session, payment }) => {
     );
   }
 
-  if (session.metadata?.userEmail !== payment.userEmail) {
+  if (session.metadata?.userId !== payment.userId) {
     throw new ApiError(
       403,
       'Checkout session user does not match the payment ledger'
@@ -117,7 +122,7 @@ export const createStripeCheckoutSession = async ({ userId, planId }) => {
 
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
-    client_reference_id: user.userEmail,
+    client_reference_id: user.id,
     customer_email: user.userEmail,
     success_url: `${appOrigin}/buy-credits?stripe_session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${appOrigin}/buy-credits?stripe_cancelled=1`,
@@ -137,7 +142,7 @@ export const createStripeCheckoutSession = async ({ userId, planId }) => {
     metadata: {
       planId: plan.id,
       credits: String(plan.credits),
-      userEmail: user.userEmail,
+      userId: user.id,
     },
   });
 
@@ -151,6 +156,7 @@ export const createStripeCheckoutSession = async ({ userId, planId }) => {
       .values({
         provider: 'stripe',
         providerSessionId: session.id,
+        userId: user.id,
         userEmail: user.userEmail,
         planId: plan.id,
         amountCents: plan.amountCents,
@@ -160,7 +166,9 @@ export const createStripeCheckoutSession = async ({ userId, planId }) => {
         createdAt: new Date(),
         updatedAt: new Date(),
       })
-      .onConflictDoNothing({ target: Payments.providerSessionId });
+      .onConflictDoNothing({
+        target: [Payments.provider, Payments.providerSessionId],
+      });
   } catch (error) {
     await stripe.checkout.sessions.expire(session.id).catch(() => undefined);
     throw error;
@@ -177,7 +185,7 @@ export const getStripeCheckoutStatus = async ({ userId, sessionId }) => {
   const payment = await getPaymentBySessionId(safeSessionId);
 
   if (!payment) throw new ApiError(404, 'Payment not found');
-  if (payment.userEmail !== user.userEmail) {
+  if (payment.userId !== user.id) {
     throw new ApiError(403, 'This checkout session does not belong to you');
   }
 
@@ -212,37 +220,62 @@ export const fulfillStripeCheckoutSession = async ({ session, rawEvent }) => {
 
   const paymentIntentId = paymentIntentIdFromSession(session);
   const rawEventJson = JSON.stringify(rawEvent ?? null);
+  const providerEventId = String(
+    rawEvent?.id ?? `checkout:${safeSessionId}:${session.payment_status}`
+  );
+  const eventType = String(rawEvent?.type ?? 'checkout.session.completed');
   const result = await db.execute(sql`
-    WITH claimed AS (
-      UPDATE payments
+    WITH event_recorded AS (
+      INSERT INTO app.payment_events (
+        payment_id, provider, provider_event_id, event_type, payload, processed_at
+      )
+      VALUES (
+        ${payment.id}, 'stripe', ${providerEventId}, ${eventType},
+        CAST(${rawEventJson} AS jsonb), now()
+      )
+      ON CONFLICT (provider, provider_event_id) DO NOTHING
+      RETURNING id
+    ), claimed AS (
+      UPDATE app.payments
       SET
         status = 'fulfilled',
-        "providerPaymentIntentId" = ${paymentIntentId},
-        "rawEvent" = CAST(${rawEventJson} AS json),
-        "fulfilledAt" = now(),
-        "updatedAt" = now()
-      WHERE "providerSessionId" = ${safeSessionId}
+        provider_payment_intent_id = ${paymentIntentId},
+        fulfilled_at = now(),
+        updated_at = now()
+      WHERE provider = 'stripe'
+        AND provider_session_id = ${safeSessionId}
         AND status = 'pending'
-        AND EXISTS (
-          SELECT 1 FROM users WHERE users."userEmail" = payments."userEmail"
-        )
-      RETURNING "userEmail", credits
+        AND EXISTS (SELECT 1 FROM event_recorded)
+      RETURNING id, user_id, credits
     ),
     credited AS (
-      UPDATE users
-      SET credit = users.credit + claimed.credits
+      UPDATE app.credit_accounts account
+      SET balance = account.balance + claimed.credits, updated_at = now()
       FROM claimed
-      WHERE users."userEmail" = claimed."userEmail"
-      RETURNING users.id, users."userEmail", users."userName", users."userImage", users.credit
+      WHERE account.user_id = claimed.user_id
+      RETURNING account.id, account.user_id, account.balance, claimed.id AS payment_id,
+        claimed.credits
+    ), recorded AS (
+      INSERT INTO app.credit_ledger (
+        account_id, amount, balance_after, reason, idempotency_key,
+        reference_type, reference_id
+      )
+      SELECT id, credits, balance, 'payment', 'payment:' || payment_id,
+        'payment', payment_id::text
+      FROM credited
+      ON CONFLICT (idempotency_key) DO NOTHING
+      RETURNING account_id
     )
     SELECT
       'fulfilled' AS status,
-      credited.id,
-      credited."userEmail",
-      credited."userName",
-      credited."userImage",
-      credited.credit
+      profile.id,
+      profile.email AS "userEmail",
+      profile.display_name AS "userName",
+      profile.avatar_url AS "userImage",
+      credited.balance AS credit
     FROM credited
+    INNER JOIN recorded ON recorded.account_id = credited.id
+    INNER JOIN app.user_profiles profile ON profile.id = credited.user_id
   `);
 
   const row = result.rows?.[0];
@@ -270,18 +303,36 @@ export const markStripeCheckoutFailed = async ({ session, rawEvent }) => {
   const safeSessionId = String(session?.id ?? '').trim();
   if (!safeSessionId) return { status: 'ignored' };
 
-  const updated = await db
-    .update(Payments)
-    .set({ status: 'failed', rawEvent, updatedAt: new Date() })
-    .where(
-      and(
-        eq(Payments.providerSessionId, safeSessionId),
-        eq(Payments.status, 'pending')
+  const rawEventJson = JSON.stringify(rawEvent ?? null);
+  const providerEventId = String(
+    rawEvent?.id ?? `checkout:${safeSessionId}:failed`
+  );
+  const eventType = String(
+    rawEvent?.type ?? 'checkout.session.async_payment_failed'
+  );
+  const result = await db.execute(sql`
+    WITH payment AS (
+      SELECT id FROM app.payments
+      WHERE provider = 'stripe' AND provider_session_id = ${safeSessionId}
+      LIMIT 1
+    ), event_recorded AS (
+      INSERT INTO app.payment_events (
+        payment_id, provider, provider_event_id, event_type, payload, processed_at
       )
+      SELECT id, 'stripe', ${providerEventId}, ${eventType},
+        CAST(${rawEventJson} AS jsonb), now()
+      FROM payment
+      ON CONFLICT (provider, provider_event_id) DO NOTHING
+      RETURNING payment_id
     )
-    .returning({ status: Payments.status });
+    UPDATE app.payments
+    SET status = 'failed', updated_at = now()
+    WHERE id IN (SELECT payment_id FROM event_recorded)
+      AND status = 'pending'
+    RETURNING status
+  `);
 
-  return updated[0] ?? { status: 'ignored' };
+  return result.rows?.[0] ?? { status: 'ignored' };
 };
 
 export const constructStripeWebhookEvent = ({ rawBody, signature }) => {

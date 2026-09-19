@@ -1,0 +1,2 @@
+ALTER TABLE "app"."interactive_story_nodes" ADD CONSTRAINT "interactive_story_nodes_parent_node_id_interactive_story_nodes_id_fk" FOREIGN KEY ("parent_node_id") REFERENCES "app"."interactive_story_nodes"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "interactive_nodes_one_active_per_story" ON "app"."interactive_story_nodes" USING btree ("story_id") WHERE "app"."interactive_story_nodes"."is_active" = true;

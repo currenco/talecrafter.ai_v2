@@ -1,33 +1,38 @@
-import 'dotenv/config';
 import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { neon } from '@neondatabase/serverless';
+import { config } from 'dotenv';
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) throw new Error('DATABASE_URL is required');
+config();
+config({ path: new URL('../../.env', import.meta.url), override: false });
+
+const connectionString = process.env.DATABASE_URL_UNPOOLED;
+if (!connectionString) {
+  throw new Error('DATABASE_URL_UNPOOLED is required for migrations');
+}
+
+if (!String(process.env.NEON_BRANCH ?? '').startsWith('dev/')) {
+  throw new Error('Migrations are restricted to a dev/* Neon branch');
+}
 
 const sql = neon(connectionString);
 const migrationsDir = fileURLToPath(
   new URL('../src/db/migrations/', import.meta.url)
 );
 
-const splitStatements = source =>
-  source
-    .split(';')
-    .map(statement => statement.replace(/^\s*--.*$/gm, '').trim())
-    .filter(Boolean);
-
 await sql`
-  CREATE TABLE IF NOT EXISTS schema_migrations (
+  CREATE TABLE IF NOT EXISTS public.app_schema_migrations (
     name varchar(255) PRIMARY KEY,
     checksum varchar(64) NOT NULL,
-    "appliedAt" timestamp NOT NULL DEFAULT now()
+    applied_at timestamptz NOT NULL DEFAULT now()
   )
 `;
 
-const appliedRows = await sql`SELECT name, checksum FROM schema_migrations`;
+const appliedRows = await sql`
+  SELECT name, checksum FROM public.app_schema_migrations
+`;
 const applied = new Map(appliedRows.map(row => [row.name, row.checksum]));
 const files = (await readdir(migrationsDir))
   .filter(name => name.endsWith('.sql'))
@@ -46,11 +51,15 @@ for (const name of files) {
     continue;
   }
 
-  const statements = splitStatements(source);
+  const statements = source
+    .split('--> statement-breakpoint')
+    .map(statement => statement.trim())
+    .filter(Boolean);
   const queries = statements.map(statement => sql.query(statement, []));
-  queries.push(
-    sql`INSERT INTO schema_migrations (name, checksum) VALUES (${name}, ${checksum})`
-  );
+  queries.push(sql`
+    INSERT INTO public.app_schema_migrations (name, checksum)
+    VALUES (${name}, ${checksum})
+  `);
 
   await sql.transaction(queries);
   console.log(`applied ${name}`);

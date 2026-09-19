@@ -1,12 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, like, ne, sql } from 'drizzle-orm';
-import { db, dbV2 } from '../db/index.js';
-import { StoryData } from '../db/schema.js';
-import { InteractiveStories, InteractiveStoryNodes } from '../db/schemaV2.js';
+import { db } from '../db/index.js';
+import { Stories, StoryVersions, UserProfiles } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
 import {
   decrementUserCredits,
-  incrementUserCreditsByEmail,
+  incrementUserCreditsByProfileId,
   syncUserFromClerk,
 } from './user.service.js';
 import {
@@ -16,6 +15,34 @@ import {
 import { generateStoryJson } from './gemini.service.js';
 
 const MAX_BASE_SLUG_LENGTH = 70;
+
+const storySelection = {
+  id: Stories.id,
+  storyId: Stories.storyId,
+  ownerId: Stories.ownerId,
+  slug: Stories.slug,
+  storySubject: Stories.storySubject,
+  storyType: Stories.storyType,
+  ageGroup: Stories.ageGroup,
+  imageStyle: Stories.imageStyle,
+  coverImage: Stories.coverImage,
+  output: StoryVersions.output,
+  userName: UserProfiles.userName,
+  userImage: UserProfiles.userImage,
+  userEmail: UserProfiles.userEmail,
+  createdAt: Stories.createdAt,
+  updatedAt: Stories.updatedAt,
+};
+
+const selectStories = () =>
+  db
+    .select(storySelection)
+    .from(Stories)
+    .innerJoin(UserProfiles, eq(UserProfiles.id, Stories.ownerId))
+    .innerJoin(
+      StoryVersions,
+      and(eq(StoryVersions.storyId, Stories.id), eq(StoryVersions.version, 1))
+    );
 
 const clampLimit = value => {
   const limit = Number(value ?? 12);
@@ -58,20 +85,20 @@ export const extractStoryTitle = story => {
 
 const buildSlugFilter = (baseSlug, excludeStoryId) => {
   if (!excludeStoryId) {
-    return like(StoryData.slug, `${baseSlug}%`);
+    return like(Stories.slug, `${baseSlug}%`);
   }
 
   return and(
-    like(StoryData.slug, `${baseSlug}%`),
-    ne(StoryData.storyId, excludeStoryId)
+    like(Stories.slug, `${baseSlug}%`),
+    ne(Stories.storyId, excludeStoryId)
   );
 };
 
 export const generateUniqueStorySlug = async (title, opts = {}) => {
   const baseSlug = slugifyStoryTitle(title);
   const rows = await db
-    .select({ slug: StoryData.slug })
-    .from(StoryData)
+    .select({ slug: Stories.slug })
+    .from(Stories)
     .where(buildSlugFilter(baseSlug, opts.excludeStoryId));
 
   const used = new Set(
@@ -94,10 +121,9 @@ export const generateUniqueStorySlug = async (title, opts = {}) => {
 };
 
 export const listPublicStories = async ({ limit, offset }) => {
-  return db
-    .select()
-    .from(StoryData)
-    .orderBy(desc(StoryData.id))
+  return selectStories()
+    .where(eq(Stories.status, 'published'))
+    .orderBy(desc(Stories.createdAt))
     .limit(clampLimit(limit))
     .offset(normalizeOffset(offset));
 };
@@ -105,11 +131,9 @@ export const listPublicStories = async ({ limit, offset }) => {
 export const listCurrentUserStories = async ({ userId, limit, offset }) => {
   const user = await syncUserFromClerk(userId);
 
-  return db
-    .select()
-    .from(StoryData)
-    .where(eq(StoryData.userEmail, user.userEmail))
-    .orderBy(desc(StoryData.id))
+  return selectStories()
+    .where(eq(Stories.ownerId, user.id))
+    .orderBy(desc(Stories.createdAt))
     .limit(clampLimit(limit))
     .offset(normalizeOffset(offset));
 };
@@ -118,10 +142,8 @@ export const getStoryBySlug = async slug => {
   const safeSlug = String(slug ?? '').trim();
   if (!safeSlug) throw new ApiError(400, 'Story slug is required');
 
-  const result = await db
-    .select()
-    .from(StoryData)
-    .where(eq(StoryData.slug, safeSlug))
+  const result = await selectStories()
+    .where(eq(Stories.slug, safeSlug))
     .limit(1);
 
   return result[0] ?? null;
@@ -131,10 +153,8 @@ export const getStoryByStoryId = async storyId => {
   const safeStoryId = String(storyId ?? '').trim();
   if (!safeStoryId) throw new ApiError(400, 'Story ID is required');
 
-  const result = await db
-    .select()
-    .from(StoryData)
-    .where(eq(StoryData.storyId, safeStoryId))
+  const result = await selectStories()
+    .where(eq(Stories.storyId, safeStoryId))
     .limit(1);
 
   return result[0] ?? null;
@@ -149,22 +169,23 @@ export const listRelatedStories = async ({
   const safeStoryId = String(storyId ?? '').trim();
   if (!safeStoryId) throw new ApiError(400, 'Story ID is required');
 
-  const baseFilter = ne(StoryData.storyId, safeStoryId);
+  const baseFilter = and(
+    ne(Stories.storyId, safeStoryId),
+    eq(Stories.status, 'published')
+  );
   const orderClause = storyType
-    ? sql`CASE WHEN ${StoryData.storyType} = ${String(storyType).trim()} THEN 0 ELSE 1 END, RANDOM()`
+    ? sql`CASE WHEN ${Stories.storyType} = ${String(storyType).trim()} THEN 0 ELSE 1 END, RANDOM()`
     : sql`RANDOM()`;
 
   const [stories, totalResult] = await Promise.all([
-    db
-      .select()
-      .from(StoryData)
+    selectStories()
       .where(baseFilter)
       .orderBy(orderClause)
       .limit(clampLimit(limit))
       .offset(normalizeOffset(offset)),
     db
       .select({ count: sql`count(*)` })
-      .from(StoryData)
+      .from(Stories)
       .where(baseFilter),
   ]);
 
@@ -262,28 +283,42 @@ export const createClassicStory = async ({ userId, payload }) => {
     const slug = await generateUniqueStorySlug(title);
 
     const inserted = await db
-      .insert(StoryData)
+      .insert(Stories)
       .values({
         storyId,
+        ownerId: reservedUser.id,
         slug,
+        kind: 'classic',
+        status: 'published',
+        title,
         ageGroup: payload?.ageGroup,
         storyType: payload?.storyType,
         storySubject: payload?.storySubject,
         imageStyle: payload?.imageStyle,
-        output: prepared.output,
         coverImage: prepared.coverImage,
-        userEmail: reservedUser.userEmail,
-        userName: reservedUser.userName,
-        userImage: reservedUser.userImage,
+        publishedAt: new Date(),
       })
-      .returning({ storyId: StoryData.storyId, slug: StoryData.slug });
+      .returning({
+        id: Stories.id,
+        storyId: Stories.storyId,
+        slug: Stories.slug,
+      });
+
+    await db.insert(StoryVersions).values({
+      storyId: inserted[0].id,
+      version: 1,
+      output: prepared.output,
+    });
 
     return {
       ...inserted[0],
       user: reservedUser,
     };
   } catch (error) {
-    await incrementUserCreditsByEmail(reservedUser.userEmail, 1);
+    await incrementUserCreditsByProfileId(reservedUser.id, 1, {
+      reason: 'generation_refund',
+      idempotencyKey: `classic-refund:${reservedUser.id}:${Date.now()}`,
+    });
     throw error;
   }
 };
@@ -295,31 +330,13 @@ export const deleteCurrentUserStory = async ({ userId, storyId }) => {
   if (!safeStoryId) throw new ApiError(400, 'Story ID is required');
 
   const deleted = await db
-    .delete(StoryData)
-    .where(
-      and(
-        eq(StoryData.storyId, safeStoryId),
-        eq(StoryData.userEmail, user.userEmail)
-      )
-    )
-    .returning({ storyId: StoryData.storyId });
+    .delete(Stories)
+    .where(and(eq(Stories.storyId, safeStoryId), eq(Stories.ownerId, user.id)))
+    .returning({ storyId: Stories.storyId });
 
   if (!deleted[0]) {
     throw new ApiError(404, 'Story not found or you do not have access');
   }
-
-  await dbV2
-    .delete(InteractiveStoryNodes)
-    .where(eq(InteractiveStoryNodes.storyId, safeStoryId));
-
-  await dbV2
-    .delete(InteractiveStories)
-    .where(
-      and(
-        eq(InteractiveStories.storyId, safeStoryId),
-        eq(InteractiveStories.userEmail, user.userEmail)
-      )
-    );
 
   return deleted[0];
 };

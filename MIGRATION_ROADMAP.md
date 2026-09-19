@@ -160,9 +160,21 @@ Exit criteria:
 
 ## Phase 2 - Fresh Database Foundation
 
-Status: not started
+Status: complete
 
 Goal: define the new product schema without inheriting weak ownership or payment patterns.
+
+Implemented and verified:
+
+- Added one application-owned `app` schema with UUID identities, snake_case columns, foreign keys, checks, explicit deletion behavior, and query-path indexes.
+- Added provider-independent user profiles keyed by stable Auth subject IDs; email is no longer a database ownership key.
+- Added atomic credit accounts and ledger mutations with non-negative balances and unique idempotency keys.
+- Added unified classic/interactive story ownership, immutable JSONB story versions, normalized interactive nodes, and one-active-node enforcement.
+- Added assets, generation jobs, payments, and payment events with provider and request idempotency constraints.
+- Replaced the legacy split Drizzle schemas and moved active story, user, admin, credit, and Stripe services onto the fresh schema while preserving API response shapes.
+- Added generated SQL migrations, checksum verification, a branch-gated migration runner, deterministic fake development seed data, and database integration tests.
+- Applied, seeded, and re-ran migrations on `dev/platform-poc`; production was not changed.
+- Recorded schema decisions and verification evidence in `docs/architecture/phase-2-database-foundation.md`.
 
 Schema principles:
 

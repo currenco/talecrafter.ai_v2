@@ -1,151 +1,180 @@
+import { randomUUID } from 'node:crypto';
 import { clerkClient } from '@clerk/express';
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { Users } from '../db/schema.js';
+import { CreditAccounts, UserProfiles } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
 
-const getPrimaryEmail = clerkUser => {
-  return (
+const getPrimaryEmail = clerkUser =>
+  String(
     clerkUser.primaryEmailAddress?.emailAddress ||
-    clerkUser.emailAddresses?.[0]?.emailAddress ||
-    ''
+      clerkUser.emailAddresses?.[0]?.emailAddress ||
+      ''
   )
     .trim()
     .toLowerCase();
-};
 
-const getDisplayName = clerkUser => {
-  return (
+const getDisplayName = clerkUser =>
+  String(
     clerkUser.fullName ||
-    [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') ||
-    getPrimaryEmail(clerkUser)
+      [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') ||
+      getPrimaryEmail(clerkUser)
   ).trim();
+
+const selectUserByAuthId = async authUserId => {
+  const rows = await db
+    .select({
+      id: UserProfiles.id,
+      authUserId: UserProfiles.authUserId,
+      userEmail: UserProfiles.userEmail,
+      userName: UserProfiles.userName,
+      userImage: UserProfiles.userImage,
+      role: UserProfiles.role,
+      accountId: CreditAccounts.id,
+      credit: CreditAccounts.balance,
+    })
+    .from(UserProfiles)
+    .innerJoin(CreditAccounts, eq(CreditAccounts.userId, UserProfiles.id))
+    .where(eq(UserProfiles.authUserId, authUserId))
+    .limit(1);
+
+  return rows[0] ?? null;
 };
 
 export const getCurrentClerkUser = async userId => {
-  if (!userId) {
-    throw new ApiError(401, 'Unauthorized');
-  }
-
+  if (!userId) throw new ApiError(401, 'Unauthorized');
   return clerkClient.users.getUser(userId);
 };
 
 export const syncUserFromClerk = async userId => {
   const clerkUser = await getCurrentClerkUser(userId);
   const userEmail = getPrimaryEmail(clerkUser);
-
-  if (!userEmail) {
+  if (!userEmail)
     throw new ApiError(400, 'Authenticated Clerk user has no email address');
-  }
 
-  const userName = getDisplayName(clerkUser);
-  const userImage = clerkUser.imageUrl || '';
+  const values = {
+    authUserId: userId,
+    userEmail,
+    userName: getDisplayName(clerkUser),
+    userImage: clerkUser.imageUrl || '',
+    updatedAt: new Date(),
+  };
 
-  const existing = await db
-    .select()
-    .from(Users)
-    .where(eq(Users.userEmail, userEmail))
-    .limit(1);
+  const [profile] = await db
+    .insert(UserProfiles)
+    .values(values)
+    .onConflictDoUpdate({
+      target: UserProfiles.authUserId,
+      set: {
+        userEmail: values.userEmail,
+        userName: values.userName,
+        userImage: values.userImage,
+        updatedAt: values.updatedAt,
+      },
+    })
+    .returning({ id: UserProfiles.id });
 
-  if (!existing[0]) {
-    const inserted = await db
-      .insert(Users)
-      .values({ userEmail, userName, userImage })
-      .returning({
-        id: Users.id,
-        userEmail: Users.userEmail,
-        userName: Users.userName,
-        userImage: Users.userImage,
-        credit: Users.credit,
-      });
+  const insertedAccounts = await db
+    .insert(CreditAccounts)
+    .values({ userId: profile.id })
+    .onConflictDoNothing({ target: CreditAccounts.userId })
+    .returning({ id: CreditAccounts.id, balance: CreditAccounts.balance });
 
-    return inserted[0];
-  }
-
-  const currentUser = existing[0];
-  const shouldUpdateProfile =
-    currentUser.userName !== userName || currentUser.userImage !== userImage;
-
-  if (!shouldUpdateProfile) {
-    return currentUser;
-  }
-
-  const updated = await db
-    .update(Users)
-    .set({ userName, userImage })
-    .where(eq(Users.userEmail, userEmail))
-    .returning({
-      id: Users.id,
-      userEmail: Users.userEmail,
-      userName: Users.userName,
-      userImage: Users.userImage,
-      credit: Users.credit,
-    });
-
-  return updated[0] ?? currentUser;
-};
-
-export const incrementUserCreditsByEmail = async (userEmail, amount = 1) => {
-  const safeAmount = Number(amount);
-  const safeEmail = String(userEmail ?? '')
-    .trim()
-    .toLowerCase();
-
-  if (!safeEmail) throw new ApiError(400, 'User email is required');
-  if (!Number.isInteger(safeAmount) || safeAmount <= 0) {
-    throw new ApiError(400, 'Credit amount must be a positive integer');
-  }
-
-  const updated = await db
-    .update(Users)
-    .set({ credit: sql`${Users.credit} + ${safeAmount}` })
-    .where(eq(Users.userEmail, safeEmail))
-    .returning({
-      id: Users.id,
-      userEmail: Users.userEmail,
-      userName: Users.userName,
-      userImage: Users.userImage,
-      credit: Users.credit,
-    });
-
-  if (!updated[0]) throw new ApiError(404, 'User not found');
-  return updated[0];
-};
-
-export const incrementUserCredits = async (userId, amount = 1) => {
-  const currentUser = await syncUserFromClerk(userId);
-  return incrementUserCreditsByEmail(currentUser.userEmail, amount);
-};
-
-export const decrementUserCredits = async (userId, amount = 1) => {
-  const safeAmount = Number(amount);
-
-  if (!Number.isInteger(safeAmount) || safeAmount <= 0) {
-    throw new ApiError(400, 'Credit amount must be a positive integer');
-  }
-
-  const currentUser = await syncUserFromClerk(userId);
-
-  const updated = await db
-    .update(Users)
-    .set({ credit: sql`${Users.credit} - ${safeAmount}` })
-    .where(
-      and(
-        eq(Users.userEmail, currentUser.userEmail),
-        gte(Users.credit, safeAmount)
+  if (insertedAccounts[0]) {
+    await db.execute(sql`
+      INSERT INTO app.credit_ledger (
+        account_id, amount, balance_after, reason, idempotency_key
+      ) VALUES (
+        ${insertedAccounts[0].id}, ${insertedAccounts[0].balance},
+        ${insertedAccounts[0].balance}, 'signup', ${`signup:${userId}`}
       )
-    )
-    .returning({
-      id: Users.id,
-      userEmail: Users.userEmail,
-      userName: Users.userName,
-      userImage: Users.userImage,
-      credit: Users.credit,
-    });
-
-  if (!updated[0]) {
-    throw new ApiError(402, 'Insufficient credits');
+      ON CONFLICT (idempotency_key) DO NOTHING
+    `);
   }
 
-  return updated[0];
+  const user = await selectUserByAuthId(userId);
+  if (!user) throw new ApiError(500, 'Unable to initialize user profile');
+  return user;
+};
+
+const mutateCredits = async ({ profileId, amount, reason, idempotencyKey }) => {
+  const safeAmount = Number(amount);
+  if (!Number.isInteger(safeAmount) || safeAmount === 0) {
+    throw new ApiError(400, 'Credit amount must be a non-zero integer');
+  }
+
+  const key = String(idempotencyKey || `${reason}:${randomUUID()}`);
+  const result = await db.execute(sql`
+    WITH updated AS (
+      UPDATE app.credit_accounts
+      SET balance = balance + ${safeAmount}, updated_at = now()
+      WHERE user_id = ${profileId}
+        AND balance + ${safeAmount} >= 0
+        AND NOT EXISTS (SELECT 1 FROM app.credit_ledger WHERE idempotency_key = ${key})
+      RETURNING id, user_id, balance
+    ), recorded AS (
+      INSERT INTO app.credit_ledger (account_id, amount, balance_after, reason, idempotency_key)
+      SELECT id, ${safeAmount}, balance, ${reason}, ${key} FROM updated
+      RETURNING account_id
+    )
+    SELECT
+      profile.id,
+      profile.auth_user_id AS "authUserId",
+      profile.email AS "userEmail",
+      profile.display_name AS "userName",
+      profile.avatar_url AS "userImage",
+      profile.role,
+      updated.id AS "accountId",
+      updated.balance AS credit
+    FROM updated
+    INNER JOIN recorded ON recorded.account_id = updated.id
+    INNER JOIN app.user_profiles profile ON profile.id = updated.user_id
+  `);
+
+  const user = result.rows?.[0];
+  if (!user) {
+    if (safeAmount < 0) throw new ApiError(402, 'Insufficient credits');
+    throw new ApiError(409, 'Credit mutation was already applied');
+  }
+  return user;
+};
+
+export const incrementUserCreditsByProfileId = async (
+  profileId,
+  amount = 1,
+  options = {}
+) =>
+  mutateCredits({
+    profileId,
+    amount: Math.abs(Number(amount)),
+    reason: options.reason || 'refund',
+    idempotencyKey: options.idempotencyKey,
+  });
+
+export const incrementUserCredits = async (
+  userId,
+  amount = 1,
+  options = {}
+) => {
+  const user = await syncUserFromClerk(userId);
+  return incrementUserCreditsByProfileId(user.id, amount, options);
+};
+
+export const decrementUserCredits = async (
+  userId,
+  amount = 1,
+  options = {}
+) => {
+  const safeAmount = Number(amount);
+  if (!Number.isInteger(safeAmount) || safeAmount <= 0) {
+    throw new ApiError(400, 'Credit amount must be a positive integer');
+  }
+
+  const user = await syncUserFromClerk(userId);
+  return mutateCredits({
+    profileId: user.id,
+    amount: -safeAmount,
+    reason: options.reason || 'generation',
+    idempotencyKey: options.idempotencyKey,
+  });
 };

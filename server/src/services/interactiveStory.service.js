@@ -1,8 +1,13 @@
 import { randomUUID } from 'node:crypto';
-import { asc, eq } from 'drizzle-orm';
-import { db, dbV2 } from '../db/index.js';
-import { StoryData } from '../db/schema.js';
-import { InteractiveStories, InteractiveStoryNodes } from '../db/schemaV2.js';
+import { and, asc, eq } from 'drizzle-orm';
+import { db } from '../db/index.js';
+import {
+  InteractiveStories,
+  InteractiveStoryNodes,
+  Stories,
+  StoryVersions,
+  UserProfiles,
+} from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
 import {
   buildPollinationsImageUrl,
@@ -12,7 +17,7 @@ import { generateGeminiText, generateStoryJson } from './gemini.service.js';
 import { generateUniqueStorySlug } from './story.service.js';
 import {
   decrementUserCredits,
-  incrementUserCreditsByEmail,
+  incrementUserCreditsByProfileId,
   syncUserFromClerk,
 } from './user.service.js';
 import {
@@ -44,9 +49,9 @@ const persistWithFallback = async imageUrl => {
   }
 };
 
-const mapStoryNode = item => ({
+const mapStoryNode = (item, publicStoryId) => ({
   nodeId: String(item.nodeId),
-  storyId: String(item.storyId),
+  storyId: String(publicStoryId),
   parentNodeId: item.parentNodeId ? String(item.parentNodeId) : null,
   depth: Number(item.depth ?? 0),
   choiceTaken: item.choiceTaken ? String(item.choiceTaken) : null,
@@ -56,35 +61,65 @@ const mapStoryNode = item => ({
   isActive: Boolean(item.isActive),
 });
 
+const interactiveSelection = {
+  id: Stories.id,
+  storyId: Stories.storyId,
+  ownerId: Stories.ownerId,
+  slug: Stories.slug,
+  userEmail: UserProfiles.userEmail,
+  userName: UserProfiles.userName,
+  userImage: UserProfiles.userImage,
+  title: Stories.title,
+  storySubject: Stories.storySubject,
+  storyType: Stories.storyType,
+  ageGroup: Stories.ageGroup,
+  imageStyle: Stories.imageStyle,
+  status: Stories.status,
+  rootNodeId: InteractiveStories.rootNodeId,
+  currentNodeId: InteractiveStories.currentNodeId,
+  totalPages: InteractiveStories.totalPages,
+  compiledPages: InteractiveStories.compiledPages,
+  coverImage: Stories.coverImage,
+  createdAt: Stories.createdAt,
+  updatedAt: Stories.updatedAt,
+};
+
+const mapInteractiveStory = story => ({
+  ...story,
+  status: story.status === 'published' ? 'completed' : story.status,
+});
+
+const interactiveStoryQuery = () =>
+  db
+    .select(interactiveSelection)
+    .from(Stories)
+    .innerJoin(UserProfiles, eq(UserProfiles.id, Stories.ownerId))
+    .innerJoin(InteractiveStories, eq(InteractiveStories.storyId, Stories.id));
+
 const ensureOwnedStory = async ({ userId, storyId }) => {
   const user = await syncUserFromClerk(userId);
   const safeStoryId = String(storyId ?? '').trim();
 
   if (!safeStoryId) throw new ApiError(400, 'Interactive story ID is required');
 
-  const storyRows = await dbV2
-    .select()
-    .from(InteractiveStories)
-    .where(eq(InteractiveStories.storyId, safeStoryId))
+  const storyRows = await interactiveStoryQuery()
+    .where(and(eq(Stories.storyId, safeStoryId), eq(Stories.ownerId, user.id)))
     .limit(1);
-  const story = storyRows[0] ?? null;
+  const story = storyRows[0] ? mapInteractiveStory(storyRows[0]) : null;
 
   if (!story) throw new ApiError(404, 'Interactive story not found');
-  if (story.userEmail !== user.userEmail) {
-    throw new ApiError(403, 'You do not have access to this interactive story');
-  }
 
   return { user, story };
 };
 
-const listStoryNodes = async storyId => {
-  const rows = await dbV2
+const listStoryNodes = async (internalStoryId, publicStoryId) => {
+  const rows = await db
     .select()
     .from(InteractiveStoryNodes)
-    .where(eq(InteractiveStoryNodes.storyId, storyId))
-    .orderBy(asc(InteractiveStoryNodes.id));
+    .where(eq(InteractiveStoryNodes.storyId, internalStoryId))
+    .orderBy(asc(InteractiveStoryNodes.createdAt));
 
-  return rows.map(mapStoryNode);
+  return rows.map(row => mapStoryNode(row, publicStoryId));
 };
 
 const getActiveNode = nodes =>
@@ -130,16 +165,16 @@ const mapGeneratedPages = async ({ pages, pageOffset, seedPrefix }) => {
 
 const getCompletedStorySlug = async storyId => {
   const existing = await db
-    .select({ slug: StoryData.slug })
-    .from(StoryData)
-    .where(eq(StoryData.storyId, storyId))
+    .select({ slug: Stories.slug })
+    .from(Stories)
+    .where(eq(Stories.storyId, storyId))
     .limit(1);
 
   return String(existing[0]?.slug ?? '').trim() || null;
 };
 
 const getInteractiveState = async story => {
-  const nodes = await listStoryNodes(story.storyId);
+  const nodes = await listStoryNodes(story.id, story.storyId);
   const completedSlug =
     story.status === 'completed'
       ? await getCompletedStorySlug(story.storyId)
@@ -153,12 +188,6 @@ const getInteractiveState = async story => {
 };
 
 const saveCompletedToClassicStory = async ({ story, pages, finalTitle }) => {
-  const existing = await db
-    .select()
-    .from(StoryData)
-    .where(eq(StoryData.storyId, story.storyId))
-    .limit(1);
-
   const classicOutput = {
     title: finalTitle,
     chapters: pages.map((page, index) => ({
@@ -170,44 +199,25 @@ const saveCompletedToClassicStory = async ({ story, pages, finalTitle }) => {
     })),
   };
 
-  if (!existing[0]) {
-    const slug = await generateUniqueStorySlug(
-      finalTitle || story.title || 'Interactive Story'
-    );
-    await db.insert(StoryData).values({
-      storyId: story.storyId,
-      slug,
-      storySubject: story.storySubject,
-      storyType: story.storyType,
-      ageGroup: story.ageGroup,
-      imageStyle: story.imageStyle,
-      coverImage: pages[0]?.imageUrl ?? story.coverImage,
-      output: classicOutput,
-      userEmail: story.userEmail,
-      userName: story.userName,
-      userImage: story.userImage,
-    });
-    return slug;
-  }
-
-  let slug = String(existing[0].slug ?? '').trim();
-  if (!slug) {
-    slug = await generateUniqueStorySlug(
-      finalTitle || story.title || 'Interactive Story',
-      {
-        excludeStoryId: story.storyId,
-      }
-    );
-  }
+  const slug = String(story.slug ?? '').trim();
 
   await db
-    .update(StoryData)
+    .update(Stories)
     .set({
-      slug,
-      output: classicOutput,
+      status: 'published',
+      title: finalTitle || story.title,
       coverImage: pages[0]?.imageUrl ?? story.coverImage,
+      publishedAt: new Date(),
+      updatedAt: new Date(),
     })
-    .where(eq(StoryData.storyId, story.storyId));
+    .where(eq(Stories.id, story.id));
+
+  await db
+    .update(StoryVersions)
+    .set({ output: classicOutput })
+    .where(
+      and(eq(StoryVersions.storyId, story.id), eq(StoryVersions.version, 1))
+    );
 
   return slug;
 };
@@ -277,29 +287,46 @@ export const createInteractiveStarter = async ({ userId, payload }) => {
 
     const now = new Date();
 
-    await dbV2.insert(InteractiveStories).values({
-      storyId,
-      slug,
-      userEmail: reservedUser.userEmail,
-      userName: reservedUser.userName,
-      userImage: reservedUser.userImage,
-      title: interactiveTitle,
-      storySubject: formData?.storySubject,
-      storyType: formData?.storyType,
-      ageGroup: formData?.ageGroup,
-      imageStyle: formData?.imageStyle,
-      status: 'draft',
+    const [insertedStory] = await db
+      .insert(Stories)
+      .values({
+        storyId,
+        ownerId: reservedUser.id,
+        slug,
+        kind: 'interactive',
+        status: 'draft',
+        title: interactiveTitle,
+        storySubject: formData?.storySubject,
+        storyType: formData?.storyType,
+        ageGroup: formData?.ageGroup,
+        imageStyle: formData?.imageStyle,
+        coverImage: persistedCoverImageUrl,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning({ id: Stories.id });
+
+    await db.insert(StoryVersions).values({
+      storyId: insertedStory.id,
+      version: 1,
+      output: {
+        title: interactiveTitle,
+        chapters: starterPages,
+      },
+    });
+
+    await db.insert(InteractiveStories).values({
+      storyId: insertedStory.id,
       rootNodeId,
       currentNodeId: rootNodeId,
       totalPages: starterPages.length,
-      coverImage: persistedCoverImageUrl,
       createdAt: now,
       updatedAt: now,
     });
 
-    await dbV2.insert(InteractiveStoryNodes).values({
+    await db.insert(InteractiveStoryNodes).values({
       nodeId: rootNodeId,
-      storyId,
+      storyId: insertedStory.id,
       parentNodeId: null,
       depth: 0,
       choiceTaken: null,
@@ -312,13 +339,11 @@ export const createInteractiveStarter = async ({ userId, payload }) => {
 
     return { storyId, user: reservedUser };
   } catch (error) {
-    await dbV2
-      .delete(InteractiveStoryNodes)
-      .where(eq(InteractiveStoryNodes.storyId, storyId));
-    await dbV2
-      .delete(InteractiveStories)
-      .where(eq(InteractiveStories.storyId, storyId));
-    await incrementUserCreditsByEmail(reservedUser.userEmail, 1);
+    await db.delete(Stories).where(eq(Stories.storyId, storyId));
+    await incrementUserCreditsByProfileId(reservedUser.id, 1, {
+      reason: 'generation_refund',
+      idempotencyKey: `interactive-refund:${reservedUser.id}:${storyId}`,
+    });
     throw error;
   }
 };
@@ -326,11 +351,11 @@ export const createInteractiveStarter = async ({ userId, payload }) => {
 export const listCurrentUserInteractiveStories = async ({ userId }) => {
   const user = await syncUserFromClerk(userId);
 
-  return dbV2
-    .select()
-    .from(InteractiveStories)
-    .where(eq(InteractiveStories.userEmail, user.userEmail))
-    .orderBy(asc(InteractiveStories.id));
+  const stories = await interactiveStoryQuery()
+    .where(eq(Stories.ownerId, user.id))
+    .orderBy(asc(Stories.createdAt));
+
+  return stories.map(mapInteractiveStory);
 };
 
 export const getCurrentUserInteractiveStory = async ({ userId, storyId }) => {
@@ -344,16 +369,10 @@ export const deleteCurrentUserInteractiveStory = async ({
 }) => {
   const { story } = await ensureOwnedStory({ userId, storyId });
 
-  await dbV2
-    .delete(InteractiveStoryNodes)
-    .where(eq(InteractiveStoryNodes.storyId, story.storyId));
-
-  await db.delete(StoryData).where(eq(StoryData.storyId, story.storyId));
-
-  const deleted = await dbV2
-    .delete(InteractiveStories)
-    .where(eq(InteractiveStories.storyId, story.storyId))
-    .returning({ storyId: InteractiveStories.storyId });
+  const deleted = await db
+    .delete(Stories)
+    .where(eq(Stories.id, story.id))
+    .returning({ storyId: Stories.storyId });
 
   return deleted[0] ?? { storyId: story.storyId };
 };
@@ -372,7 +391,7 @@ export const completeInteractiveStory = async ({
     };
   }
 
-  const nodes = await listStoryNodes(story.storyId);
+  const nodes = await listStoryNodes(story.id, story.storyId);
   const activeNode = getActiveNode(nodes);
   if (!activeNode) throw new ApiError(404, 'Active story node not found');
   if (activeNode.selectedChoice)
@@ -405,14 +424,14 @@ export const completeInteractiveStory = async ({
     seedPrefix: 'final',
   });
 
-  await dbV2
+  await db
     .update(InteractiveStoryNodes)
     .set({ isActive: false, selectedChoice })
     .where(eq(InteractiveStoryNodes.nodeId, activeNode.nodeId));
 
-  await dbV2.insert(InteractiveStoryNodes).values({
+  await db.insert(InteractiveStoryNodes).values({
     nodeId: finalNodeId,
-    storyId: story.storyId,
+    storyId: story.id,
     parentNodeId: activeNode.nodeId,
     depth: Math.min(MAX_DEPTH, Number(activeNode.depth ?? 0) + 1),
     choiceTaken: selectedChoice,
@@ -423,7 +442,7 @@ export const completeInteractiveStory = async ({
     createdAt: new Date(),
   });
 
-  const refreshedNodes = await listStoryNodes(story.storyId);
+  const refreshedNodes = await listStoryNodes(story.id, story.storyId);
   const finalNode = refreshedNodes.find(node => node.nodeId === finalNodeId);
   const chain = getLinearNodes({
     activeNode: finalNode,
@@ -431,16 +450,15 @@ export const completeInteractiveStory = async ({
   });
   const compiledPages = chain.flatMap(node => node.pages ?? []);
 
-  await dbV2
+  await db
     .update(InteractiveStories)
     .set({
-      status: 'completed',
       currentNodeId: finalNodeId,
       totalPages: compiledPages.length,
       compiledPages,
       updatedAt: new Date(),
     })
-    .where(eq(InteractiveStories.storyId, story.storyId));
+    .where(eq(InteractiveStories.storyId, story.id));
 
   const finalSlug = await saveCompletedToClassicStory({
     story,
@@ -473,7 +491,7 @@ export const continueInteractiveStory = async ({
   if (story.status === 'completed')
     throw new ApiError(409, 'Story is already completed');
 
-  const nodes = await listStoryNodes(story.storyId);
+  const nodes = await listStoryNodes(story.id, story.storyId);
   const activeNode = getActiveNode(nodes);
   if (!activeNode) throw new ApiError(404, 'Active story node not found');
   if (activeNode.selectedChoice)
@@ -519,14 +537,14 @@ export const continueInteractiveStory = async ({
     seedPrefix: 'branch',
   });
 
-  await dbV2
+  await db
     .update(InteractiveStoryNodes)
     .set({ isActive: false, selectedChoice: safeChoice })
     .where(eq(InteractiveStoryNodes.nodeId, activeNode.nodeId));
 
-  await dbV2.insert(InteractiveStoryNodes).values({
+  await db.insert(InteractiveStoryNodes).values({
     nodeId: nextNodeId,
-    storyId: story.storyId,
+    storyId: story.id,
     parentNodeId: activeNode.nodeId,
     depth: Number(activeNode.depth ?? 0) + 1,
     choiceTaken: safeChoice,
@@ -537,14 +555,14 @@ export const continueInteractiveStory = async ({
     createdAt: new Date(),
   });
 
-  await dbV2
+  await db
     .update(InteractiveStories)
     .set({
       currentNodeId: nextNodeId,
       totalPages: linearPages.length + persistedPages.length,
       updatedAt: new Date(),
     })
-    .where(eq(InteractiveStories.storyId, story.storyId));
+    .where(eq(InteractiveStories.storyId, story.id));
 
   const refreshedStory = {
     ...story,
