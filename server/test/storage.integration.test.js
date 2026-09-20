@@ -4,7 +4,6 @@ import test from 'node:test';
 import { config } from 'dotenv';
 
 config();
-config({ path: new URL('../../.env', import.meta.url), override: true });
 
 const enabled = process.env.RUN_STORAGE_TESTS === 'true';
 

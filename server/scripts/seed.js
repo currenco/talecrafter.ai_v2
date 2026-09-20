@@ -2,7 +2,6 @@ import { neon } from '@neondatabase/serverless';
 import { config } from 'dotenv';
 
 config();
-config({ path: new URL('../../.env', import.meta.url), override: false });
 
 if (!String(process.env.NEON_BRANCH ?? '').startsWith('dev/')) {
   throw new Error('Development seed is restricted to a dev/* Neon branch');

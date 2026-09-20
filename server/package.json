@@ -6,6 +6,7 @@
   "private": true,
   "scripts": {
     "dev": "nodemon src/index.js",
+    "build": "npm run check && npm test",
     "start": "node src/index.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.js",

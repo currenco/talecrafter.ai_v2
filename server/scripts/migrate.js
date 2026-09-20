@@ -6,7 +6,6 @@ import { neon } from '@neondatabase/serverless';
 import { config } from 'dotenv';
 
 config();
-config({ path: new URL('../../.env', import.meta.url), override: false });
 
 const connectionString = process.env.DATABASE_URL_UNPOOLED;
 if (!connectionString) {

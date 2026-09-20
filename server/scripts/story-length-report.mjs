@@ -1,8 +1,7 @@
 import dotenv from 'dotenv';
 import { neon } from '@neondatabase/serverless';
 
-dotenv.config({ path: 'server/.env' });
-dotenv.config({ path: '.env' });
+dotenv.config({ path: new URL('../.env', import.meta.url) });
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {

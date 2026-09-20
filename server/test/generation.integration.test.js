@@ -4,7 +4,6 @@ import test from 'node:test';
 import { config } from 'dotenv';
 
 config();
-config({ path: new URL('../../.env', import.meta.url), override: true });
 process.env.DATABASE_URL =
   process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
 

@@ -49,14 +49,19 @@ The client defaults to `http://localhost:3000`. The API defaults to `http://loca
 
 Never commit real credentials. Tracked environment files contain names and safe examples only.
 
+For deployment, configure each service from its own tracked template:
+
+- `server/.env.example` lists API runtime variables first and local-only database tooling variables last.
+- `client/.env.example` separates browser-safe configuration from private Neon Auth configuration.
+- The repository root does not own application environment variables; the server and client load their own env files.
+
 ## Verification
 
 Run these checks before completing a migration phase:
 
 ```sh
 cd server
-npm run lint
-npm test
+npm run build
 ```
 
 ```sh

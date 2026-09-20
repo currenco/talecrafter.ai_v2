@@ -158,9 +158,7 @@ export const buildStoryPrompt = ({
   imageStyle,
 }) => {
   const template =
-    process.env.CREATE_STORY_PROMPT ||
-    process.env.NEXT_PUBLIC_CREATE_STORY_PROMPT ||
-    DEFAULT_CREATE_STORY_PROMPT;
+    process.env.CREATE_STORY_PROMPT || DEFAULT_CREATE_STORY_PROMPT;
   return template
     .replaceAll('{ageGroup}', String(ageGroup ?? ''))
     .replaceAll('{storyType}', String(storyType ?? ''))
