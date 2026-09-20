@@ -5,11 +5,22 @@ import { createAuthClient } from '@neondatabase/auth/next'
 export const authClient = createAuthClient()
 
 export const getAccessToken = async () => {
-  const result = await authClient.token()
+  const result = await authClient.token({
+    fetchOptions: {
+      // The current SDK can otherwise satisfy /token from its session cache.
+      headers: { 'X-Force-Fetch': 'true' },
+    },
+  })
   if (result.error) {
     throw new Error(result.error.message ?? 'Unable to create access token')
   }
-  return result.data?.token ?? null
+
+  const token = result.data?.token
+  if (!token) {
+    throw new Error('Neon Auth returned no access token')
+  }
+
+  return token
 }
 
 export const useAuth = () => {

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, UserRound } from "lucide-react";
+import { Coins, LogOut, UserRound } from "lucide-react";
 import { useContext, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient, useUser } from "@/lib/neon-auth/client";
@@ -79,6 +79,15 @@ const Header = () => {
 
   const accountControls = (
     <div className="flex items-center gap-1">
+      <Link
+        href="/buy-credits"
+        aria-label={`${userDetail?.credit ?? 0} credits. Manage credits`}
+        title="Credits"
+        className="flex h-9 min-w-12 items-center justify-center gap-1.5 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 text-sm font-semibold text-cyan-100 hover:bg-cyan-300/15"
+      >
+        <Coins size={17} aria-hidden="true" />
+        <span>{userDetail?.credit ?? "-"}</span>
+      </Link>
       <Link
         href="/dashboard"
         aria-label="Open account dashboard"
