@@ -4,6 +4,10 @@
   "description": "Express API for TaleCrafter AI",
   "type": "module",
   "private": true,
+  "engines": {
+    "node": "22.x",
+    "npm": "10.x"
+  },
   "scripts": {
     "dev": "nodemon src/index.js",
     "build": "npm run check && npm test",
