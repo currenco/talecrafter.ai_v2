@@ -14,7 +14,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-The development server defaults to `http://localhost:3000` and expects the Express API at the URL configured by `NEXT_PUBLIC_API_BASE_URL`.
+The development server defaults to `http://localhost:3000` and expects the Express API at the URL configured by the server-only `API_BASE_URL`.
 
 ## Verification
 

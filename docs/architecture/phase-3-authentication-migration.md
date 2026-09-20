@@ -31,7 +31,7 @@ Client runtime:
 
 - `NEON_AUTH_BASE_URL`
 - `NEON_AUTH_COOKIE_SECRET`
-- `NEXT_PUBLIC_API_BASE_URL`
+- `API_BASE_URL`
 
 Server runtime:
 
