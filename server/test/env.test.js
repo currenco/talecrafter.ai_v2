@@ -44,3 +44,22 @@ test('requires service configuration in production', () => {
     /STRIPE_SECRET_KEY is required in production/
   );
 });
+
+test('validates Pollinations application credentials', () => {
+  assert.throws(
+    () =>
+      validateEnvironment({
+        ...baseEnvironment,
+        POLLINATIONS_APP_KEY: 'sk_not-an-app-key',
+      }),
+    /POLLINATIONS_APP_KEY must start with pk_/
+  );
+  assert.throws(
+    () =>
+      validateEnvironment({
+        ...baseEnvironment,
+        POLLINATIONS_TOKEN_ENCRYPTION_KEY: 'too-short',
+      }),
+    /at least 32 characters/
+  );
+});

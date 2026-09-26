@@ -16,6 +16,7 @@ import interactiveStoryRouter from './routes/interactiveStory.route.js';
 import paymentRouter from './routes/payment.route.js';
 import { handleStripeWebhook } from './controllers/payment.controller.js';
 import adminRouter from './routes/admin.route.js';
+import pollinationsRouter from './routes/pollinations.route.js';
 
 const app = express();
 
@@ -85,6 +86,7 @@ app.use(`${API_PREFIX}/images`, imageRouter);
 app.use(`${API_PREFIX}/stories`, storyRouter);
 app.use(`${API_PREFIX}/interactive-stories`, interactiveStoryRouter);
 app.use(`${API_PREFIX}/payments`, paymentRouter);
+app.use(`${API_PREFIX}/pollinations`, pollinationsRouter);
 app.use(`${API_PREFIX}/admin`, adminRouter);
 
 app.use(notFound);

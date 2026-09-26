@@ -292,6 +292,47 @@ export const GenerationJobs = appSchema.table(
   ]
 );
 
+export const PollinationsConnections = appSchema.table(
+  'pollinations_connections',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => UserProfiles.id, { onDelete: 'cascade' }),
+    providerUserId: text('provider_user_id'),
+    providerUsername: text('provider_username'),
+    encryptedAccessToken: text('encrypted_access_token').notNull(),
+    scope: text('scope'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  table => [
+    uniqueIndex('pollinations_connections_user_unique').on(table.userId),
+    index('pollinations_connections_expires_idx').on(table.expiresAt),
+  ]
+);
+
+export const PollinationsOAuthStates = appSchema.table(
+  'pollinations_oauth_states',
+  {
+    stateHash: varchar('state_hash', { length: 64 }).primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => UserProfiles.id, { onDelete: 'cascade' }),
+    encryptedCodeVerifier: text('encrypted_code_verifier').notNull(),
+    redirectUri: text('redirect_uri').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  table => [
+    index('pollinations_oauth_states_user_idx').on(table.userId),
+    index('pollinations_oauth_states_expires_idx').on(table.expiresAt),
+  ]
+);
+
 export const StripeProducts = appSchema.table(
   'stripe_products',
   {

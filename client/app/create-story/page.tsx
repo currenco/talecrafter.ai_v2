@@ -1,5 +1,5 @@
 "use client";
-import { useContext, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import StorySubjectInput from "./(component)/StorySubjectInput";
 import StoryType from "./(component)/StoryType";
 import AgeCategory from "./(component)/AgeCategory";
@@ -14,11 +14,14 @@ import UploadImage from "./(component)/UploadImage";
 import { motion } from "framer-motion";
 import {
   apiFetch,
+  ApiClientError,
   createIdempotencyKey,
   shouldRetainIdempotencyKey,
 } from "@/lib/api-client";
 import type { UserDetail } from "@/app/_context/UserDetailContext";
 import type { StorySelection } from "@/types/story";
+import { waitForStoryPublication } from "@/lib/story-generation";
+import { CircleCheck, Link2, LoaderCircle, WalletCards } from "lucide-react";
 const MotionDiv = motion.div;
 
 export interface FormDataType {
@@ -31,6 +34,7 @@ export interface FormDataType {
 type ClassicStoryResponse = {
   slug?: string;
   storyId?: string;
+  status?: "draft" | "published";
   user?: UserDetail;
 };
 
@@ -39,21 +43,90 @@ type InteractiveStoryResponse = {
   user?: UserDetail;
 };
 
+type PollinationsStatus = {
+  state:
+    | "connected"
+    | "disconnected"
+    | "expired"
+    | "revoked"
+    | "model_not_authorized";
+  connected: boolean;
+  username: string | null;
+  expiresAt: string | null;
+  balance: unknown;
+};
+
 const CreateStory = () => {
   const router = useRouter();
   const [formData, setFormData] = useState<Partial<FormDataType>>({});
   const [loading, setLoading] = useState<boolean>(false);
+  const [generationMessage, setGenerationMessage] = useState(
+    "Writing your story draft...",
+  );
   const { user } = useUser();
   const { getToken } = useAuth();
   const notify = (msg: string) => toast(msg);
   const notifyError = (msg: string) => toast.error(msg);
   const { userDetail, setUserDetail } = useContext(UserDetailContext);
   const [storySubject, setStorySubject] = useState("");
+  const [walletStatus, setWalletStatus] = useState<PollinationsStatus>();
+  const [walletPending, setWalletPending] = useState(false);
+  const [walletLoading, setWalletLoading] = useState(false);
   const generationRequestRef = useRef<{
     mode: "classic" | "interactive";
     request: string;
     key: string;
   } | null>(null);
+
+  useEffect(() => {
+    let ignore = false;
+    if (!user) {
+      setWalletStatus(undefined);
+      setWalletLoading(false);
+      return;
+    }
+
+    const loadWallet = async () => {
+      setWalletLoading(true);
+      try {
+        const token = await getToken();
+        const status = await apiFetch<PollinationsStatus>(
+          "/pollinations/status",
+          { token },
+        );
+        if (!ignore) setWalletStatus(status);
+      } catch (error) {
+        console.error("Unable to load Pollinations wallet", error);
+        if (!ignore) setWalletStatus(undefined);
+      } finally {
+        if (!ignore) setWalletLoading(false);
+      }
+    };
+
+    loadWallet();
+    return () => {
+      ignore = true;
+    };
+  }, [getToken, user]);
+
+  const connectPollinations = async () => {
+    setWalletPending(true);
+    try {
+      const token = await getToken();
+      const result = await apiFetch<{ authorizationUrl: string }>(
+        "/pollinations/connect",
+        { method: "POST", token },
+      );
+      window.location.assign(result.authorizationUrl);
+    } catch (error) {
+      notifyError(
+        error instanceof ApiClientError
+          ? error.message
+          : "Unable to connect Pollinations wallet",
+      );
+      setWalletPending(false);
+    }
+  };
 
   const onHandleUserSelection = (data: StorySelection) => {
     setFormData((prev) => ({
@@ -65,7 +138,9 @@ const CreateStory = () => {
   const buildRequestBody = () => {
     const subject =
       formData.storySubject ||
-      storySubject.replace("Here's a short story idea based on the image:", "").trim();
+      storySubject
+        .replace("Here's a short story idea based on the image:", "")
+        .trim();
 
     return {
       storySubject: subject,
@@ -77,7 +152,12 @@ const CreateStory = () => {
 
   const validateStoryRequest = () => {
     const body = buildRequestBody();
-    if (!body.storySubject || !body.storyType || !body.ageGroup || !body.imageStyle) {
+    if (
+      !body.storySubject ||
+      !body.storyType ||
+      !body.ageGroup ||
+      !body.imageStyle
+    ) {
       notifyError("Please complete all story options before generating.");
       return null;
     }
@@ -97,7 +177,14 @@ const CreateStory = () => {
     }
 
     if (userDetail.credit <= 0) {
-      notifyError("You have no credit left! Please buy credit to generate story");
+      notifyError(
+        "You have no credit left! Please buy credit to generate story",
+      );
+      return;
+    }
+
+    if (!walletStatus?.connected) {
+      notifyError("Connect your Pollinations wallet before generating images");
       return;
     }
 
@@ -105,6 +192,7 @@ const CreateStory = () => {
     if (!body) return;
 
     setLoading(true);
+    setGenerationMessage("Writing your story draft...");
     try {
       const token = await getToken();
       const isInteractive = mode === "interactive";
@@ -121,7 +209,9 @@ const CreateStory = () => {
           key: createIdempotencyKey(),
         };
       }
-      const result = await apiFetch<ClassicStoryResponse | InteractiveStoryResponse>(endpoint, {
+      const result = await apiFetch<
+        ClassicStoryResponse | InteractiveStoryResponse
+      >(endpoint, {
         method: "POST",
         token,
         idempotencyKey: generationRequestRef.current.key,
@@ -133,19 +223,49 @@ const CreateStory = () => {
         setUserDetail(result.user);
       }
 
-      notify("Story Generated Successfully");
-      const target = isInteractive
-        ? (result as InteractiveStoryResponse).storyId
-        : (result as ClassicStoryResponse).slug || (result as ClassicStoryResponse).storyId;
+      if (result.storyId && user?.id) {
+        sessionStorage.removeItem(`dashboard_stories_cache_v1_${user.id}`);
+      }
 
-      if (!target) throw new Error("Story response did not include a navigation target");
-      router.push((isInteractive ? "/interactive-story/" : "/story/") + target);
+      if (!isInteractive) {
+        const classicResult = result as ClassicStoryResponse;
+        if (!classicResult.storyId) {
+          throw new Error("Story response did not include a story ID");
+        }
+
+        notify("Story draft created. Generating its images now.");
+        const published = await waitForStoryPublication({
+          storyId: classicResult.storyId,
+          token,
+          onProgress: (status) =>
+            setGenerationMessage(
+              `Creating images ${status.completedImages}/${status.totalImages}...`,
+            ),
+        });
+        generationRequestRef.current = null;
+        notify("Story Generated Successfully");
+        router.push(`/story/${published.slug}`);
+        return;
+      }
+
+      notify("Story Generated Successfully");
+      const target = (result as InteractiveStoryResponse).storyId;
+
+      if (!target)
+        throw new Error("Story response did not include a navigation target");
+      router.push(`/interactive-story/${target}`);
     } catch (error) {
-      if (!shouldRetainIdempotencyKey(error)) generationRequestRef.current = null;
+      if (!shouldRetainIdempotencyKey(error))
+        generationRequestRef.current = null;
       console.error("Error generating story:", error);
-      notifyError("Server Error! Please try in a moment.");
+      notifyError(
+        error instanceof ApiClientError
+          ? error.message
+          : "Server Error! Please try in a moment.",
+      );
     } finally {
       setLoading(false);
+      setGenerationMessage("Writing your story draft...");
     }
   };
   const fadeUp = {
@@ -179,13 +299,71 @@ const CreateStory = () => {
               </p>
             </div>
             <div className="inline-flex items-center rounded-xl border border-blue-300/20 bg-blue-500/10 px-4 py-3 text-blue-100/90">
-              <span className="tc-title-gradient text-sm font-medium">Credits left:</span>
+              <span className="tc-title-gradient text-sm font-medium">
+                Credits left:
+              </span>
               <span className="tc-title-gradient ml-2 text-xl font-bold">
                 {userDetail?.credit ?? "-"}
               </span>
             </div>
           </div>
         </MotionDiv>
+
+        {user && (
+          <div className="mt-6 flex flex-col gap-4 border-y border-blue-300/15 py-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyan-300/10 text-cyan-200">
+                <WalletCards size={20} aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-white">
+                  Pollinations wallet
+                </p>
+                <p className="truncate text-sm text-blue-100/65">
+                  {walletLoading
+                    ? "Checking wallet connection..."
+                    : walletStatus?.connected
+                      ? walletStatus.username
+                        ? `Connected as ${walletStatus.username}`
+                        : "Connected for image generation"
+                      : walletStatus?.state === "expired"
+                        ? "Connection expired"
+                        : walletStatus?.state === "revoked"
+                          ? "Connection revoked"
+                          : walletStatus?.state === "model_not_authorized"
+                            ? "Reconnect to authorize the current image model"
+                            : "Connect to generate story images"}
+                </p>
+              </div>
+            </div>
+            {walletLoading ? (
+              <LoaderCircle
+                className="animate-spin text-cyan-300"
+                size={20}
+                aria-label="Checking wallet connection"
+              />
+            ) : walletStatus?.connected ? (
+              <span className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-300">
+                <CircleCheck size={18} aria-hidden="true" />
+                Connected
+              </span>
+            ) : (
+              <Button
+                type="button"
+                disabled={walletPending}
+                className="tc-btn-primary px-5 py-5 text-sm disabled:cursor-not-allowed disabled:opacity-70"
+                onClick={connectPollinations}
+              >
+                {walletPending ? (
+                  <LoaderCircle className="animate-spin" size={18} />
+                ) : (
+                  <Link2 size={18} />
+                )}
+                Connect wallet
+              </Button>
+            )}
+          </div>
+        )}
 
         <MotionDiv
           initial="hidden"
@@ -275,7 +453,7 @@ const CreateStory = () => {
           </div>
         </div>
       </div>
-      <CustomLoader isLoading={loading} />
+      <CustomLoader isLoading={loading} message={generationMessage} />
     </div>
   );
 };

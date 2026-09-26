@@ -29,6 +29,13 @@
       "when": 1789903549190,
       "tag": "0003_clumsy_kingpin",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790424196234,
+      "tag": "0004_sparkling_loki",
+      "breakpoints": true
     }
   ]
 }

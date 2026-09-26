@@ -83,11 +83,27 @@ export const createCloudinaryStorage = (options = {}) => {
       const sourceResponse = await fetchWithTimeout(
         fetchImpl,
         safeUrl,
-        { cache: 'no-store', redirect: 'error' },
+        {
+          cache: 'no-store',
+          redirect: 'error',
+          headers: uploadOptions.sourceHeaders,
+        },
         uploadOptions.sourceTimeoutMs ?? 70_000
       );
 
       if (!sourceResponse.ok) {
+        if (sourceResponse.status === 401) {
+          throw new ApiError(401, 'Reconnect your Pollinations wallet');
+        }
+        if (sourceResponse.status === 402) {
+          throw new ApiError(
+            402,
+            'Your Pollinations wallet balance or authorized budget is exhausted'
+          );
+        }
+        if (sourceResponse.status === 429) {
+          throw new ApiError(429, 'Pollinations is busy; please retry shortly');
+        }
         throw new ApiError(
           502,
           `Image source fetch failed: ${sourceResponse.status}`

@@ -151,6 +151,8 @@ const DEFAULT_CREATE_STORY_PROMPT = [
   'Return only strict JSON with title, coverImagePrompt, characterDescriptions, and chapters.',
 ].join('\n');
 
+export const STORY_PAGE_COUNT = 5;
+
 export const buildStoryPrompt = ({
   ageGroup,
   storyType,
@@ -201,6 +203,56 @@ export const tryParseGeminiJson = raw => {
   return null;
 };
 
+export const normalizeStoryDraft = story => {
+  const title = String(story?.title ?? '').trim();
+  const characterDescriptions = story?.characterDescriptions;
+  const chapters = Array.isArray(story?.chapters)
+    ? story.chapters.slice(0, STORY_PAGE_COUNT)
+    : [];
+
+  if (!title) throw new ApiError(502, 'Generated story has no title');
+  if (
+    !characterDescriptions ||
+    typeof characterDescriptions !== 'object' ||
+    Array.isArray(characterDescriptions) ||
+    Object.keys(characterDescriptions).length === 0
+  ) {
+    throw new ApiError(502, 'Generated story has no character descriptions');
+  }
+  if (chapters.length !== STORY_PAGE_COUNT) {
+    throw new ApiError(
+      502,
+      `Generated story must contain exactly ${STORY_PAGE_COUNT} pages`
+    );
+  }
+
+  const normalizedChapters = chapters.map((chapter, index) => {
+    const chapterTitle = String(chapter?.title ?? '').trim();
+    const textPrompt = String(chapter?.textPrompt ?? '').trim();
+    const imagePrompt = String(chapter?.imagePrompt ?? '').trim();
+    if (!chapterTitle || !textPrompt || !imagePrompt) {
+      throw new ApiError(
+        502,
+        `Generated story page ${index + 1} is incomplete`
+      );
+    }
+    return {
+      ...chapter,
+      chapterNumber: index + 1,
+      title: chapterTitle,
+      textPrompt,
+      imagePrompt,
+    };
+  });
+
+  return {
+    ...story,
+    title,
+    characterDescriptions,
+    chapters: normalizedChapters,
+  };
+};
+
 const buildJsonRepairPrompt = brokenJson => `
 You are a strict JSON repair assistant.
 Fix the JSON below so it is syntactically valid while preserving the original meaning and fields.
@@ -211,9 +263,16 @@ ${brokenJson}
 
 export const generateStoryJson = async ({ formData, interactive = false }) => {
   const basePrompt = buildStoryPrompt(formData);
-  const prompt = interactive
-    ? `${basePrompt}\n\nFor interactive story starter, return 6 to 8 chapters minimum in consistent JSON format. No markdown wrappers.`
-    : basePrompt;
+  const prompt = [
+    basePrompt,
+    `Return exactly ${STORY_PAGE_COUNT} chapters. Never return more than ${STORY_PAGE_COUNT} chapters.`,
+    interactive
+      ? 'This is an interactive story starter. End page 5 at a meaningful decision point.'
+      : 'Make page 5 a complete and satisfying conclusion.',
+    'Every chapter must contain a non-empty title, textPrompt, and imagePrompt.',
+    'Include a non-empty characterDescriptions object and keep those visual details consistent in every imagePrompt.',
+    'Return consistent JSON only. No markdown wrappers.',
+  ].join('\n\n');
   const outputText = await generateGeminiText({
     prompt,
     mode: 'story-generation',
@@ -232,9 +291,5 @@ export const generateStoryJson = async ({ formData, interactive = false }) => {
     throw new ApiError(502, 'Gemini response is not valid story JSON');
   }
 
-  if (!Array.isArray(story?.chapters) || story.chapters.length === 0) {
-    throw new ApiError(502, 'Generated story does not contain chapters');
-  }
-
-  return story;
+  return normalizeStoryDraft(story);
 };

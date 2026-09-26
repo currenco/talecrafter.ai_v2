@@ -31,7 +31,13 @@ export const buildAssetObjectKey = ({
   return `users/${owner}/uploads/${label}-${id}`;
 };
 
-const uploadOne = async ({ ownerId, publicStoryId, sourceUrl, purpose }) => {
+const uploadOne = async ({
+  ownerId,
+  publicStoryId,
+  sourceUrl,
+  sourceHeaders,
+  purpose,
+}) => {
   const storage = getObjectStorage();
   const id = randomUUID();
   const uploaded = await storage.uploadFromUrl(sourceUrl, {
@@ -41,6 +47,7 @@ const uploadOne = async ({ ownerId, publicStoryId, sourceUrl, purpose }) => {
       assetId: id,
       purpose,
     }),
+    sourceHeaders,
   });
 
   return {
@@ -149,10 +156,14 @@ export const buildStoryAssetsInsert = ({ ownerId, storyId, uploads }) =>
     )
     .returning({ id: Assets.id });
 
-export const persistStandaloneAsset = async ({ ownerId, sourceUrl }) => {
+export const persistStandaloneAsset = async ({
+  ownerId,
+  sourceUrl,
+  sourceHeaders,
+}) => {
   const [upload] = await uploadAssetBatch({
     ownerId,
-    images: [{ sourceUrl, purpose: 'story-reference' }],
+    images: [{ sourceUrl, sourceHeaders, purpose: 'story-reference' }],
   });
 
   try {

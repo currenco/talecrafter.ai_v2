@@ -31,19 +31,34 @@ export const buildPollinationsImageUrl = (prompt, options = {}) => {
     normalizedPrompt || 'storybook illustration'
   );
   const params = new URLSearchParams({
-    model: process.env.POLLINATIONS_AI_MODEL ?? 'flux',
+    model:
+      process.env.POLLINATIONS_IMAGE_MODEL ??
+      process.env.POLLINATIONS_AI_MODEL ??
+      'black-forest-labs/flux.1-schnell',
     enhance: 'false',
     negative_prompt: 'worst quality, blurry',
     safe: 'true',
     seed: String(normalizeSeed(options.seed)),
   });
 
-  if (process.env.POLLINATIONS_API_KEY) {
-    params.set('key', process.env.POLLINATIONS_API_KEY);
-  }
-
   if (options.width) params.set('width', String(options.width));
   if (options.height) params.set('height', String(options.height));
 
   return `https://gen.pollinations.ai/image/${safePrompt}?${params.toString()}`;
+};
+
+export const buildPollinationsImageRequest = (
+  prompt,
+  accessToken,
+  options = {}
+) => {
+  const token = String(accessToken ?? '').trim();
+  if (!token.startsWith('sk_')) {
+    throw new TypeError('A Pollinations user access token is required');
+  }
+
+  return {
+    sourceUrl: buildPollinationsImageUrl(prompt, options),
+    sourceHeaders: { Authorization: `Bearer ${token}` },
+  };
 };

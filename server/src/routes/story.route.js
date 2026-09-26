@@ -7,6 +7,8 @@ import {
   getRelatedStoryList,
   getStoryIdDetail,
   getStorySlugDetail,
+  getStoryGenerationStatus,
+  resumeStoryGeneration,
 } from '../controllers/story.controller.js';
 import { requireAuth } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
@@ -28,6 +30,19 @@ router.post(
   createStory
 );
 router.get('/me', requireAuth, getCurrentUserStories);
+router.get(
+  '/me/:storyId/status',
+  requireAuth,
+  validate(storyIdParamSchema),
+  getStoryGenerationStatus
+);
+router.post(
+  '/:storyId/resume',
+  generationRateLimit,
+  requireAuth,
+  validate(storyIdParamSchema),
+  resumeStoryGeneration
+);
 router.get('/slug/:slug', getStorySlugDetail);
 router.get('/id/:storyId', getStoryIdDetail);
 router.get(

@@ -174,6 +174,14 @@ export const reserveGeneration = async ({ userId, ...options }) => {
   return { ...reservation, user: reservation.user ?? user };
 };
 
+export const attachGenerationStory = ({ jobId, storyId }) =>
+  db
+    .update(GenerationJobs)
+    .set({ storyId, updatedAt: new Date() })
+    .where(
+      and(eq(GenerationJobs.id, jobId), eq(GenerationJobs.status, 'running'))
+    );
+
 export const buildGenerationSuccessUpdate = ({
   jobId,
   storyId,
