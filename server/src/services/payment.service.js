@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { Payments } from '../db/schema.js';
+import { Payments, StripeProducts } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
 import { syncUserFromAuth } from './user.service.js';
 
@@ -72,6 +72,91 @@ const getPaymentBySessionId = async sessionId => {
   return rows[0] ?? null;
 };
 
+const defaultPriceIdFromProduct = product => {
+  const value = product.default_price;
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  return value.id ?? null;
+};
+
+const assertCatalogEntryMatchesPlan = ({ catalogEntry, plan }) => {
+  if (
+    catalogEntry.amountCents !== plan.amountCents ||
+    catalogEntry.currency !== 'usd' ||
+    catalogEntry.credits !== plan.credits
+  ) {
+    throw new ApiError(
+      503,
+      `Stripe catalog entry for plan "${plan.id}" is out of date`
+    );
+  }
+};
+
+const getStripeProductForPlan = async plan => {
+  const existing = await db
+    .select()
+    .from(StripeProducts)
+    .where(eq(StripeProducts.planId, plan.id))
+    .limit(1);
+
+  if (existing[0]) {
+    assertCatalogEntryMatchesPlan({ catalogEntry: existing[0], plan });
+    return existing[0];
+  }
+
+  const stripe = getStripe();
+  const product = await stripe.products.create(
+    {
+      name: `TaleCrafter AI ${plan.title} Credits`,
+      description: `${plan.credits} story generation credits`,
+      default_price_data: {
+        currency: 'usd',
+        unit_amount: plan.amountCents,
+      },
+      metadata: {
+        planId: plan.id,
+        credits: String(plan.credits),
+      },
+    },
+    {
+      idempotencyKey: `credit-plan:${plan.id}:usd:${plan.amountCents}:${plan.credits}`,
+    }
+  );
+  const priceId = defaultPriceIdFromProduct(product);
+
+  if (!priceId) {
+    throw new ApiError(502, 'Stripe did not create a default product price');
+  }
+
+  await db
+    .insert(StripeProducts)
+    .values({
+      planId: plan.id,
+      productId: product.id,
+      priceId,
+      amountCents: plan.amountCents,
+      currency: 'usd',
+      credits: plan.credits,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .onConflictDoNothing({ target: StripeProducts.planId });
+
+  const catalogEntries = await db
+    .select()
+    .from(StripeProducts)
+    .where(eq(StripeProducts.planId, plan.id))
+    .limit(1);
+  const catalogEntry = catalogEntries[0];
+
+  if (!catalogEntry) {
+    throw new ApiError(502, 'Unable to persist the Stripe product');
+  }
+
+  assertCatalogEntryMatchesPlan({ catalogEntry, plan });
+  return catalogEntry;
+};
+
 const paymentIntentIdFromSession = session => {
   const value = session.payment_intent;
   if (!value) return null;
@@ -112,6 +197,13 @@ const assertSessionMatchesPlan = ({ session, payment }) => {
       'Checkout session user does not match the payment ledger'
     );
   }
+
+  if (session.metadata?.priceId !== payment.providerPriceId) {
+    throw new ApiError(
+      400,
+      'Checkout session price does not match the payment ledger'
+    );
+  }
 };
 
 export const createStripeCheckoutSession = async ({ userId, planId }) => {
@@ -119,6 +211,7 @@ export const createStripeCheckoutSession = async ({ userId, planId }) => {
   const plan = getPlan(planId);
   const appOrigin = getAppOrigin();
   const stripe = getStripe();
+  const product = await getStripeProductForPlan(plan);
 
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
@@ -128,20 +221,14 @@ export const createStripeCheckoutSession = async ({ userId, planId }) => {
     cancel_url: `${appOrigin}/buy-credits?stripe_cancelled=1`,
     line_items: [
       {
+        price: product.priceId,
         quantity: 1,
-        price_data: {
-          currency: 'usd',
-          unit_amount: plan.amountCents,
-          product_data: {
-            name: `TaleCrafter AI ${plan.title} Credits`,
-            description: `${plan.credits} story generation credits`,
-          },
-        },
       },
     ],
     metadata: {
       planId: plan.id,
       credits: String(plan.credits),
+      priceId: product.priceId,
       userId: user.id,
     },
   });
@@ -156,6 +243,8 @@ export const createStripeCheckoutSession = async ({ userId, planId }) => {
       .values({
         provider: 'stripe',
         providerSessionId: session.id,
+        providerProductId: product.productId,
+        providerPriceId: product.priceId,
         userId: user.id,
         userEmail: user.userEmail,
         planId: plan.id,

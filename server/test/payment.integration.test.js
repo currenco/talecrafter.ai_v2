@@ -32,7 +32,7 @@ test(
       status: 'complete',
       payment_status: 'paid',
       payment_intent: `pi_test_${suffix}`,
-      metadata: { userId: profileId },
+      metadata: { userId: profileId, priceId: `price_test_${suffix}` },
     };
 
     let paymentId;
@@ -51,6 +51,8 @@ test(
           userId: profileId,
           provider: 'stripe',
           providerSessionId: sessionId,
+          providerProductId: `prod_test_${suffix}`,
+          providerPriceId: `price_test_${suffix}`,
           userEmail,
           planId: 'basic',
           amountCents: 199,
