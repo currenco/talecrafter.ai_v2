@@ -39,3 +39,6 @@ client/next-env.d.ts
 client/.vercel/
 .vercel/
 .neon
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat

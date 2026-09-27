@@ -11,7 +11,6 @@ import Image from "next/image";
 
 import React, { useRef, useState } from "react";
 
-
 interface NavbarProps {
   children: React.ReactNode;
   className?: string;
@@ -100,7 +99,7 @@ export const NavBody = ({ children, className, visible }: NavBodyProps) => {
         stiffness: 200,
         damping: 50,
       }}
-      
+
       className={cn(
         "relative z-[60] mx-auto hidden w-full max-w-7xl flex-row items-center justify-between self-start rounded-full border border-blue-300/15 bg-[#010715]/95 px-4 py-2 shadow-[0_10px_35px_rgba(0,0,0,0.28)] backdrop-blur-xl lg:flex",
         visible && "bg-[#010715]/85 shadow-[0_18px_60px_rgba(0,0,0,0.34)]",
@@ -220,12 +219,12 @@ export const MobileNavToggle = ({
   onClick,
 }: {
   isOpen: boolean;
-  onClick: () => void;
+  onClick?: () => void;
 }) => {
   return isOpen ? (
-    <IconX className="text-blue-100" onClick={onClick} />
+    <IconX className="text-blue-100" {...(onClick ? { onClick } : {})} />
   ) : (
-    <IconMenu2 className="text-blue-100" onClick={onClick} />
+    <IconMenu2 className="text-blue-100" {...(onClick ? { onClick } : {})} />
   );
 };
 
@@ -261,8 +260,7 @@ export const NavbarButton = ({
   className?: string;
   variant?: "primary" | "secondary" | "dark" | "gradient";
 } & (
-  | React.ComponentPropsWithoutRef<"a">
-  | React.ComponentPropsWithoutRef<"button">
+  React.ComponentPropsWithoutRef<"a"> | React.ComponentPropsWithoutRef<"button">
 )) => {
   const baseStyles =
     "px-4 py-2 rounded-md bg-white button bg-white text-black text-sm font-bold relative cursor-pointer hover:-translate-y-0.5 transition duration-200 inline-block text-center";
