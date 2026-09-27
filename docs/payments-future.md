@@ -10,7 +10,7 @@ The Next.js buy credits page lets authenticated users select one of the existing
 - Premium: 75 credits for 3.99 USD
 - Ultimate: 150 credits for 5.99 USD
 
-The client asks the Express backend to create a Stripe Checkout session. The backend records a pending payment ledger row. Stripe then calls the backend webhook, where the signature, session, user, amount, currency, and plan are verified before credits are added from backend-owned code only. The success-page redirect only reads ledger status; it does not fulfill credits.
+The client asks the Express backend to create a Stripe Checkout session. The backend records a pending payment ledger row. Stripe then calls the backend webhook, where the signature, session, user, amount, currency, and plan are verified before credits are added from backend-owned code only. On return from Checkout, the authenticated status endpoint also retrieves and validates a still-pending session so a missed or delayed webhook can be reconciled safely. Both paths use the same idempotent fulfillment transaction.
 
 ## Required Environment
 
@@ -34,5 +34,5 @@ That approach was removed because it trusted browser-side state for payment comp
 - Run `npm run test:integration` against a non-production database before release.
 - Configure the permanent Stripe webhook endpoint with completed, asynchronous success, and asynchronous failure Checkout events.
 - Keep the Stripe CLI listener and its signing secret limited to local development.
-- Store Clerk user ID in the payment ledger in addition to email if/when the user schema is expanded.
+- Keep the stable Auth profile ID in the payment ledger; email is only a payment-time snapshot and never an authorization key.
 - Add an admin/support view for checking payment and fulfillment state.

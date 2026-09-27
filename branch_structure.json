@@ -1,0 +1,15 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "main",
+    "pollination-app-setup"
+  ],
+  "parent": {
+    "main": null,
+    "pollination-app-setup": "main"
+  },
+  "order": [
+    "main",
+    "pollination-app-setup"
+  ]
+}
