@@ -33,7 +33,6 @@ export const buildPollinationsImageUrl = (prompt, options = {}) => {
   const params = new URLSearchParams({
     model:
       process.env.POLLINATIONS_IMAGE_MODEL ??
-      process.env.POLLINATIONS_AI_MODEL ??
       'black-forest-labs/flux.1-schnell',
     enhance: 'false',
     negative_prompt: 'worst quality, blurry',
