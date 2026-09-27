@@ -3,7 +3,8 @@ import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { Payments, StripeProducts } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
-import { syncUserFromAuth } from './user.service.js';
+import { logger } from '../utils/logger.js';
+import { getUserByProfileId, syncUserFromAuth } from './user.service.js';
 
 export const CREDIT_PLANS = [
   {
@@ -271,18 +272,43 @@ export const getStripeCheckoutStatus = async ({ userId, sessionId }) => {
   if (!safeSessionId) throw new ApiError(400, 'Stripe session ID is required');
 
   const user = await syncUserFromAuth(userId);
-  const payment = await getPaymentBySessionId(safeSessionId);
+  let payment = await getPaymentBySessionId(safeSessionId);
 
   if (!payment) throw new ApiError(404, 'Payment not found');
   if (payment.userId !== user.id) {
     throw new ApiError(403, 'This checkout session does not belong to you');
   }
 
+  if (payment.status === 'pending') {
+    let session;
+    try {
+      session = await getStripe().checkout.sessions.retrieve(safeSessionId);
+    } catch (error) {
+      logger.warn('Unable to reconcile pending Stripe checkout', {
+        sessionId: safeSessionId,
+        message: error?.message,
+      });
+    }
+
+    if (session?.status === 'complete' && session.payment_status !== 'unpaid') {
+      await fulfillStripeCheckoutSession({
+        session,
+        rawEvent: {
+          id: `checkout-reconcile:${safeSessionId}:${session.payment_status}`,
+          type: 'checkout.session.reconciled',
+          data: { object: session },
+        },
+      });
+      payment = await getPaymentBySessionId(safeSessionId);
+    }
+  }
+
   return {
     status: payment.status,
     credits: payment.credits,
     fulfilledAt: payment.fulfilledAt,
-    user,
+    user:
+      payment.status === 'fulfilled' ? await getUserByProfileId(user.id) : user,
   };
 };
 

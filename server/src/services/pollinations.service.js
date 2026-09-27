@@ -22,17 +22,13 @@ const hashState = state =>
   createHash('sha256').update(String(state)).digest('hex');
 
 const getConfig = () => {
-  const appKey = String(
-    process.env.POLLINATIONS_APP_KEY ?? process.env.POLLINATIONS_API_KEY ?? ''
-  ).trim();
+  const appKey = String(process.env.POLLINATIONS_APP_KEY ?? '').trim();
   const clientOrigin = String(process.env.CLIENT_ORIGIN ?? '').replace(
     /\/$/,
     ''
   );
   const imageModel = String(
-    process.env.POLLINATIONS_IMAGE_MODEL ??
-      process.env.POLLINATIONS_AI_MODEL ??
-      'black-forest-labs/flux.1-schnell'
+    process.env.POLLINATIONS_IMAGE_MODEL ?? 'black-forest-labs/flux.1-schnell'
   ).trim();
 
   if (!appKey.startsWith('pk_')) {
