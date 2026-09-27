@@ -43,7 +43,10 @@ test('Cloudinary adapter uploads an allowed source with a stable object key', as
 
   const uploaded = await storage.uploadFromUrl(
     'https://image.pollinations.ai/prompt/story',
-    { objectKey: 'users/user/story/cover-id' }
+    {
+      objectKey: 'users/user/story/cover-id',
+      sourceHeaders: { Authorization: 'Bearer sk_test' },
+    }
   );
 
   assert.equal(uploaded.provider, 'cloudinary');
@@ -52,7 +55,24 @@ test('Cloudinary adapter uploads an allowed source with a stable object key', as
   assert.equal(uploaded.mimeType, 'image/png');
   assert.equal(uploaded.byteSize, 4);
   assert.equal(calls.length, 2);
+  assert.equal(calls[0].options.headers.Authorization, 'Bearer sk_test');
   assert.equal(calls[1].options.method, 'POST');
+});
+
+test('Cloudinary adapter preserves Pollinations wallet errors', async () => {
+  for (const statusCode of [401, 402, 429]) {
+    const storage = createCloudinaryStorage({
+      config,
+      fetchImpl: async () =>
+        new globalThis.Response('failed', { status: statusCode }),
+    });
+    await assert.rejects(
+      storage.uploadFromUrl('https://gen.pollinations.ai/image/story', {
+        objectKey: `key-${statusCode}`,
+      }),
+      rejectsWithStatus(statusCode)
+    );
+  }
 });
 
 test('Cloudinary adapter rejects untrusted and insecure source URLs', async () => {

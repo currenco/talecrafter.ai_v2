@@ -20,6 +20,7 @@ export type StoryItem = {
   storyType?: string | null;
   ageGroup?: string | null;
   imageStyle?: string | null;
+  status?: "draft" | "published" | "archived";
   coverImage?: string | null;
   output?: StoryOutput | null;
   userName?: string | null;
@@ -35,4 +36,3 @@ export type StorySelection = {
 export type StorySelectionProps = {
   userSelection: (selection: StorySelection) => void;
 };
-

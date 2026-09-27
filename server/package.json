@@ -18,7 +18,7 @@
     "db:verify": "RUN_DATABASE_TESTS=true node --test test/database.integration.test.js",
     "migrate": "npm run db:migrate",
     "user:set-role": "node scripts/set-user-role.js",
-    "test": "node --test test/env.test.js test/storage.test.js",
+    "test": "node --test test/env.test.js test/gemini.test.js test/pollinations.test.js test/storage.test.js",
     "test:auth": "RUN_AUTH_TESTS=true node --test test/auth.integration.test.js",
     "test:integration": "RUN_INTEGRATION_TESTS=true node --test test/payment.integration.test.js",
     "test:generation": "RUN_GENERATION_TESTS=true node --test test/generation.integration.test.js",

@@ -4,10 +4,17 @@ import Header from "./(components)/Header";
 import Footer from "./(components)/Footer";
 import { Inter, Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
+import type { Metadata } from "next";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  verification: {
+    google: "4cYPJNRIPLpPOo2bZpPVuB_QXUqE9nHd5AKff5B6tOw",
+  },
+};
 
 export default function RootLayout({
   children,

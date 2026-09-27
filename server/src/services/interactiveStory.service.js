@@ -16,7 +16,7 @@ import {
   uploadAssetBatch,
 } from './asset.service.js';
 import {
-  buildGeneratedImageSource,
+  buildGeneratedImageRequest,
   generateNarrativeText,
   generateStoryDraft,
   getGenerationProviderMetadata,
@@ -27,6 +27,7 @@ import {
   reserveGenerationForProfile,
 } from './generationJob.service.js';
 import { generateUniqueStorySlug } from './story.service.js';
+import { getPollinationsAccessTokenForProfile } from './pollinations.service.js';
 import { syncUserFromAuth } from './user.service.js';
 import {
   buildChoicePrompt,
@@ -37,7 +38,7 @@ import {
   parsePages,
 } from './plottwist.service.js';
 
-const MIN_STARTER_PAGES = 5;
+const STARTER_PAGE_COUNT = 5;
 const MAX_DEPTH = 7;
 const CONTINUATION_FALLBACK_CHOICES = [
   'Take the hopeful next step',
@@ -146,6 +147,7 @@ const mapGeneratedPages = async ({
   seedPrefix,
   ownerId,
   publicStoryId,
+  accessToken,
 }) => {
   const sources = pages.map((page, index) => {
     const prompt = String(
@@ -153,7 +155,7 @@ const mapGeneratedPages = async ({
     );
     return {
       prompt,
-      sourceUrl: buildGeneratedImageSource(prompt, {
+      ...buildGeneratedImageRequest(prompt, accessToken, {
         seed: `${Date.now()}_${seedPrefix}_${index}_${Math.floor(Math.random() * 100000)}`,
       }),
       purpose: `${seedPrefix}-${pageOffset + index + 1}`,
@@ -162,7 +164,11 @@ const mapGeneratedPages = async ({
   const uploads = await uploadAssetBatch({
     ownerId,
     publicStoryId,
-    images: sources.map(({ sourceUrl, purpose }) => ({ sourceUrl, purpose })),
+    images: sources.map(({ sourceUrl, sourceHeaders, purpose }) => ({
+      sourceUrl,
+      sourceHeaders,
+      purpose,
+    })),
   });
 
   return {
@@ -244,13 +250,16 @@ export const createInteractiveStarter = async ({
   let uploads = [];
 
   try {
+    const pollinationsAccessToken = await getPollinationsAccessTokenForProfile(
+      chargedUser.id
+    );
     const story = await generateStoryDraft({ formData, interactive: true });
     const interactiveTitle = String(story?.title ?? 'Interactive Story');
     const slug = await generateUniqueStorySlug(interactiveTitle);
     const chapters = Array.isArray(story?.chapters) ? story.chapters : [];
 
-    if (chapters.length < MIN_STARTER_PAGES) {
-      throw new ApiError(400, 'Starter story must have at least 5 pages');
+    if (chapters.length !== STARTER_PAGE_COUNT) {
+      throw new ApiError(502, 'Starter story must have exactly 5 pages');
     }
 
     const coverPromptSource = String(
@@ -264,18 +273,22 @@ export const createInteractiveStarter = async ({
     const coverPrompt = coverPromptSource.replace(/\s+/g, '-');
     const defaultStyleCoverPrompt = `Add-title-"${coverTitle}"-in-bold-text-for-book-cover-image,-${coverPrompt}`;
     const coverSeed = `${Date.now()}${Math.floor(Math.random() * 100000)}`;
-    const coverImageUrl = buildGeneratedImageSource(defaultStyleCoverPrompt, {
-      width: 410,
-      height: 630,
-      seed: coverSeed,
-    });
+    const coverRequest = buildGeneratedImageRequest(
+      defaultStyleCoverPrompt,
+      pollinationsAccessToken,
+      {
+        width: 410,
+        height: 630,
+        seed: coverSeed,
+      }
+    );
     const starterSources = chapters.map((chapter, index) => {
       const prompt = String(
         chapter?.imagePrompt ?? chapter?.textPrompt ?? 'Story illustration'
       );
       return {
         prompt,
-        sourceUrl: buildGeneratedImageSource(prompt, {
+        ...buildGeneratedImageRequest(prompt, pollinationsAccessToken, {
           seed: `${Date.now()}_${index}_${Math.floor(Math.random() * 100000)}`,
         }),
         purpose: `starter-${index + 1}`,
@@ -285,11 +298,12 @@ export const createInteractiveStarter = async ({
       ownerId: chargedUser.id,
       publicStoryId: storyId,
       images: [
-        ...starterSources.map(({ sourceUrl, purpose }) => ({
+        ...starterSources.map(({ sourceUrl, sourceHeaders, purpose }) => ({
           sourceUrl,
+          sourceHeaders,
           purpose,
         })),
-        { sourceUrl: coverImageUrl, purpose: 'cover' },
+        { ...coverRequest, purpose: 'cover' },
       ],
     });
     const starterPages = chapters.map((chapter, index) => ({
@@ -447,6 +461,9 @@ export const completeInteractiveStory = async ({
   let uploads = [];
 
   try {
+    const pollinationsAccessToken = await getPollinationsAccessTokenForProfile(
+      user.id
+    );
     const nodes = await listStoryNodes(story.id, story.storyId);
     const activeNode = getActiveNode(nodes);
     if (!activeNode) throw new ApiError(404, 'Active story node not found');
@@ -459,18 +476,18 @@ export const completeInteractiveStory = async ({
       title: story.title,
       selectedChoice,
       context: makePageContext(linearPages, 6),
-      minPages: 3,
-      maxPages: 5,
+      minPages: 2,
+      maxPages: 3,
       finalResolution: true,
     });
     const finalText = await generateNarrativeText({
       prompt: finalPrompt,
       mode: 'text',
     });
-    const resolutionPages = parsePages(finalText).slice(0, 5);
+    const resolutionPages = parsePages(finalText).slice(0, 3);
 
-    if (resolutionPages.length < 3) {
-      throw new ApiError(502, 'Final resolution must have at least 3 pages');
+    if (resolutionPages.length < 2) {
+      throw new ApiError(502, 'Final resolution must have at least 2 pages');
     }
 
     const finalNodeId = randomUUID();
@@ -480,6 +497,7 @@ export const completeInteractiveStory = async ({
       seedPrefix: 'final',
       ownerId: story.ownerId,
       publicStoryId: story.storyId,
+      accessToken: pollinationsAccessToken,
     });
     uploads = persisted.uploads;
     const compiledPages = [...linearPages, ...persisted.pages];
@@ -604,6 +622,9 @@ export const continueInteractiveStory = async ({
   let uploads = [];
 
   try {
+    const pollinationsAccessToken = await getPollinationsAccessTokenForProfile(
+      user.id
+    );
     if (Number(activeNode.depth ?? 0) >= MAX_DEPTH) {
       throw new ApiError(409, 'Maximum depth reached; complete the story');
     }
@@ -614,8 +635,8 @@ export const continueInteractiveStory = async ({
       title: story.title,
       selectedChoice: safeChoice,
       context: makePageContext(linearPages, 6),
-      minPages: 3,
-      maxPages: 6,
+      minPages: 2,
+      maxPages: 3,
     });
 
     const continuationText = await generateNarrativeText({
@@ -623,14 +644,14 @@ export const continueInteractiveStory = async ({
       mode: 'text',
     });
     const payload = parseContinuationPayload(continuationText);
-    const pages = payload.pages.slice(0, 6);
+    const pages = payload.pages.slice(0, 3);
     const choices =
       payload.choices.length >= 2
         ? payload.choices.slice(0, 2)
         : CONTINUATION_FALLBACK_CHOICES;
 
-    if (pages.length < 3) {
-      throw new ApiError(502, 'Each continuation must have minimum 3 pages');
+    if (pages.length < 2) {
+      throw new ApiError(502, 'Each continuation must have minimum 2 pages');
     }
 
     const nextNodeId = randomUUID();
@@ -640,6 +661,7 @@ export const continueInteractiveStory = async ({
       seedPrefix: 'branch',
       ownerId: story.ownerId,
       publicStoryId: story.storyId,
+      accessToken: pollinationsAccessToken,
     });
     uploads = persisted.uploads;
 

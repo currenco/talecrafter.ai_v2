@@ -3,11 +3,13 @@ import asyncHandler from '../utils/asyncHandler.js';
 import {
   createClassicStory,
   deleteCurrentUserStory,
+  getCurrentUserStoryStatus,
   getStoryBySlug,
   getStoryByStoryId,
   listCurrentUserStories,
   listPublicStories,
   listRelatedStories,
+  resumeClassicStory,
 } from '../services/story.service.js';
 import ApiError from '../utils/ApiError.js';
 import { getIdempotencyKey } from '../utils/idempotency.js';
@@ -64,5 +66,28 @@ export const createStory = asyncHandler(async (req, res) => {
     payload: req.validated.body,
   });
 
-  return res.status(201).json(new ApiResponse(201, story, 'Story created'));
+  return res
+    .status(202)
+    .json(new ApiResponse(202, story, 'Story draft created'));
+});
+
+export const getStoryGenerationStatus = asyncHandler(async (req, res) => {
+  const status = await getCurrentUserStoryStatus({
+    userId: req.auth.userId,
+    storyId: req.params.storyId,
+  });
+  return res
+    .status(200)
+    .json(new ApiResponse(200, status, 'Story status fetched'));
+});
+
+export const resumeStoryGeneration = asyncHandler(async (req, res) => {
+  const story = await resumeClassicStory({
+    userId: req.auth.userId,
+    storyId: req.params.storyId,
+    idempotencyKey: getIdempotencyKey(req),
+  });
+  return res
+    .status(202)
+    .json(new ApiResponse(202, story, 'Story generation resumed'));
 });

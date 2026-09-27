@@ -15,7 +15,9 @@ const environmentSchema = z.object({
   STRIPE_SECRET_KEY: optionalString,
   STRIPE_WEBHOOK_SECRET: optionalString,
   GEMINI_API_KEY: optionalString,
-  POLLINATIONS_API_KEY: optionalString,
+  POLLINATIONS_APP_KEY: optionalString,
+  POLLINATIONS_IMAGE_MODEL: optionalString,
+  POLLINATIONS_TOKEN_ENCRYPTION_KEY: optionalString,
   CLOUDINARY_CLOUD_NAME: optionalString,
   CLOUDINARY_API_KEY: optionalString,
   CLOUDINARY_API_SECRET: optionalString,
@@ -29,7 +31,8 @@ const productionRequired = [
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
   'GEMINI_API_KEY',
-  'POLLINATIONS_API_KEY',
+  'POLLINATIONS_APP_KEY',
+  'POLLINATIONS_TOKEN_ENCRYPTION_KEY',
   'CLOUDINARY_CLOUD_NAME',
   'CLOUDINARY_API_KEY',
   'CLOUDINARY_API_SECRET',
@@ -96,6 +99,19 @@ export const validateEnvironment = (source = process.env) => {
     !env.STRIPE_WEBHOOK_SECRET.startsWith('whsec_')
   ) {
     issues.push('STRIPE_WEBHOOK_SECRET has an invalid format');
+  }
+
+  if (env.POLLINATIONS_APP_KEY && !env.POLLINATIONS_APP_KEY.startsWith('pk_')) {
+    issues.push('POLLINATIONS_APP_KEY must start with pk_');
+  }
+
+  if (
+    env.POLLINATIONS_TOKEN_ENCRYPTION_KEY &&
+    env.POLLINATIONS_TOKEN_ENCRYPTION_KEY.length < 32
+  ) {
+    issues.push(
+      'POLLINATIONS_TOKEN_ENCRYPTION_KEY must be at least 32 characters'
+    );
   }
 
   if (issues.length) {

@@ -1,8 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, like, ne, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { Stories, StoryVersions, UserProfiles } from '../db/schema.js';
+import {
+  GenerationJobs,
+  Stories,
+  StoryVersions,
+  UserProfiles,
+} from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
+import { logger } from '../utils/logger.js';
 import {
   buildStoryAssetsInsert,
   deleteStoryAssets,
@@ -10,15 +16,17 @@ import {
   uploadAssetBatch,
 } from './asset.service.js';
 import {
-  buildGeneratedImageSource,
+  buildGeneratedImageRequest,
   generateStoryDraft,
   getGenerationProviderMetadata,
 } from './generation.service.js';
 import {
+  attachGenerationStory,
   buildGenerationSuccessUpdate,
   failGenerationJob,
-  reserveGeneration,
+  reserveGenerationForProfile,
 } from './generationJob.service.js';
+import { getPollinationsAccessTokenForProfile } from './pollinations.service.js';
 import { syncUserFromAuth } from './user.service.js';
 
 const MAX_BASE_SLUG_LENGTH = 70;
@@ -32,6 +40,7 @@ const storySelection = {
   storyType: Stories.storyType,
   ageGroup: Stories.ageGroup,
   imageStyle: Stories.imageStyle,
+  status: Stories.status,
   coverImage: Stories.coverImage,
   output: StoryVersions.output,
   userName: UserProfiles.userName,
@@ -139,7 +148,7 @@ export const listCurrentUserStories = async ({ userId, limit, offset }) => {
   const user = await syncUserFromAuth(userId);
 
   return selectStories()
-    .where(eq(Stories.ownerId, user.id))
+    .where(and(eq(Stories.ownerId, user.id), eq(Stories.kind, 'classic')))
     .orderBy(desc(Stories.createdAt))
     .limit(clampLimit(limit))
     .offset(normalizeOffset(offset));
@@ -204,64 +213,263 @@ export const listRelatedStories = async ({
   };
 };
 
-const prepareClassicStoryImages = async ({
+const findResumableClassicDraft = async ({ ownerId, payload }) => {
+  const [draft] = await db
+    .select({
+      id: Stories.id,
+      storyId: Stories.storyId,
+      slug: Stories.slug,
+      title: Stories.title,
+      coverImage: Stories.coverImage,
+      output: StoryVersions.output,
+    })
+    .from(Stories)
+    .innerJoin(
+      StoryVersions,
+      and(eq(StoryVersions.storyId, Stories.id), eq(StoryVersions.version, 1))
+    )
+    .where(
+      and(
+        eq(Stories.ownerId, ownerId),
+        eq(Stories.kind, 'classic'),
+        eq(Stories.status, 'draft'),
+        eq(Stories.storySubject, payload?.storySubject),
+        eq(Stories.storyType, payload?.storyType),
+        eq(Stories.ageGroup, payload?.ageGroup),
+        eq(Stories.imageStyle, payload?.imageStyle)
+      )
+    )
+    .orderBy(desc(Stories.updatedAt))
+    .limit(1);
+
+  return draft ?? null;
+};
+
+const uploadClassicStoryImage = async ({
+  ownerId,
+  publicStoryId,
+  source,
+  purpose,
+}) => {
+  const [upload] = await uploadAssetBatch({
+    ownerId,
+    publicStoryId,
+    images: [{ ...source, purpose }],
+    concurrency: 1,
+  });
+  return upload;
+};
+
+const completeClassicStoryImages = async ({
+  internalStoryId,
   output,
   imageStyle,
   ownerId,
   publicStoryId,
+  accessToken,
+  existingCoverImage,
 }) => {
-  const story = output ?? {};
+  let story = output ?? {};
   const title = String(story?.title ?? 'Story');
-  const chapters = Array.isArray(story?.chapters) ? story.chapters : [];
-  const coverPromptSource = String(
-    story?.coverImagePrompt ??
-      `${title} ${imageStyle ?? 'illustration'} book cover`
-  );
-  const coverPrompt = `Add-title-"${title.replace(/\s+/g, '-')}"-in-bold-text-for-book-cover-image,-${coverPromptSource.replace(/\s+/g, '-')}`;
-  const coverUrl = buildGeneratedImageSource(coverPrompt, {
-    width: 410,
-    height: 630,
-    seed: Date.now(),
-  });
+  const chapters = Array.isArray(story?.chapters)
+    ? story.chapters.map(chapter => ({ ...chapter }))
+    : [];
+  let coverImage = existingCoverImage;
 
-  const chapterSources = chapters.map((chapter, index) => {
+  if (!coverImage) {
+    const coverPromptSource = String(
+      story?.coverImagePrompt ??
+        `${title} ${imageStyle ?? 'illustration'} book cover`
+    );
+    const coverPrompt = `Add-title-"${title.replace(/\s+/g, '-')}"-in-bold-text-for-book-cover-image,-${coverPromptSource.replace(/\s+/g, '-')}`;
+    const coverRequest = buildGeneratedImageRequest(coverPrompt, accessToken, {
+      width: 410,
+      height: 630,
+      seed: Date.now(),
+    });
+    const upload = await uploadClassicStoryImage({
+      ownerId,
+      publicStoryId,
+      source: coverRequest,
+      purpose: 'cover',
+    });
+
+    try {
+      await db.batch([
+        buildStoryAssetsInsert({
+          ownerId,
+          storyId: internalStoryId,
+          uploads: [upload],
+        }),
+        db
+          .update(Stories)
+          .set({ coverImage: upload.url, updatedAt: new Date() })
+          .where(eq(Stories.id, internalStoryId)),
+      ]);
+      coverImage = upload.url;
+    } catch (error) {
+      await discardUploadedAssets([upload]);
+      throw error;
+    }
+  }
+
+  for (const [index, chapter] of chapters.entries()) {
+    if (String(chapter?.imageUrl ?? '').trim()) continue;
+
     const prompt = String(
       chapter?.imagePrompt ?? chapter?.textPrompt ?? `${title} illustration`
     ).trim();
-    return {
-      prompt,
-      sourceUrl: buildGeneratedImageSource(prompt, {
-        seed: `${Date.now()}_${index}_${Math.floor(Math.random() * 100000)}`,
-      }),
+    const request = buildGeneratedImageRequest(prompt, accessToken, {
+      seed: `${Date.now()}_${index}_${Math.floor(Math.random() * 100000)}`,
+    });
+    const upload = await uploadClassicStoryImage({
+      ownerId,
+      publicStoryId,
+      source: request,
       purpose: `chapter-${index + 1}`,
+    });
+    chapters[index] = {
+      ...chapter,
+      chapterNumber: index + 1,
+      imagePrompt: prompt,
+      imageUrl: upload.url,
     };
-  });
-  const uploads = await uploadAssetBatch({
-    ownerId,
-    publicStoryId,
-    images: [
-      { sourceUrl: coverUrl, purpose: 'cover' },
-      ...chapterSources.map(({ sourceUrl, purpose }) => ({
-        sourceUrl,
-        purpose,
-      })),
-    ],
-  });
-  const persistedChapters = chapters.map((chapter, index) => ({
-    ...chapter,
-    chapterNumber: Number(chapter?.chapterNumber ?? index + 1),
-    imagePrompt: chapterSources[index].prompt,
-    imageUrl: uploads[index + 1].url,
-  }));
+    story = { ...story, chapters };
+
+    try {
+      await db.batch([
+        buildStoryAssetsInsert({
+          ownerId,
+          storyId: internalStoryId,
+          uploads: [upload],
+        }),
+        db
+          .update(StoryVersions)
+          .set({ output: story })
+          .where(
+            and(
+              eq(StoryVersions.storyId, internalStoryId),
+              eq(StoryVersions.version, 1)
+            )
+          ),
+        db
+          .update(Stories)
+          .set({ updatedAt: new Date() })
+          .where(eq(Stories.id, internalStoryId)),
+      ]);
+    } catch (error) {
+      await discardUploadedAssets([upload]);
+      throw error;
+    }
+  }
 
   return {
-    output: {
-      ...story,
-      chapters: persistedChapters,
-    },
-    coverImage: uploads[0].url,
-    uploads,
+    output: story,
+    coverImage,
   };
+};
+
+const processClassicStoryDraft = async ({
+  draft,
+  payload,
+  ownerId,
+  jobId,
+  startedAt,
+  accessToken,
+}) => {
+  try {
+    const prepared = await completeClassicStoryImages({
+      internalStoryId: draft.id,
+      output: draft.output,
+      imageStyle: payload?.imageStyle,
+      ownerId,
+      publicStoryId: draft.storyId,
+      accessToken,
+      existingCoverImage: draft.coverImage,
+    });
+
+    const result = { id: draft.id, storyId: draft.storyId, slug: draft.slug };
+    await db.batch([
+      db
+        .update(Stories)
+        .set({
+          status: 'published',
+          coverImage: prepared.coverImage,
+          publishedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(Stories.id, draft.id)),
+      db
+        .update(StoryVersions)
+        .set({ output: prepared.output })
+        .where(
+          and(eq(StoryVersions.storyId, draft.id), eq(StoryVersions.version, 1))
+        ),
+      buildGenerationSuccessUpdate({
+        jobId,
+        storyId: draft.id,
+        result,
+        startedAt,
+      }),
+    ]);
+  } catch (error) {
+    await failGenerationJob({ jobId, error, startedAt });
+    logger.error('Classic story image generation failed', {
+      jobId,
+      storyId: draft.storyId,
+      message: error?.message,
+    });
+  }
+};
+
+const startClassicStoryImageGeneration = options => {
+  void processClassicStoryDraft(options);
+};
+
+const getOwnedClassicDraft = async ({ ownerId, storyId }) => {
+  const [draft] = await db
+    .select({
+      id: Stories.id,
+      storyId: Stories.storyId,
+      slug: Stories.slug,
+      title: Stories.title,
+      coverImage: Stories.coverImage,
+      storySubject: Stories.storySubject,
+      storyType: Stories.storyType,
+      ageGroup: Stories.ageGroup,
+      imageStyle: Stories.imageStyle,
+      output: StoryVersions.output,
+    })
+    .from(Stories)
+    .innerJoin(
+      StoryVersions,
+      and(eq(StoryVersions.storyId, Stories.id), eq(StoryVersions.version, 1))
+    )
+    .where(
+      and(
+        eq(Stories.ownerId, ownerId),
+        eq(Stories.storyId, storyId),
+        eq(Stories.kind, 'classic'),
+        eq(Stories.status, 'draft')
+      )
+    )
+    .limit(1);
+
+  return draft ?? null;
+};
+
+const hasRunningStoryGeneration = async internalStoryId => {
+  const [job] = await db
+    .select({ id: GenerationJobs.id })
+    .from(GenerationJobs)
+    .where(
+      and(
+        eq(GenerationJobs.storyId, internalStoryId),
+        eq(GenerationJobs.status, 'running')
+      )
+    )
+    .limit(1);
+  return Boolean(job);
 };
 
 export const createClassicStory = async ({
@@ -270,87 +478,220 @@ export const createClassicStory = async ({
   payload,
 }) => {
   const provider = getGenerationProviderMetadata();
-  const reservation = await reserveGeneration({
-    userId,
+  const user = await syncUserFromAuth(userId);
+  let draft = await findResumableClassicDraft({ ownerId: user.id, payload });
+  if (draft && (await hasRunningStoryGeneration(draft.id))) {
+    return {
+      id: draft.id,
+      storyId: draft.storyId,
+      slug: draft.slug,
+      status: 'draft',
+      user,
+    };
+  }
+  const reservation = await reserveGenerationForProfile({
+    profileId: user.id,
     idempotencyKey,
     kind: 'classic',
     request: payload,
     provider: provider.provider,
     model: provider.model,
     creditCost: 1,
+    storyId: draft?.id ?? null,
   });
   if (reservation.cached) {
-    return { ...reservation.result, user: reservation.user };
+    return {
+      ...reservation.result,
+      status: 'published',
+      user: reservation.user,
+    };
   }
 
   const reservedUser = reservation.user;
   const jobId = reservation.job.id;
   const startedAt = Date.now();
-  const storyId = randomUUID();
-  const internalStoryId = randomUUID();
-  let uploads = [];
 
   try {
-    const generatedStory = await generateStoryDraft({ formData: payload });
-    const prepared = await prepareClassicStoryImages({
-      output: generatedStory,
-      imageStyle: payload?.imageStyle,
-      ownerId: reservedUser.id,
-      publicStoryId: storyId,
-    });
-    uploads = prepared.uploads;
-    const title = extractStoryTitle({
-      output: prepared.output,
-      storySubject: payload?.storySubject,
-    });
-    const slug = await generateUniqueStorySlug(title);
+    const pollinationsAccessToken = await getPollinationsAccessTokenForProfile(
+      reservedUser.id
+    );
 
-    const result = { id: internalStoryId, storyId, slug };
-    await db.batch([
-      db.insert(Stories).values({
+    if (!draft) {
+      const generatedStory = await generateStoryDraft({ formData: payload });
+      const title = extractStoryTitle({
+        output: generatedStory,
+        storySubject: payload?.storySubject,
+      });
+      const internalStoryId = randomUUID();
+      const storyId = randomUUID();
+      const slug = await generateUniqueStorySlug(title);
+
+      await db.batch([
+        db.insert(Stories).values({
+          id: internalStoryId,
+          storyId,
+          ownerId: reservedUser.id,
+          slug,
+          kind: 'classic',
+          status: 'draft',
+          title,
+          ageGroup: payload?.ageGroup,
+          storyType: payload?.storyType,
+          storySubject: payload?.storySubject,
+          imageStyle: payload?.imageStyle,
+        }),
+        db.insert(StoryVersions).values({
+          storyId: internalStoryId,
+          version: 1,
+          output: generatedStory,
+          providerPayload: provider,
+        }),
+        attachGenerationStory({ jobId, storyId: internalStoryId }),
+      ]);
+
+      draft = {
         id: internalStoryId,
         storyId,
-        ownerId: reservedUser.id,
         slug,
-        kind: 'classic',
-        status: 'published',
         title,
-        ageGroup: payload?.ageGroup,
-        storyType: payload?.storyType,
-        storySubject: payload?.storySubject,
-        imageStyle: payload?.imageStyle,
-        coverImage: prepared.coverImage,
-        publishedAt: new Date(),
-      }),
-      db.insert(StoryVersions).values({
-        storyId: internalStoryId,
-        version: 1,
-        output: prepared.output,
-        providerPayload: provider,
-      }),
-      buildStoryAssetsInsert({
-        ownerId: reservedUser.id,
-        storyId: internalStoryId,
-        uploads,
-      }),
-      buildGenerationSuccessUpdate({
-        jobId,
-        storyId: internalStoryId,
-        result,
-        startedAt,
-      }),
-    ]);
+        coverImage: null,
+        output: generatedStory,
+      };
+    }
+
+    startClassicStoryImageGeneration({
+      draft,
+      payload,
+      ownerId: reservedUser.id,
+      jobId,
+      startedAt,
+      accessToken: pollinationsAccessToken,
+    });
 
     return {
-      ...result,
+      id: draft.id,
+      storyId: draft.storyId,
+      slug: draft.slug,
+      status: 'draft',
       user: reservedUser,
     };
   } catch (error) {
-    await Promise.allSettled([
-      discardUploadedAssets(uploads),
-      db.delete(Stories).where(eq(Stories.storyId, storyId)),
-    ]);
     await failGenerationJob({ jobId, error, startedAt });
+    throw error;
+  }
+};
+
+export const getCurrentUserStoryStatus = async ({ userId, storyId }) => {
+  const user = await syncUserFromAuth(userId);
+  const safeStoryId = String(storyId ?? '').trim();
+  if (!safeStoryId) throw new ApiError(400, 'Story ID is required');
+
+  const [story] = await db
+    .select({
+      id: Stories.id,
+      storyId: Stories.storyId,
+      slug: Stories.slug,
+      status: Stories.status,
+      coverImage: Stories.coverImage,
+      output: StoryVersions.output,
+    })
+    .from(Stories)
+    .innerJoin(
+      StoryVersions,
+      and(eq(StoryVersions.storyId, Stories.id), eq(StoryVersions.version, 1))
+    )
+    .where(and(eq(Stories.storyId, safeStoryId), eq(Stories.ownerId, user.id)))
+    .limit(1);
+
+  if (!story) throw new ApiError(404, 'Story not found');
+
+  const [job] = await db
+    .select({
+      status: GenerationJobs.status,
+      errorMessage: GenerationJobs.errorMessage,
+    })
+    .from(GenerationJobs)
+    .where(eq(GenerationJobs.storyId, story.id))
+    .orderBy(desc(GenerationJobs.createdAt))
+    .limit(1);
+  const chapters = Array.isArray(story.output?.chapters)
+    ? story.output.chapters
+    : [];
+
+  return {
+    storyId: story.storyId,
+    slug: story.slug,
+    status: story.status,
+    generationStatus:
+      story.status === 'published' ? 'succeeded' : (job?.status ?? 'idle'),
+    errorMessage: job?.errorMessage ?? null,
+    completedImages:
+      chapters.filter(chapter => Boolean(chapter?.imageUrl)).length +
+      (story.coverImage ? 1 : 0),
+    totalImages: chapters.length + 1,
+  };
+};
+
+export const resumeClassicStory = async ({
+  userId,
+  storyId,
+  idempotencyKey,
+}) => {
+  const user = await syncUserFromAuth(userId);
+  const safeStoryId = String(storyId ?? '').trim();
+  if (!safeStoryId) throw new ApiError(400, 'Story ID is required');
+
+  const draft = await getOwnedClassicDraft({
+    ownerId: user.id,
+    storyId: safeStoryId,
+  });
+  if (!draft) throw new ApiError(404, 'Story draft not found');
+
+  if (await hasRunningStoryGeneration(draft.id)) {
+    return { storyId: draft.storyId, slug: draft.slug, status: 'draft', user };
+  }
+
+  const payload = {
+    storySubject: draft.storySubject,
+    storyType: draft.storyType,
+    ageGroup: draft.ageGroup,
+    imageStyle: draft.imageStyle,
+  };
+  const provider = getGenerationProviderMetadata();
+  const reservation = await reserveGenerationForProfile({
+    profileId: user.id,
+    idempotencyKey,
+    kind: 'classic_resume',
+    request: payload,
+    provider: provider.provider,
+    model: provider.model,
+    creditCost: 1,
+    storyId: draft.id,
+  });
+  const startedAt = Date.now();
+
+  try {
+    const accessToken = await getPollinationsAccessTokenForProfile(user.id);
+    startClassicStoryImageGeneration({
+      draft,
+      payload,
+      ownerId: user.id,
+      jobId: reservation.job.id,
+      startedAt,
+      accessToken,
+    });
+    return {
+      storyId: draft.storyId,
+      slug: draft.slug,
+      status: 'draft',
+      user: reservation.user ?? user,
+    };
+  } catch (error) {
+    await failGenerationJob({
+      jobId: reservation.job.id,
+      error,
+      startedAt,
+    });
     throw error;
   }
 };
