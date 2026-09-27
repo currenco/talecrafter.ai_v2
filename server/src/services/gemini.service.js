@@ -1,14 +1,54 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import ApiError from '../utils/ApiError.js';
 
 const DEFAULT_MODEL = 'gemini-2.5-flash';
 
-export const storyGenerationConfig = {
+const jsonGenerationConfig = {
   temperature: 1,
   topP: 0.95,
   topK: 40,
   maxOutputTokens: 8192,
   responseMimeType: 'application/json',
+};
+
+const storyResponseSchema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    title: { type: SchemaType.STRING },
+    coverImagePrompt: { type: SchemaType.STRING },
+    characterDescriptions: {
+      type: SchemaType.OBJECT,
+      properties: Object.fromEntries(
+        Array.from({ length: 5 }, (_, index) => [
+          `character${index + 1}`,
+          { type: SchemaType.STRING },
+        ])
+      ),
+      required: ['character1'],
+    },
+    chapters: {
+      type: SchemaType.ARRAY,
+      minItems: 5,
+      maxItems: 5,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          chapterNumber: { type: SchemaType.INTEGER },
+          title: { type: SchemaType.STRING },
+          textPrompt: { type: SchemaType.STRING },
+          imagePrompt: { type: SchemaType.STRING },
+        },
+        required: ['chapterNumber', 'title', 'textPrompt', 'imagePrompt'],
+      },
+    },
+  },
+  required: ['title', 'coverImagePrompt', 'characterDescriptions', 'chapters'],
+};
+
+export const storyGenerationConfig = {
+  ...jsonGenerationConfig,
+  temperature: 0.7,
+  responseSchema: storyResponseSchema,
 };
 
 const storyShapePrompt = [
@@ -136,7 +176,7 @@ export const generateGeminiText = async ({
   const client = new GoogleGenerativeAI(apiKey);
   const model = client.getGenerativeModel({
     model: modelName,
-    generationConfig: storyGenerationConfig,
+    generationConfig: jsonGenerationConfig,
   });
   const result = await model.generateContent(safePrompt);
 
@@ -253,15 +293,30 @@ export const normalizeStoryDraft = story => {
   };
 };
 
-const buildJsonRepairPrompt = brokenJson => `
-You are a strict JSON repair assistant.
-Fix the JSON below so it is syntactically valid while preserving the original meaning and fields.
-Return ONLY valid JSON. No markdown fences. No explanation.
+const buildJsonRepairPrompt = ({ brokenJson, validationMessage }) => `
+The previous story response was invalid: ${validationMessage}.
+Repair or complete it as a five-page story while preserving its original idea.
+It must contain a title, coverImagePrompt, a non-empty characterDescriptions object,
+and exactly ${STORY_PAGE_COUNT} chapters. Every chapter must contain chapterNumber,
+title, textPrompt, and imagePrompt. Return ONLY valid JSON with no markdown or explanation.
 
-${brokenJson}
+Previous response:
+${String(brokenJson ?? '').slice(0, 24000)}
 `;
 
-export const generateStoryJson = async ({ formData, interactive = false }) => {
+const parseStoryDraft = raw => {
+  const parsed = tryParseGeminiJson(raw);
+  if (!parsed) {
+    throw new ApiError(502, 'Gemini response is not valid story JSON');
+  }
+  return normalizeStoryDraft(parsed);
+};
+
+export const generateStoryJson = async ({
+  formData,
+  interactive = false,
+  generateText = generateGeminiText,
+}) => {
   const basePrompt = buildStoryPrompt(formData);
   const prompt = [
     basePrompt,
@@ -273,23 +328,29 @@ export const generateStoryJson = async ({ formData, interactive = false }) => {
     'Include a non-empty characterDescriptions object and keep those visual details consistent in every imagePrompt.',
     'Return consistent JSON only. No markdown wrappers.',
   ].join('\n\n');
-  const outputText = await generateGeminiText({
+  const outputText = await generateText({
     prompt,
     mode: 'story-generation',
   });
-  let story = tryParseGeminiJson(outputText);
 
-  if (!story && interactive) {
-    const repairedText = await generateGeminiText({
-      prompt: buildJsonRepairPrompt(cleanJsonText(outputText)),
-      mode: 'text',
+  try {
+    return parseStoryDraft(outputText);
+  } catch (initialError) {
+    const repairedText = await generateText({
+      prompt: buildJsonRepairPrompt({
+        brokenJson: cleanJsonText(outputText),
+        validationMessage: initialError.message,
+      }),
+      mode: 'story-generation',
     });
-    story = tryParseGeminiJson(repairedText);
-  }
 
-  if (!story) {
-    throw new ApiError(502, 'Gemini response is not valid story JSON');
+    try {
+      return parseStoryDraft(repairedText);
+    } catch {
+      throw new ApiError(
+        502,
+        'Gemini could not produce a valid five-page story after retry'
+      );
+    }
   }
-
-  return normalizeStoryDraft(story);
 };
