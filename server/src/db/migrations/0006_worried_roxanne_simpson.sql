@@ -1,0 +1,1 @@
+ALTER TABLE "app"."payments" ALTER COLUMN "currency" DROP DEFAULT;

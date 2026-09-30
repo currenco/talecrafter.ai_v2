@@ -1,309 +1,265 @@
 "use client";
 
-import React, { useContext, useEffect, useRef, useState } from "react";
-import { UserDetailContext } from "../_context/UserDetailContext";
-import { useRouter } from "next/navigation";
-import { toast } from "react-toastify";
-import { AiOutlineCheck } from "react-icons/ai";
+import Script from "next/script";
+import { useContext, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { useAuth } from "@/lib/neon-auth/client";
+import { HiOutlineCheckCircle } from "react-icons/hi2";
+import { toast } from "react-toastify";
 import { apiFetch } from "@/lib/api-client";
-import type { UserDetail } from "../_context/UserDetailContext";
+import { useAuth } from "@/lib/neon-auth/client";
+import { UserDetailContext, type UserDetail } from "../_context/UserDetailContext";
 
-const MotionDiv = motion.div;
+type RazorpaySuccess = {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+};
 
-const plans = [
-  {
-    id: "free",
-    title: "Free",
-    price: 0,
-    credits: 5,
-    recommended: false,
-    subtitle: "Included for new accounts",
-  },
+type RazorpayFailure = {
+  error?: { description?: string };
+};
+
+type RazorpayOptions = {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  prefill?: { name?: string; email?: string };
+  theme?: { color?: string };
+  modal?: { ondismiss?: () => void };
+  handler: (response: RazorpaySuccess) => void | Promise<void>;
+};
+
+type RazorpayInstance = {
+  open: () => void;
+  on: (event: "payment.failed", handler: (response: RazorpayFailure) => void) => void;
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayOptions) => RazorpayInstance;
+  }
+}
+
+const paidPlans = [
   {
     id: "basic",
     title: "Basic",
-    price: 1.99,
+    price: "INR 199",
     credits: 10,
+    subtitle: "A quick refill for your next story",
     recommended: false,
-    subtitle: "Great for getting started",
   },
   {
     id: "premium",
     title: "Premium",
-    price: 3.99,
+    price: "INR 399",
     credits: 75,
+    subtitle: "More room for regular creation",
     recommended: true,
-    subtitle: "Most popular for regular creators",
   },
   {
     id: "ultimate",
     title: "Ultimate",
-    price: 5.99,
+    price: "INR 599",
     credits: 150,
+    subtitle: "The best value for larger projects",
     recommended: false,
-    subtitle: "Best value for high-volume usage",
   },
-];
+] as const;
 
-function PricingOptions() {
-  const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
-  const [selectedPrice, setSelectedPrice] = useState<number>(0);
-  const [shouldScrollToPayment, setShouldScrollToPayment] = useState(false);
+const MotionDiv = motion.div;
+
+export default function BuyCreditsPage() {
+  const [selectedPlan, setSelectedPlan] = useState<string>("premium");
+  const [checkoutReady, setCheckoutReady] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [checkingPayment, setCheckingPayment] = useState(false);
   const { userDetail, setUserDetail } = useContext(UserDetailContext);
   const { getToken } = useAuth();
-  const router = useRouter();
-  const paymentSectionRef = useRef<HTMLDivElement | null>(null);
-  const fulfilledSessionRef = useRef<string | null>(null);
-
-  const notify = (message: string) => toast(message);
-  const notifyError = (message: string) => toast.error(message);
 
   useEffect(() => {
-    if (selectedPlan !== null) {
-      setSelectedPrice(plans[selectedPlan]?.price);
-      setShouldScrollToPayment(true);
+    setCheckoutReady(Boolean(window.Razorpay));
+  }, []);
+
+  const startCheckout = async () => {
+    const plan = paidPlans.find(item => item.id === selectedPlan);
+    const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+    if (!plan) {
+      toast.error("Select a credit plan first.");
+      return;
     }
-  }, [selectedPlan]);
-
-  useEffect(() => {
-    if (!shouldScrollToPayment || selectedPlan === null) return;
-    const timer = setTimeout(() => {
-      paymentSectionRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-      setShouldScrollToPayment(false);
-    }, 150);
-
-    return () => clearTimeout(timer);
-  }, [shouldScrollToPayment, selectedPlan, selectedPrice]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const sessionId = params.get("stripe_session_id");
-    const cancelled = params.get("stripe_cancelled");
-
-    if (cancelled) {
-      notifyError("Payment cancelled");
-      router.replace("/buy-credits");
+    if (!key || !window.Razorpay) {
+      toast.error("Secure checkout is unavailable. Please try again shortly.");
       return;
     }
 
-    if (!sessionId || fulfilledSessionRef.current === sessionId) return;
-    fulfilledSessionRef.current = sessionId;
-
-    const checkPayment = async () => {
-      try {
-        setCheckingPayment(true);
-        const token = await getToken();
-        const status = await apiFetch<{
-          status: string;
-          credits: number;
-          user?: UserDetail;
-        }>("/payments/stripe/checkout-session/" + sessionId, {
-          method: "GET",
-          token,
-        });
-
-        if (status.user) {
-          setUserDetail(status.user);
-        }
-
-        if (status.status === "fulfilled") {
-          notify("Payment successful, credits have been added!");
-          router.replace("/dashboard");
-          return;
-        }
-
-        notify("Payment received. Credits will appear after Stripe confirms the webhook.");
-        router.replace("/buy-credits");
-      } catch {
-        notifyError("Unable to verify payment status. Please contact support if you were charged.");
-        router.replace("/buy-credits");
-      } finally {
-        setCheckingPayment(false);
-      }
-    };
-
-    checkPayment();
-  }, [getToken, router, setUserDetail]);
-
-  const startStripeCheckout = async () => {
-    if (selectedPlan === null) {
-      notifyError("Please select a plan first.");
-      return;
-    }
-
-    if (plans[selectedPlan].price <= 0) {
-      notify("Your free 5 credits are included automatically with your account.");
-      return;
-    }
-
+    setCheckoutLoading(true);
     try {
-      setCheckoutLoading(true);
       const token = await getToken();
-      const result = await apiFetch<{ url: string }>(
-        "/payments/stripe/checkout-session",
-        {
-          method: "POST",
-          token,
-          body: JSON.stringify({ planId: plans[selectedPlan].id }),
-        }
-      );
+      const order = await apiFetch<{
+        orderId: string;
+        amount: number;
+        currency: string;
+      }>("/payments/razorpay/orders", {
+        method: "POST",
+        token,
+        body: JSON.stringify({ planId: plan.id }),
+      });
 
-      window.location.assign(result.url);
+      let paymentCompleted = false;
+      let paymentFailed = false;
+      const checkout = new window.Razorpay({
+        key,
+        amount: order.amount,
+        currency: order.currency,
+        name: "TaleCrafter AI",
+        description: `${plan.credits} story credits`,
+        order_id: order.orderId,
+        prefill: {
+          name: userDetail?.userName ?? undefined,
+          email: userDetail?.userEmail,
+        },
+        theme: { color: "#2563eb" },
+        modal: {
+          ondismiss: () => {
+            setCheckoutLoading(false);
+            if (!paymentCompleted && !paymentFailed) {
+              toast.info("Payment cancelled.");
+            }
+          },
+        },
+        handler: async response => {
+          paymentCompleted = true;
+          try {
+            const result = await apiFetch<{
+              status: string;
+              user: UserDetail;
+            }>("/payments/razorpay/verify", {
+              method: "POST",
+              token,
+              body: JSON.stringify({
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpaySignature: response.razorpay_signature,
+              }),
+            });
+            setUserDetail(result.user);
+            toast.success("Payment successful. Credits added to your account.");
+          } catch {
+            toast.error(
+              "Payment completed, but verification failed. Please contact support."
+            );
+          } finally {
+            setCheckoutLoading(false);
+          }
+        },
+      });
+
+      checkout.on("payment.failed", response => {
+        paymentFailed = true;
+        setCheckoutLoading(false);
+        toast.error(response.error?.description || "Payment failed. Please retry.");
+      });
+      checkout.open();
     } catch {
-      notifyError("Unable to start Stripe checkout. Please try again.");
       setCheckoutLoading(false);
+      toast.error("Unable to start secure checkout. Please try again.");
     }
-  };
-
-  const fadeUp = {
-    hidden: { opacity: 0, y: 22 },
-    show: { opacity: 1, y: 0 },
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#020b1f] px-5 py-8 md:px-16 lg:px-28 xl:px-40">
+    <main className="relative min-h-screen overflow-hidden bg-[#020b1f] px-5 py-10 md:px-16 lg:px-28 xl:px-40">
+      <Script
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="afterInteractive"
+        onLoad={() => setCheckoutReady(true)}
+        onError={() => {
+          setCheckoutReady(false);
+          toast.error("Unable to load secure checkout.");
+        }}
+      />
       <div className="tc-hero-grid absolute inset-0 opacity-35" />
-      <div className="tc-hero-orb tc-hero-orb-one" />
-      <div className="tc-hero-orb tc-hero-orb-two" />
 
-      <div className="relative">
-        <MotionDiv
-          initial="hidden"
-          animate="show"
-          variants={fadeUp}
-          transition={{ duration: 0.55 }}
-          className="tc-glass-panel px-5 py-7 text-center shadow-[0_16px_45px_rgba(0,0,0,0.35)] md:px-8"
-        >
-          <h2 className="tc-title-gradient text-3xl font-extrabold sm:text-4xl md:text-5xl">
-            Choose Your Plan
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-blue-100/75 md:text-base">
-            Add credits instantly and keep generating premium storybooks.
+      <div className="relative mx-auto max-w-6xl">
+        <header className="text-center">
+          <h1 className="tc-title-gradient text-3xl font-extrabold md:text-5xl">
+            Add story credits
+          </h1>
+          <p className="mx-auto mt-3 max-w-xl text-sm text-blue-100/75 md:text-base">
+            Current balance: {userDetail?.credit ?? "-"} credits
           </p>
-          <div className="mt-4 inline-flex rounded-xl border border-blue-300/20 bg-blue-500/10 px-4 py-2 text-sm text-blue-100/90">
-            Current credits:
-            <span className="ml-2 font-bold text-white">
-              {userDetail?.credit ?? "-"}
-            </span>
-          </div>
-        </MotionDiv>
+        </header>
 
-        <MotionDiv
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.1 }}
-          variants={fadeUp}
-          transition={{ delay: 0.08, duration: 0.5 }}
-          className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4"
-        >
-          {plans.map((plan, index) => (
-            <div
-              key={plan.id}
-              className={"flex min-h-[360px] cursor-pointer flex-col justify-between rounded-2xl border p-6 text-left shadow-xl backdrop-blur-sm transition-all duration-200 " +
-                (selectedPlan === index
-                  ? "border-blue-200/70 bg-blue-600/20 shadow-[0_0_34px_rgba(37,99,235,0.24)]"
-                  : plan.recommended
-                  ? "border-blue-200/60 bg-blue-600/[0.14] shadow-[0_0_30px_rgba(37,99,235,0.18)] hover:-translate-y-1"
-                  : "border-blue-300/20 bg-white/[0.04] hover:-translate-y-1 hover:border-blue-300/35")}
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-white">{plan.title}</h3>
-                  {plan.recommended && (
-                    <span className="rounded-full border border-blue-200/60 bg-blue-600 px-2 py-0.5 text-[10px] font-semibold text-white">
-                      Most Popular
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1 text-sm text-blue-100/70">{plan.subtitle}</p>
-                <p className="mt-3 text-4xl font-extrabold text-white">
-                  ${plan.price}
-                </p>
-                <ul className="mt-4 space-y-2 text-sm text-blue-100/80">
-                  <li className="flex items-center">
-                    <AiOutlineCheck className="mr-2 text-green-300" />
-                    Get {plan.credits} Credits
-                  </li>
-                  <li className="flex items-center">
-                    <AiOutlineCheck className="mr-2 text-green-300" />
-                    No subscription lock-in
-                  </li>
-                </ul>
-              </div>
-              <button
-                type="button"
-                aria-label={`Select ${plan.title} plan`}
-                onClick={() => setSelectedPlan(index)}
-                className={"mt-6 w-full rounded-xl border px-4 py-2.5 text-sm font-semibold text-white transition " +
-                  (selectedPlan === index
-                    ? "border-blue-200/60 bg-blue-700 hover:bg-blue-600"
-                    : plan.recommended
-                    ? "border-blue-200/50 bg-blue-600 hover:bg-blue-500"
-                    : "border-blue-300/30 bg-white/10 hover:bg-white/15")}
+        <div className="mt-9 grid gap-5 md:grid-cols-3">
+          {paidPlans.map((plan, index) => {
+            const selected = selectedPlan === plan.id;
+            return (
+              <MotionDiv
+                key={plan.id}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.06 }}
+                className={`flex min-h-72 flex-col justify-between rounded-lg border p-6 shadow-xl transition ${
+                  selected
+                    ? "border-blue-200/70 bg-blue-600/20"
+                    : "border-blue-300/20 bg-white/[0.04] hover:border-blue-300/40"
+                }`}
               >
-                {selectedPlan === index
-                  ? "Selected"
-                  : plan.price <= 0
-                  ? "Included"
-                  : plan.recommended
-                  ? "Choose Premium"
-                  : "Select Plan"}
-              </button>
-            </div>
-          ))}
-        </MotionDiv>
+                <div>
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-xl font-bold text-white">{plan.title}</h2>
+                    {plan.recommended && (
+                      <span className="text-xs font-semibold text-cyan-200">
+                        Most popular
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-2 text-sm text-blue-100/65">{plan.subtitle}</p>
+                  <p className="mt-5 text-4xl font-extrabold text-white">
+                    {plan.price}
+                  </p>
+                  <p className="mt-5 flex items-center text-sm text-blue-100/85">
+                    <HiOutlineCheckCircle
+                      className="mr-2 text-lg text-emerald-300"
+                      aria-hidden="true"
+                    />
+                    {plan.credits} credits
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPlan(plan.id)}
+                  aria-pressed={selected}
+                  className={`mt-7 w-full rounded-lg border px-4 py-3 text-sm font-semibold text-white transition ${
+                    selected
+                      ? "border-blue-200/60 bg-blue-700"
+                      : "border-blue-300/25 bg-white/10 hover:bg-white/15"
+                  }`}
+                >
+                  {selected ? "Selected" : `Choose ${plan.title}`}
+                </button>
+              </MotionDiv>
+            );
+          })}
+        </div>
 
-        {selectedPlan !== null && selectedPrice <= 0 && (
-          <MotionDiv
-            initial="hidden"
-            animate="show"
-            variants={fadeUp}
-            transition={{ delay: 0.1, duration: 0.45 }}
-            ref={paymentSectionRef}
-            className="tc-glass-panel mx-auto mt-8 max-w-2xl p-4"
+        <div className="mx-auto mt-8 max-w-xl text-center">
+          <button
+            type="button"
+            onClick={startCheckout}
+            disabled={!checkoutReady || checkoutLoading}
+            className="tc-btn-primary w-full px-6 py-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <p className="text-sm text-blue-100/80">
-              The free plan includes 5 credits automatically on your account. Pick a paid plan when you need more.
-            </p>
-          </MotionDiv>
-        )}
-
-        {selectedPlan !== null && selectedPrice > 0 && (
-          <MotionDiv
-            initial="hidden"
-            animate="show"
-            variants={fadeUp}
-            transition={{ delay: 0.1, duration: 0.45 }}
-            ref={paymentSectionRef}
-            className="tc-glass-panel mx-auto mt-8 max-w-2xl p-4"
-          >
-            <p className="mb-4 text-sm text-blue-100/80">
-              Complete secure payment for{" "}
-              <span className="font-bold text-white">${selectedPrice.toFixed(2)}</span>
-            </p>
-            <button
-              onClick={startStripeCheckout}
-              disabled={checkoutLoading || checkingPayment}
-              className="tc-btn-primary w-full px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {checkingPayment
-                ? "Checking payment..."
-                : checkoutLoading
-                ? "Opening Stripe..."
-                : "Checkout with Stripe"}
-            </button>
-          </MotionDiv>
-        )}
+            {checkoutLoading
+              ? "Processing payment..."
+              : checkoutReady
+                ? "Pay securely with Razorpay"
+                : "Loading secure checkout..."}
+          </button>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
-
-export default PricingOptions;
