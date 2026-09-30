@@ -41,7 +41,7 @@ test('rejects invalid Neon Auth URLs', () => {
 test('requires service configuration in production', () => {
   assert.throws(
     () => validateEnvironment({ ...baseEnvironment, NODE_ENV: 'production' }),
-    /STRIPE_SECRET_KEY is required in production/
+    /CORS_ORIGIN is required in production/
   );
 });
 
@@ -61,5 +61,25 @@ test('validates Pollinations application credentials', () => {
         POLLINATIONS_TOKEN_ENCRYPTION_KEY: 'too-short',
       }),
     /at least 32 characters/
+  );
+});
+
+test('validates Razorpay key IDs', () => {
+  assert.throws(
+    () =>
+      validateEnvironment({
+        ...baseEnvironment,
+        RAZORPAY_KEY_ID: 'invalid-key',
+      }),
+    /RAZORPAY_KEY_ID must start with rzp_/
+  );
+
+  assert.throws(
+    () =>
+      validateEnvironment({
+        ...baseEnvironment,
+        RAZORPAY_WEBHOOK_SECRET: 'too-short',
+      }),
+    /RAZORPAY_WEBHOOK_SECRET must be at least 32 characters/
   );
 });
