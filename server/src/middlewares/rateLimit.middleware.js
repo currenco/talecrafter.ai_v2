@@ -23,7 +23,7 @@ export const generationRateLimit = rateLimit({
   limit: 30,
 });
 
-export const checkoutRateLimit = rateLimit({
+export const paymentRateLimit = rateLimit({
   ...common,
   windowMs: 60 * 60 * 1000,
   limit: 20,

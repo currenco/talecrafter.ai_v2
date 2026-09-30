@@ -1,30 +1,40 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import {
-  createStripeCheckout,
-  getStripeCheckout,
+  createOrder,
+  handleRazorpayWebhook,
+  verifyPayment,
 } from '../controllers/payment.controller.js';
 import { requireAuth } from '../middlewares/auth.middleware.js';
+import { paymentRateLimit } from '../middlewares/rateLimit.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
-import { checkoutRateLimit } from '../middlewares/rateLimit.middleware.js';
 import {
-  createStripeCheckoutSchema,
-  fulfillStripeCheckoutSchema,
+  createRazorpayOrderSchema,
+  verifyRazorpayPaymentSchema,
 } from '../validations/payment.validation.js';
 
 const router = Router();
 
-router.post(
-  '/stripe/checkout-session',
-  checkoutRateLimit,
-  requireAuth,
-  validate(createStripeCheckoutSchema),
-  createStripeCheckout
+export const paymentWebhookRouter = Router();
+
+paymentWebhookRouter.post(
+  '/razorpay/webhook',
+  express.raw({ type: 'application/json', limit: '256kb' }),
+  handleRazorpayWebhook
 );
-router.get(
-  '/stripe/checkout-session/:sessionId',
+
+router.post(
+  '/razorpay/orders',
+  paymentRateLimit,
   requireAuth,
-  validate(fulfillStripeCheckoutSchema),
-  getStripeCheckout
+  validate(createRazorpayOrderSchema),
+  createOrder
+);
+router.post(
+  '/razorpay/verify',
+  paymentRateLimit,
+  requireAuth,
+  validate(verifyRazorpayPaymentSchema),
+  verifyPayment
 );
 
 export default router;

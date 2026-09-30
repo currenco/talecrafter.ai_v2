@@ -1,38 +1,57 @@
 # Payments Reference
 
-Credit purchases are being migrated from the previous client-side PayPal flow to a backend-owned Stripe Checkout flow.
+Credit purchases use Razorpay Standard Web Checkout. Order creation and
+signature verification are owned by the Express backend; the browser never
+receives the Razorpay Key Secret or controls plan amounts.
 
-## Current Stripe Flow
+## Credit Packs
 
-The Next.js buy credits page lets authenticated users select one of the existing credit packs:
+- Basic: 10 credits for INR 199
+- Premium: 75 credits for INR 399
+- Ultimate: 150 credits for INR 599
 
-- Basic: 10 credits for 1.99 USD
-- Premium: 75 credits for 3.99 USD
-- Ultimate: 150 credits for 5.99 USD
+Prices are stored in paise in backend code. The client sends only a plan ID.
 
-The client asks the Express backend to create a Stripe Checkout session. The backend records a pending payment ledger row. Stripe then calls the backend webhook, where the signature, session, user, amount, currency, and plan are verified before credits are added from backend-owned code only. On return from Checkout, the authenticated status endpoint also retrieves and validates a still-pending session so a missed or delayed webhook can be reconciled safely. Both paths use the same idempotent fulfillment transaction.
+## API Flow
 
-## Required Environment
+1. The authenticated client posts a plan ID to
+   `POST /api/v1/payments/razorpay/orders`.
+2. The backend creates a Razorpay order and records a pending payment linked to
+   the stable application user ID.
+3. Standard Checkout returns the payment ID, order ID, and signature to the
+   browser.
+4. The browser posts those values to
+   `POST /api/v1/payments/razorpay/verify`.
+5. The backend verifies the HMAC signature using its stored order ID, then
+   atomically fulfills the payment and credits the append-only ledger.
+6. Razorpay independently posts captured and failed payment events to
+   `POST /api/v1/payments/razorpay/webhook`. The backend verifies the exact raw
+   body with the separate webhook secret and reconciles captured payments
+   through the same idempotent fulfillment transaction.
+
+Duplicate verification requests are idempotent. Invalid signatures never
+change payment or credit state.
+
+## Environment
 
 Server-only:
 
-- `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET`
-- `CLIENT_ORIGIN`, for example `http://localhost:3000`
+- `RAZORPAY_KEY_ID`
+- `RAZORPAY_KEY_SECRET`
+- `RAZORPAY_WEBHOOK_SECRET`
 
-The hosted Checkout implementation does not require a browser-exposed Stripe publishable key.
+Browser-safe:
 
-## Previous PayPal Behavior
+- `NEXT_PUBLIC_RAZORPAY_KEY_ID`
 
-The old implementation used PayPal buttons directly in the Next.js app. After PayPal approval, the browser updated the user's credit balance directly in the database.
+The public Key ID must belong to the same Razorpay account and mode as the
+server credentials.
 
-That approach was removed because it trusted browser-side state for payment completion and credit updates.
+## Before Live Mode
 
-## Production Operations
-
-- Run `npm run migrate` from `server/` in each database environment.
-- Run `npm run test:integration` against a non-production database before release.
-- Configure the permanent Stripe webhook endpoint with completed, asynchronous success, and asynchronous failure Checkout events.
-- Keep the Stripe CLI listener and its signing secret limited to local development.
-- Keep the stable Auth profile ID in the payment ledger; email is only a payment-time snapshot and never an authorization key.
-- Add an admin/support view for checking payment and fulfillment state.
+- Replace all test keys with live keys in the deployment environment.
+- Enable automatic payment capture in the Razorpay Dashboard.
+- Configure the public backend webhook URL and subscribe to `payment.captured`
+  and `payment.failed`.
+- Test duplicate callbacks, failed payments, and ledger reconciliation on a
+  non-production database.

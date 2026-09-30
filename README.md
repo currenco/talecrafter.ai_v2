@@ -18,7 +18,7 @@ The following capabilities are intentionally retained while the infrastructure i
 - Interactive branching stories
 - Public story exploration and slug-based reading
 - User dashboard and story management
-- Credit accounting and Stripe Checkout
+- Credit accounting and Razorpay Standard Checkout
 - PDF export and browser narration
 - Administrative management
 
@@ -71,7 +71,7 @@ npm run lint
 npm run build -- --webpack
 ```
 
-Database and payment integration tests require an explicitly configured test environment and should be run for phases that affect those systems.
+Database integration tests require an explicitly configured test environment and should be run for phases that affect persisted data.
 
 ## Migration Rules
 

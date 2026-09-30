@@ -13,8 +13,7 @@ import aiRouter from './routes/ai.route.js';
 import imageRouter from './routes/image.route.js';
 import storyRouter from './routes/story.route.js';
 import interactiveStoryRouter from './routes/interactiveStory.route.js';
-import paymentRouter from './routes/payment.route.js';
-import { handleStripeWebhook } from './controllers/payment.controller.js';
+import paymentRouter, { paymentWebhookRouter } from './routes/payment.route.js';
 import adminRouter from './routes/admin.route.js';
 import pollinationsRouter from './routes/pollinations.route.js';
 
@@ -68,12 +67,7 @@ app.use(
   })
 );
 
-app.post(
-  `${API_PREFIX}/payments/stripe/webhook`,
-  express.raw({ type: 'application/json' }),
-  handleStripeWebhook
-);
-
+app.use(`${API_PREFIX}/payments`, paymentWebhookRouter);
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(cookieParser());

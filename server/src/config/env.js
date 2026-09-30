@@ -12,8 +12,6 @@ const environmentSchema = z.object({
   NEON_AUTH_JWKS_URL: optionalString,
   CORS_ORIGIN: optionalString,
   CLIENT_ORIGIN: optionalString,
-  STRIPE_SECRET_KEY: optionalString,
-  STRIPE_WEBHOOK_SECRET: optionalString,
   GEMINI_API_KEY: optionalString,
   POLLINATIONS_APP_KEY: optionalString,
   POLLINATIONS_IMAGE_MODEL: optionalString,
@@ -21,6 +19,9 @@ const environmentSchema = z.object({
   CLOUDINARY_CLOUD_NAME: optionalString,
   CLOUDINARY_API_KEY: optionalString,
   CLOUDINARY_API_SECRET: optionalString,
+  RAZORPAY_KEY_ID: optionalString,
+  RAZORPAY_KEY_SECRET: optionalString,
+  RAZORPAY_WEBHOOK_SECRET: optionalString,
 });
 
 const productionRequired = [
@@ -28,14 +29,15 @@ const productionRequired = [
   'NEON_AUTH_JWKS_URL',
   'CORS_ORIGIN',
   'CLIENT_ORIGIN',
-  'STRIPE_SECRET_KEY',
-  'STRIPE_WEBHOOK_SECRET',
   'GEMINI_API_KEY',
   'POLLINATIONS_APP_KEY',
   'POLLINATIONS_TOKEN_ENCRYPTION_KEY',
   'CLOUDINARY_CLOUD_NAME',
   'CLOUDINARY_API_KEY',
   'CLOUDINARY_API_SECRET',
+  'RAZORPAY_KEY_ID',
+  'RAZORPAY_KEY_SECRET',
+  'RAZORPAY_WEBHOOK_SECRET',
 ];
 
 const isHttpUrl = value => {
@@ -87,20 +89,6 @@ export const validateEnvironment = (source = process.env) => {
     issues.push('NEON_AUTH_JWKS_URL must be an http(s) URL');
   }
 
-  if (
-    env.STRIPE_SECRET_KEY &&
-    !/^[sr]k_(test|live)_/.test(env.STRIPE_SECRET_KEY)
-  ) {
-    issues.push('STRIPE_SECRET_KEY has an invalid format');
-  }
-
-  if (
-    env.STRIPE_WEBHOOK_SECRET &&
-    !env.STRIPE_WEBHOOK_SECRET.startsWith('whsec_')
-  ) {
-    issues.push('STRIPE_WEBHOOK_SECRET has an invalid format');
-  }
-
   if (env.POLLINATIONS_APP_KEY && !env.POLLINATIONS_APP_KEY.startsWith('pk_')) {
     issues.push('POLLINATIONS_APP_KEY must start with pk_');
   }
@@ -112,6 +100,14 @@ export const validateEnvironment = (source = process.env) => {
     issues.push(
       'POLLINATIONS_TOKEN_ENCRYPTION_KEY must be at least 32 characters'
     );
+  }
+
+  if (env.RAZORPAY_KEY_ID && !env.RAZORPAY_KEY_ID.startsWith('rzp_')) {
+    issues.push('RAZORPAY_KEY_ID must start with rzp_');
+  }
+
+  if (env.RAZORPAY_WEBHOOK_SECRET && env.RAZORPAY_WEBHOOK_SECRET.length < 32) {
+    issues.push('RAZORPAY_WEBHOOK_SECRET must be at least 32 characters');
   }
 
   if (issues.length) {
