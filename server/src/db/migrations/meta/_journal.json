@@ -36,6 +36,20 @@
       "when": 1790424196234,
       "tag": "0004_sparkling_loki",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790682400776,
+      "tag": "0005_slow_otto_octavius",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790683701848,
+      "tag": "0006_worried_roxanne_simpson",
+      "breakpoints": true
     }
   ]
 }

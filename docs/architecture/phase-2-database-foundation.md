@@ -26,7 +26,7 @@ The retained editor reads and writes a complete ordered chapter collection. It d
 ## Payments And Generation
 
 - Payment provider session IDs, payment intent IDs, and webhook event IDs have database uniqueness constraints.
-- Stripe fulfillment claims the pending payment, grants credits, and records the ledger mutation in one statement.
+- Payment fulfillment claims the pending payment, grants credits, and records the ledger mutation in one statement.
 - Generation jobs require an owner-scoped idempotency key.
 - Assets have stable provider/bucket/object-key identity and are ready for the storage adapter in Phase 4.
 
@@ -59,7 +59,7 @@ Verified on the isolated `dev/platform-poc` branch:
 - Duplicate credit and generation idempotency keys are rejected.
 - Negative credit balances are rejected.
 - Profile deletion cascades through owned story data.
-- Concurrent Stripe fulfillment grants credits exactly once.
+- Concurrent payment fulfillment grants credits exactly once.
 - Seeded classic-story reads return the expected slug and version payload.
 - Server lint, formatting, unit tests, and production dependency audit pass.
 

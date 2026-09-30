@@ -28,7 +28,7 @@ Express API
       +-- Neon Managed Better Auth
       +-- Neon PostgreSQL + Drizzle
       +-- Cloudinary media storage
-      +-- Stripe
+      +-- Razorpay Standard Checkout
       +-- AI and image-generation providers
 ```
 
@@ -39,7 +39,7 @@ Preferred choices:
 - Authentication: Neon Managed Better Auth, subject to the Phase 1 proof of concept.
 - File storage: Cloudinary behind a backend-owned `ObjectStorage` boundary.
 - API: keep the existing Express service during the migration.
-- Payments: keep Stripe behind the Express API.
+- Payments: Razorpay Standard Checkout behind the Express API.
 - AI providers: keep provider-specific code behind backend-owned service interfaces.
 - MongoDB: not planned. The product has relational ownership, payment, credit, slug, and story-tree requirements that fit PostgreSQL.
 
@@ -82,7 +82,7 @@ Retained baseline capabilities:
 - Classic illustrated stories
 - Interactive branching stories
 - User dashboard and story management
-- Credits and Stripe payments
+- Credits and Razorpay payments
 - Public exploration and slug-based story reading
 - PDF export and browser narration
 - Administrative management
@@ -177,7 +177,7 @@ Implemented and verified:
 - Added atomic credit accounts and ledger mutations with non-negative balances and unique idempotency keys.
 - Added unified classic/interactive story ownership, immutable JSONB story versions, normalized interactive nodes, and one-active-node enforcement.
 - Added assets, generation jobs, payments, and payment events with provider and request idempotency constraints.
-- Replaced the legacy split Drizzle schemas and moved active story, user, admin, credit, and Stripe services onto the fresh schema while preserving API response shapes.
+- Replaced the legacy split Drizzle schemas and moved active story, user, admin, and credit services onto the fresh schema while preserving API response shapes.
 - Added generated SQL migrations, checksum verification, a branch-gated migration runner, deterministic fake development seed data, and database integration tests.
 - Applied, seeded, and re-ran migrations on `dev/platform-poc`; production was not changed.
 - Recorded schema decisions and verification evidence in `docs/architecture/phase-2-database-foundation.md`.
@@ -369,16 +369,18 @@ Exit criteria:
 
 ## Phase 6 - Payments And Credit Ledger
 
-Status: not started
+Status: in progress
+
+Current checkpoint: Razorpay order creation, Standard Checkout, authenticated signature verification, signed webhook reconciliation, and atomic idempotent credit fulfillment are implemented. Refund and administrative ledger operations remain before this phase is complete.
 
 Goal: rebuild purchasing around the fresh user IDs and append-only credit accounting.
 
 Implementation tasks:
 
-- Keep Stripe session creation server-owned.
-- Store the application user ID on payment records and Stripe metadata.
+- Keep Razorpay order creation server-owned.
+- Store the application user ID on payment records and Razorpay notes.
 - Store customer email only as a transaction snapshot.
-- Store each Stripe event ID with a unique constraint.
+- Store each Razorpay event ID with a unique constraint.
 - Apply payment fulfillment and ledger credits atomically.
 - Add ledger entries for signup grants, purchases, generation charges, refunds, and admin adjustments.
 - Maintain a cached balance only if it is transactionally updated with the ledger.
@@ -411,7 +413,7 @@ Implementation tasks:
 - Remove unused pages, components, assets, dependencies, and empty directories after replacement.
 - Rebuild legal, contact, metadata, analytics, and SEO only when the new product identity is final.
 - Update README files, architecture notes, environment documentation, and deployment instructions.
-- Document operational tasks for auth, storage, Stripe, AI providers, migrations, and backups.
+- Document operational tasks for auth, storage, Razorpay, AI providers, migrations, and backups.
 
 Exit criteria:
 
@@ -467,7 +469,7 @@ Verification checklist:
 - Auth end-to-end tests.
 - Storage end-to-end tests.
 - Story generation and failure/refund tests.
-- Stripe webhook idempotency tests.
+- Razorpay webhook idempotency tests.
 - Authorization tests for every owner/admin mutation.
 - Rate-limit and malformed-request tests.
 - Backup and restore exercise.
