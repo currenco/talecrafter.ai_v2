@@ -175,7 +175,7 @@ const pricingPlans = [
   },
   {
     name: "Basic",
-    price: "$1.99",
+    price: "INR 199",
     credits: "10 credits",
     description: "A small refill for an occasional story.",
     ctaLabel: "Choose Basic",
@@ -184,7 +184,7 @@ const pricingPlans = [
   },
   {
     name: "Premium",
-    price: "$3.99",
+    price: "INR 399",
     credits: "75 credits",
     description: "The best fit for regular creation.",
     ctaLabel: "Choose Premium",
@@ -193,7 +193,7 @@ const pricingPlans = [
   },
   {
     name: "Ultimate",
-    price: "$5.99",
+    price: "INR 599",
     credits: "150 credits",
     description: "More room for longer creative runs.",
     ctaLabel: "Choose Ultimate",

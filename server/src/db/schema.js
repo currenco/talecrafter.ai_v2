@@ -333,25 +333,6 @@ export const PollinationsOAuthStates = appSchema.table(
   ]
 );
 
-export const StripeProducts = appSchema.table(
-  'stripe_products',
-  {
-    planId: varchar('plan_id', { length: 80 }).primaryKey(),
-    productId: varchar('product_id', { length: 255 }).notNull(),
-    priceId: varchar('price_id', { length: 255 }).notNull(),
-    amountCents: integer('amount_cents').notNull(),
-    currency: varchar('currency', { length: 10 }).default('usd').notNull(),
-    credits: integer('credits').notNull(),
-    ...timestamps,
-  },
-  table => [
-    uniqueIndex('stripe_products_product_id_unique').on(table.productId),
-    uniqueIndex('stripe_products_price_id_unique').on(table.priceId),
-    check('stripe_products_amount_check', sql`${table.amountCents} > 0`),
-    check('stripe_products_credits_check', sql`${table.credits} > 0`),
-  ]
-);
-
 export const Payments = appSchema.table(
   'payments',
   {
@@ -359,7 +340,7 @@ export const Payments = appSchema.table(
     userId: uuid('user_id')
       .notNull()
       .references(() => UserProfiles.id, { onDelete: 'restrict' }),
-    provider: varchar('provider', { length: 40 }).default('stripe').notNull(),
+    provider: varchar('provider', { length: 40 }).notNull(),
     providerSessionId: varchar('provider_session_id', {
       length: 255,
     }).notNull(),
@@ -371,7 +352,7 @@ export const Payments = appSchema.table(
     userEmail: varchar('email_snapshot', { length: 320 }).notNull(),
     planId: varchar('plan_id', { length: 80 }).notNull(),
     amountCents: integer('amount_cents').notNull(),
-    currency: varchar('currency', { length: 10 }).default('usd').notNull(),
+    currency: varchar('currency', { length: 10 }).notNull(),
     credits: integer('credits').notNull(),
     status: varchar('status', { length: 40 }).default('pending').notNull(),
     fulfilledAt: timestamp('fulfilled_at', { withTimezone: true }),
