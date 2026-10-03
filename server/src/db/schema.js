@@ -43,6 +43,24 @@ export const UserProfiles = appSchema.table(
   ]
 );
 
+export const LegacyUsers = appSchema.table(
+  'legacy_users',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    legacyUserId: integer('legacy_user_id').notNull(),
+    email: varchar('email', { length: 320 }).notNull(),
+    displayName: text('display_name'),
+    avatarUrl: text('avatar_url'),
+    importedAt: timestamp('imported_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  table => [
+    uniqueIndex('legacy_users_legacy_user_id_unique').on(table.legacyUserId),
+    uniqueIndex('legacy_users_email_unique').on(table.email),
+  ]
+);
+
 export const CreditAccounts = appSchema.table(
   'credit_accounts',
   {
