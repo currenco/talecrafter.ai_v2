@@ -64,6 +64,7 @@ const CreateStory = () => {
     "Writing your story draft...",
   );
   const { user } = useUser();
+  const userId = user?.id;
   const { getToken } = useAuth();
   const notify = (msg: string) => toast(msg);
   const notifyError = (msg: string) => toast.error(msg);
@@ -80,7 +81,7 @@ const CreateStory = () => {
 
   useEffect(() => {
     let ignore = false;
-    if (!user) {
+    if (!userId) {
       setWalletStatus(undefined);
       setWalletLoading(false);
       return;
@@ -107,7 +108,7 @@ const CreateStory = () => {
     return () => {
       ignore = true;
     };
-  }, [getToken, user]);
+  }, [getToken, userId]);
 
   const connectPollinations = async () => {
     setWalletPending(true);

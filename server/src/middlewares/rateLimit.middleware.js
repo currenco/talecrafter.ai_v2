@@ -15,6 +15,14 @@ export const apiRateLimit = rateLimit({
   ...common,
   windowMs: 15 * 60 * 1000,
   limit: 300,
+  skip: req => req.path.startsWith('/pollinations'),
+});
+
+export const pollinationsRateLimit = rateLimit({
+  ...common,
+  windowMs: 15 * 60 * 1000,
+  limit: 60,
+  keyGenerator: req => `user:${req.auth.userId}`,
 });
 
 export const generationRateLimit = rateLimit({
