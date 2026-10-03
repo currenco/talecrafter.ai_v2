@@ -21,7 +21,7 @@ import {
 import type { UserDetail } from "@/app/_context/UserDetailContext";
 import type { StorySelection } from "@/types/story";
 import { waitForStoryPublication } from "@/lib/story-generation";
-import { CircleCheck, Link2, LoaderCircle, WalletCards } from "lucide-react";
+import { CircleCheck, KeyRound, Link2, LoaderCircle } from "lucide-react";
 const MotionDiv = motion.div;
 
 export interface FormDataType {
@@ -96,7 +96,7 @@ const CreateStory = () => {
         );
         if (!ignore) setWalletStatus(status);
       } catch (error) {
-        console.error("Unable to load Pollinations wallet", error);
+        console.error("Unable to load Pollinations key connection", error);
         if (!ignore) setWalletStatus(undefined);
       } finally {
         if (!ignore) setWalletLoading(false);
@@ -122,7 +122,7 @@ const CreateStory = () => {
       notifyError(
         error instanceof ApiClientError
           ? error.message
-          : "Unable to connect Pollinations wallet",
+          : "Unable to connect your Pollinations key",
       );
       setWalletPending(false);
     }
@@ -184,7 +184,7 @@ const CreateStory = () => {
     }
 
     if (!walletStatus?.connected) {
-      notifyError("Connect your Pollinations wallet before generating images");
+      notifyError("Connect your Pollinations key before generating images");
       return;
     }
 
@@ -313,15 +313,15 @@ const CreateStory = () => {
           <div className="mt-6 flex flex-col gap-4 border-y border-blue-300/15 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyan-300/10 text-cyan-200">
-                <WalletCards size={20} aria-hidden="true" />
+                <KeyRound size={20} aria-hidden="true" />
               </span>
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-white">
-                  Pollinations wallet
+                  Pollinations key
                 </p>
                 <p className="truncate text-sm text-blue-100/65">
                   {walletLoading
-                    ? "Checking wallet connection..."
+                    ? "Checking key connection..."
                     : walletStatus?.connected
                       ? walletStatus.username
                         ? `Connected as ${walletStatus.username}`
@@ -332,7 +332,7 @@ const CreateStory = () => {
                           ? "Connection revoked"
                           : walletStatus?.state === "model_not_authorized"
                             ? "Reconnect to authorize the current image model"
-                            : "Connect to generate story images"}
+                            : "Connect your Pollinations key to generate story images"}
                 </p>
               </div>
             </div>
@@ -340,7 +340,7 @@ const CreateStory = () => {
               <LoaderCircle
                 className="animate-spin text-cyan-300"
                 size={20}
-                aria-label="Checking wallet connection"
+                aria-label="Checking Pollinations key connection"
               />
             ) : walletStatus?.connected ? (
               <span className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-300">
@@ -359,7 +359,7 @@ const CreateStory = () => {
                 ) : (
                   <Link2 size={18} />
                 )}
-                Connect wallet
+                Connect key
               </Button>
             )}
           </div>
