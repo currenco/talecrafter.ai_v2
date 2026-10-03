@@ -36,6 +36,7 @@ pnpm-debug.log*
 client/next-env.d.ts
 
 # hosting/tooling
+.tools/
 client/.vercel/
 .vercel/
 .neon
