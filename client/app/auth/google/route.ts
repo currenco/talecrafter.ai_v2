@@ -7,7 +7,7 @@ export const GET = async (request: Request) => {
     provider: 'google',
     callbackURL: `${origin}/dashboard`,
     newUserCallbackURL: `${origin}/dashboard`,
-    errorCallbackURL: `${origin}/sign-in`,
+    errorCallbackURL: `${origin}/sign-in?error=google`,
   })
 
   if (result.error || !result.data?.url) {
