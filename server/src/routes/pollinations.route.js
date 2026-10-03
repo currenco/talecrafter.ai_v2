@@ -6,12 +6,14 @@ import {
   removePollinationsConnection,
 } from '../controllers/pollinations.controller.js';
 import { requireAuth } from '../middlewares/auth.middleware.js';
+import { pollinationsRateLimit } from '../middlewares/rateLimit.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { pollinationsCallbackSchema } from '../validations/pollinations.validation.js';
 
 const router = Router();
 
 router.use(requireAuth);
+router.use(pollinationsRateLimit);
 router.get('/status', getPollinationsStatus);
 router.post('/connect', connectPollinations);
 router.post(
