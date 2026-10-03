@@ -11,3 +11,11 @@ Before making any code changes, follow this workflow strictly:
 
 **Priority:** Correct understanding > speed of implementation.
 When in doubt, **ask first rather than guess.**
+
+## Pollinations Tooling
+
+For Pollinations work, read the version-matched instructions at
+`.tools/pollinations-cli/node_modules/@pollinations/cli/SKILL.md` and use the
+repository-local binary at
+`.tools/pollinations-cli/node_modules/.bin/polli`. Do not install the CLI
+globally or add it to the client/server application dependencies.
