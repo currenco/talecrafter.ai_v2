@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import { IoIosArrowDropleftCircle, IoIosArrowDroprightCircle } from "react-icons/io";
 import { toast } from "react-toastify";
 import { useParams, useRouter } from "next/navigation";
-import { useAuth } from "@/lib/neon-auth/client";
+import { getAccessToken } from "@/lib/neon-auth/client";
 import CustomLoader from "@/app/create-story/(component)/CustomLoader";
 import BookCoverPage from "@/app/view-story/_components/BookCoverPage";
 import {
@@ -112,7 +112,6 @@ const InteractiveStoryPage = () => {
   const params = useParams<{ id: string }>();
   const id = params?.id;
   const router = useRouter();
-  const { getToken } = useAuth();
   const bookRef = useRef<FlipBookHandle | null>(null);
   const bookSectionRef = useRef<HTMLDivElement | null>(null);
   const treeSectionRef = useRef<HTMLDivElement | null>(null);
@@ -138,7 +137,7 @@ const InteractiveStoryPage = () => {
 
     setLoading(true);
     try {
-      const token = await getToken();
+      const token = await getAccessToken();
       const state = await apiFetch<InteractiveStoryState>(`/interactive-stories/${id}`, {
         token,
       });
@@ -155,7 +154,7 @@ const InteractiveStoryPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [applyInteractiveState, getToken, id, router]);
+  }, [applyInteractiveState, id, router]);
 
   useEffect(() => {
     loadStory();
@@ -247,7 +246,7 @@ const InteractiveStoryPage = () => {
     try {
       setLoaderMessage("Compiling all choices and making final book...");
       setGeneratingNext(true);
-      const token = await getToken();
+      const token = await getAccessToken();
       if (!completionRequestRef.current || completionRequestRef.current.choice !== selectedChoice) {
         completionRequestRef.current = { choice: selectedChoice, key: createIdempotencyKey() };
       }
@@ -292,7 +291,7 @@ const InteractiveStoryPage = () => {
     try {
       setLoaderMessage("Expanding your chosen path...");
       setGeneratingNext(true);
-      const token = await getToken();
+      const token = await getAccessToken();
       if (!continuationRequestRef.current || continuationRequestRef.current.choice !== choice) {
         continuationRequestRef.current = { choice, key: createIdempotencyKey() };
       }
@@ -501,23 +500,23 @@ const InteractiveStoryPage = () => {
   }, [treeGraph]);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#020b1f] px-5 py-8 md:px-16 lg:px-28 xl:px-40">
+    <div className="relative min-h-screen overflow-hidden bg-[#0b1522] px-5 py-8 md:px-16 lg:px-28 xl:px-40">
       <div className="tc-hero-grid absolute inset-0 opacity-35" />
       <div className="tc-hero-orb tc-hero-orb-one" />
       <div className="tc-hero-orb tc-hero-orb-two" />
 
       <div className="relative">
         <div className="tc-glass-panel px-5 py-6 text-center shadow-[0_16px_45px_rgba(0,0,0,0.35)] md:px-8">
-          <h2 className="tc-title-gradient text-3xl font-extrabold sm:text-4xl md:text-5xl">
+          <h1 className="font-serif text-4xl font-medium tracking-tight text-[#f1eadb] sm:text-5xl md:text-6xl">
             {story?.title ?? "Plot Twist Story"}
-          </h2>
-          <p className="mt-2 text-blue-100/70">
+          </h1>
+          <p className="mt-2 text-[#c3cbd4]/70">
             Draft depth: {activeNode?.depth ?? 0}/{MAX_DEPTH} · Status: {story?.status ?? "draft"}
           </p>
         </div>
 
         <div ref={bookSectionRef} className="mt-6 tc-glass-panel-soft p-4 md:p-6">
-          <div className="mb-4 flex items-center justify-between text-sm text-blue-100/80">
+          <div className="mb-4 flex items-center justify-between text-sm text-[#c3cbd4]/80">
             <span>
               {atCover
                 ? `Cover / ${Math.max(totalPages, 1)} pages`
@@ -590,7 +589,7 @@ const InteractiveStoryPage = () => {
 
         <div ref={treeSectionRef} className="mt-8 tc-glass-panel-soft p-5">
           <h3 className="tc-title-gradient text-2xl font-bold">Story Tree</h3>
-          <p className="mt-2 text-sm text-blue-100/70">
+          <p className="mt-2 text-sm text-[#c3cbd4]/70">
             Decision history in tree form. Select available branch nodes here to continue once you reach the last page.
           </p>
 
@@ -607,10 +606,10 @@ const InteractiveStoryPage = () => {
                   const midY = (p1.y + p2.y) / 2;
                   const stroke =
                     edge.status === "selected"
-                      ? "rgba(34,211,238,0.9)"
+                      ? "rgba(216,198,158,0.9)"
                       : edge.status === "disabled"
                       ? "rgba(148,163,184,0.35)"
-                      : "rgba(147,197,253,0.6)";
+                      : "rgba(195,203,212,0.55)";
 
                   return (
                     <path
@@ -650,12 +649,12 @@ const InteractiveStoryPage = () => {
                       disabled={!isActiveChoiceNode}
                       className={`flex w-[180px] items-center justify-center rounded-2xl border px-3 py-3 text-center text-[12px] font-semibold leading-snug shadow-[0_8px_26px_rgba(2,8,23,0.35)] transition ${
                         node.status === "current"
-                          ? "border-cyan-100 bg-cyan-500 text-white"
+                          ? "border-[#f1eadb] bg-[#d8c69e] text-[#101a28]"
                           : isSelected
-                          ? "border-blue-100 bg-blue-600 text-white"
+                          ? "border-[#d8c69e] bg-[#9f8d68] text-[#101a28]"
                           : isDisabled
                           ? "border-slate-400 bg-slate-700 text-slate-100"
-                          : "border-blue-200 bg-blue-900/95 text-blue-100"
+                          : "border-[#d8c69e]/30 bg-[#111d2b] text-[#c3cbd4]"
                       } ${isActiveChoiceNode ? "cursor-pointer hover:scale-[1.03]" : ""}`}
                       title={node.label}
                       onClick={() => {
@@ -675,12 +674,12 @@ const InteractiveStoryPage = () => {
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-4 text-xs text-blue-100/80">
+          <div className="mt-4 flex flex-wrap gap-4 text-xs text-[#c3cbd4]/80">
             <span className="inline-flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-blue-500" /> Chosen path
+              <span className="h-3 w-3 rounded-full bg-[#9f8d68]" /> Chosen path
             </span>
             <span className="inline-flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-cyan-400" /> Current node
+              <span className="h-3 w-3 rounded-full bg-[#d8c69e]" /> Current node
             </span>
             <span className="inline-flex items-center gap-2">
               <span className="h-3 w-3 rounded-full bg-slate-500" /> Disabled branch

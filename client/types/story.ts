@@ -30,7 +30,7 @@ export type StoryItem = {
 
 export type StorySelection = {
   fieldValue: string;
-  fieldName: "storySubject" | "storyType" | "ageCategory" | "imageStyle";
+  fieldName: "storySubject" | "storyType" | "imageStyle";
 };
 
 export type StorySelectionProps = {

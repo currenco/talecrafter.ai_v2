@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { useAuth } from "@/lib/neon-auth/client";
+import { getAccessToken } from "@/lib/neon-auth/client";
 import { apiFetch } from "@/lib/api-client";
 
 export default function UploadImage({
@@ -13,7 +13,6 @@ export default function UploadImage({
   const [image, setImage] = useState<File | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { getToken } = useAuth();
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -28,7 +27,7 @@ export default function UploadImage({
 
     try {
       const imageBase64 = await fileToBase64(image);
-      const token = await getToken();
+      const token = await getAccessToken();
       const data = await apiFetch<{ text: string }>("/ai/gemini", {
         method: "POST",
         token,
@@ -75,13 +74,20 @@ export default function UploadImage({
   }
 
   return (
-    <main className=" w-full mt-4">
-      <div className="bg-gradient-to-br from-[#071340] via-[#0a0f25] to-[#071340] rounded-lg shadow-xl overflow-hidden ">
-        <div className="p-8">
-          <h2 className="tc-title-gradient text-2xl sm:text-3xl lg:text-4xl font-bold text-center">
-            Pick an Image to generate a story
+    <section className="w-full">
+      <div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#d8c69e]">
+            Or begin with an image
+          </p>
+          <h2 className="mt-3 font-serif text-3xl font-medium tracking-tight text-[#f1eadb] sm:text-4xl">
+            Let a picture inspire the premise
           </h2>
-          <div className="mb-8 mt-5 flex flex-col items-center justify-center gap-3">
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[#c3cbd4]/65 sm:text-base">
+            Upload a scene or character and TaleCrafter will turn its visual details
+            into a starting idea you can build on.
+          </p>
+          <div className="mt-7 flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[#d8c69e]/30 bg-[#0b1522]/55 px-6 py-10">
             <input
               id="image-upload"
               type="file"
@@ -91,24 +97,24 @@ export default function UploadImage({
             />
             <label
               htmlFor="image-upload"
-              className="tc-btn-ghost inline-flex cursor-pointer items-center justify-center px-6 py-3 text-sm"
+              className="inline-flex cursor-pointer items-center justify-center rounded-full border border-[#d8c69e]/30 bg-[#d8c69e]/[0.08] px-6 py-3 text-sm font-semibold text-[#f1eadb] transition hover:bg-[#d8c69e]/15"
             >
               Choose Image
             </label>
             {image && (
-              <p className="max-w-full truncate text-sm text-blue-100/70">
+              <p className="max-w-full truncate text-sm text-[#c3cbd4]/70">
                 {image.name}
               </p>
             )}
           </div>
           {image && (
-            <div className="mb-8 flex justify-center">
+            <div className="mt-6 flex justify-center">
               <Image
                 src={URL.createObjectURL(image)}
                 alt="Uploaded image"
                 width={300}
                 height={300}
-                className="rounded-lg shadow-md"
+                className="aspect-square rounded-2xl border border-[#d8c69e]/20 object-cover shadow-[0_20px_50px_rgba(0,0,0,0.3)]"
               />
             </div>
           )}
@@ -116,25 +122,22 @@ export default function UploadImage({
             type="button"
             onClick={() => identifyImage()}
             disabled={!image || loading}
-            className="tc-btn-primary mt-5 w-full px-6 py-3 text-base disabled:cursor-not-allowed disabled:opacity-70"
+            className="mt-6 w-full rounded-full border border-[#e2d2ae] bg-gradient-to-br from-[#eee0c0] to-[#cbb789] px-6 py-3 text-base font-semibold text-[#101a28] transition hover:from-[#f5e8ca] hover:to-[#d8c69e] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? "Identifying image..." : "Generate Idea"}
           </button>
         </div>
 
         {result && (
-          <div className="">
-            <h3 className="tc-title-gradient text-2xl font-bold text-center m-2">
-              Story Idea Description
+          <div className="mt-6 rounded-2xl border border-[#d8c69e]/15 bg-[#0b1522]/55 p-5">
+            <h3 className="font-serif text-2xl font-medium text-[#f1eadb]">
+              Suggested story idea
             </h3>
             <div className="prose prose-blue max-w-none">
               {result.split("\n").map((line, index) => {
                 if (line.trim() !== "") {
                   return (
-                    <p
-                      key={index}
-                      className="tc-title-gradient mb-1 sm:text-xl p-4"
-                    >
+                    <p key={index} className="mt-3 leading-7 text-[#c3cbd4]/80">
                       {line}
                     </p>
                   );
@@ -145,6 +148,6 @@ export default function UploadImage({
           </div>
         )}
       </div>
-    </main>
+    </section>
   );
 }

@@ -14,7 +14,10 @@ import {
   ModalHeader,
   useDisclosure,
 } from "@nextui-org/modal";
-import { authClient, useUser } from "@/lib/neon-auth/client";
+import {
+  authClient,
+  clearAccessTokenCache,
+} from "@/lib/neon-auth/client";
 import { UserDetailContext } from "@/app/_context/UserDetailContext";
 import {
   MobileNav,
@@ -36,11 +39,11 @@ const HeaderLogo = ({ onClick }: HeaderLogoProps) => (
     onClick={onClick}
   >
     <Image
-      src="/app_logo.png"
+      src="/logo.png"
       alt="TaleCrafter AI"
       width={42}
       height={42}
-      className="object-contain"
+      className="h-11 w-11 rounded-full border border-[#d8c69e]/25 object-cover shadow-[0_8px_24px_rgba(0,0,0,0.28)]"
       priority
     />
     <span className="tc-title-gradient hidden text-xl font-bold tracking-tight sm:block">
@@ -52,9 +55,15 @@ const HeaderLogo = ({ onClick }: HeaderLogoProps) => (
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const isHome = pathname === "/";
   const router = useRouter();
-  const { isLoaded, isSignedIn, user } = useUser();
-  const { userDetail, setUserDetail } = useContext(UserDetailContext);
+  const {
+    userDetail,
+    setUserDetail,
+    authUser,
+    isAuthLoaded,
+    isSignedIn,
+  } = useContext(UserDetailContext);
   const {
     isOpen: isAccountOpen,
     onOpen: openAccount,
@@ -76,11 +85,12 @@ const Header = () => {
     ...(isAdmin ? [{ name: "Admin Panel", link: "/admin" }] : []),
   ];
 
-  const isAuthenticated = isLoaded && isSignedIn;
-  const navItems = !isLoaded ? [] : isAuthenticated ? userItems : visitorItems;
+  const isAuthenticated = isAuthLoaded && isSignedIn;
+  const navItems = isAuthenticated ? userItems : visitorItems;
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
   const signOut = async () => {
     await authClient.signOut();
+    clearAccessTokenCache();
     setUserDetail(undefined);
     closeMobileMenu();
     closeAccount();
@@ -93,8 +103,9 @@ const Header = () => {
     openAccount();
   };
 
-  const accountName = userDetail?.userName || user?.name || "TaleCrafter user";
-  const accountEmail = userDetail?.userEmail || user?.email || "";
+  const accountName =
+    userDetail?.userName || authUser?.name || "TaleCrafter user";
+  const accountEmail = userDetail?.userEmail || authUser?.email || "";
 
   const accountControls = (
     <div className="flex items-center gap-1">
@@ -102,7 +113,7 @@ const Header = () => {
         href="/buy-credits"
         aria-label={`${userDetail?.credit ?? 0} credits. Manage credits`}
         title="Credits"
-        className="flex h-9 min-w-12 items-center justify-center gap-1.5 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 text-sm font-semibold text-cyan-100 hover:bg-cyan-300/15"
+        className="flex h-9 min-w-12 items-center justify-center gap-1.5 rounded-full border border-[#d8c69e]/20 bg-[#d8c69e]/10 px-2.5 text-sm font-semibold text-[#f1eadb] hover:bg-[#d8c69e]/15"
       >
         <Coins size={17} aria-hidden="true" />
         <span>{userDetail?.credit ?? "-"}</span>
@@ -113,7 +124,7 @@ const Header = () => {
         aria-haspopup="dialog"
         aria-expanded={isAccountOpen}
         title="Account"
-        className="rounded-full p-2 text-blue-100 hover:bg-white/10"
+        className="rounded-full p-2 text-[#c3cbd4] hover:bg-white/10"
         onClick={openAccountModal}
       >
         <UserRound size={19} aria-hidden="true" />
@@ -123,18 +134,18 @@ const Header = () => {
 
   return (
     <>
-      <Navbar className="px-3 py-2">
-        <NavBody className="border-blue-300/15 bg-[#010715]/90">
+      <Navbar className={isHome ? "fixed px-3 py-4" : "px-3 py-2"}>
+        <NavBody className="border-[#d8c69e]/15 bg-[#0b1522]/90">
           <HeaderLogo onClick={closeMobileMenu} />
           <NavItems items={navItems} />
           <div className="relative z-20 flex items-center gap-3">
-            {!isLoaded ? null : isAuthenticated ? (
+            {isAuthenticated ? (
               <>
                 <Link href="/create-story">
                   <NavbarButton
                     as="button"
                     variant="gradient"
-                    className="rounded-full bg-blue-600 px-5 text-white hover:bg-blue-500"
+                    className="tc-btn-primary rounded-full px-5"
                   >
                     Create
                   </NavbarButton>
@@ -147,7 +158,7 @@ const Header = () => {
                   <NavbarButton
                     as="button"
                     variant="secondary"
-                    className="rounded-full text-blue-100/80 hover:text-white"
+                    className="rounded-full text-[#c3cbd4]/80 hover:text-[#f1eadb]"
                   >
                     Login
                   </NavbarButton>
@@ -156,7 +167,7 @@ const Header = () => {
                   <NavbarButton
                     as="button"
                     variant="gradient"
-                    className="rounded-full bg-blue-600 px-5 text-white hover:bg-blue-500"
+                    className="tc-btn-primary rounded-full px-5"
                   >
                     Sign Up
                   </NavbarButton>
@@ -166,7 +177,7 @@ const Header = () => {
           </div>
         </NavBody>
 
-        <MobileNav className="border-blue-300/15 bg-[#010715]/90">
+        <MobileNav className="border-[#d8c69e]/15 bg-[#0b1522]">
           <MobileNavHeader>
             <HeaderLogo onClick={closeMobileMenu} />
             <div className="flex items-center gap-3">
@@ -174,7 +185,7 @@ const Header = () => {
               <button
                 type="button"
                 aria-label="Toggle navigation menu"
-                className="rounded-full border border-blue-300/20 p-2"
+                className="rounded-full border border-[#d8c69e]/20 p-2"
                 onClick={() => setIsMobileMenuOpen((value) => !value)}
               >
                 <MobileNavToggle isOpen={isMobileMenuOpen} />
@@ -184,8 +195,7 @@ const Header = () => {
 
           <MobileNavMenu
             isOpen={isMobileMenuOpen}
-            onClose={closeMobileMenu}
-            className="bg-[#03122e]/95"
+            className="border border-[#d8c69e]/15 bg-[#111d2b]"
           >
             {navItems.map((item) => (
               <Link
@@ -194,21 +204,21 @@ const Header = () => {
                 onClick={closeMobileMenu}
                 className={`w-full rounded-xl px-4 py-3 text-base font-semibold transition ${
                   pathname === item.link
-                    ? "border border-blue-300/20 bg-blue-500/20 text-white"
-                    : "text-blue-100/75 hover:bg-white/10 hover:text-white"
+                    ? "border border-[#d8c69e]/20 bg-[#d8c69e]/12 text-[#f1eadb]"
+                    : "text-[#c3cbd4]/75 hover:bg-white/10 hover:text-[#f1eadb]"
                 }`}
               >
                 {item.name}
               </Link>
             ))}
 
-            <div className="flex w-full flex-col gap-3 border-t border-blue-300/15 pt-4">
-              {!isLoaded ? null : isAuthenticated ? (
+            <div className="flex w-full flex-col gap-3 border-t border-[#d8c69e]/15 pt-4">
+              {isAuthenticated ? (
                 <Link href="/create-story" onClick={closeMobileMenu}>
                   <NavbarButton
                     as="button"
                     variant="gradient"
-                    className="w-full rounded-xl bg-blue-600 text-white hover:bg-blue-500"
+                    className="tc-btn-primary w-full rounded-xl"
                   >
                     Create Story
                   </NavbarButton>
@@ -219,7 +229,7 @@ const Header = () => {
                     <NavbarButton
                       as="button"
                       variant="secondary"
-                      className="w-full rounded-xl border border-blue-300/20 text-blue-100"
+                      className="w-full rounded-xl border border-[#d8c69e]/20 text-[#c3cbd4]"
                     >
                       Login
                     </NavbarButton>
@@ -228,7 +238,7 @@ const Header = () => {
                     <NavbarButton
                       as="button"
                       variant="gradient"
-                      className="w-full rounded-xl bg-blue-600 text-white hover:bg-blue-500"
+                      className="tc-btn-primary w-full rounded-xl"
                     >
                       Sign Up
                     </NavbarButton>
@@ -248,36 +258,36 @@ const Header = () => {
         size="sm"
         classNames={{
           backdrop: "bg-black/65",
-          base: "border border-blue-300/20 bg-[#06142f] text-white",
-          closeButton: "text-blue-100 hover:bg-white/10",
+          base: "border border-[#d8c69e]/20 bg-[#111d2b] text-[#f1eadb]",
+          closeButton: "text-[#c3cbd4] hover:bg-white/10",
         }}
       >
         <ModalContent>
-          <ModalHeader className="flex items-center gap-3 border-b border-blue-300/15">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/15 text-blue-100">
+          <ModalHeader className="flex items-center gap-3 border-b border-[#d8c69e]/15">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#d8c69e]/10 text-[#d8c69e]">
               <UserRound size={21} aria-hidden="true" />
             </span>
             <span>Account</span>
           </ModalHeader>
           <ModalBody className="gap-5 py-6">
             <div>
-              <p className="text-xs font-semibold uppercase text-blue-100/55">
+              <p className="text-xs font-semibold uppercase text-[#c3cbd4]/55">
                 Name
               </p>
-              <p className="mt-1 break-words text-base font-semibold text-white">
+              <p className="mt-1 break-words text-base font-semibold text-[#f1eadb]">
                 {accountName}
               </p>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase text-blue-100/55">
+              <p className="text-xs font-semibold uppercase text-[#c3cbd4]/55">
                 Email
               </p>
-              <p className="mt-1 break-all text-sm text-blue-100/85">
+              <p className="mt-1 break-all text-sm text-[#c3cbd4]/85">
                 {accountEmail}
               </p>
             </div>
           </ModalBody>
-          <ModalFooter className="border-t border-blue-300/15">
+          <ModalFooter className="border-t border-[#d8c69e]/15">
             <button
               type="button"
               className="flex w-full items-center justify-center gap-2 rounded-md bg-red-500/15 px-4 py-3 font-semibold text-red-100 transition hover:bg-red-500/25"

@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { toast } from "react-toastify";
-import { useAuth } from "@/lib/neon-auth/client";
+import { getAccessToken } from "@/lib/neon-auth/client";
 import { apiFetch } from "@/lib/api-client";
+import { UserDetailContext } from "@/app/_context/UserDetailContext";
 
 type InteractiveStory = {
   storyId: string;
@@ -22,7 +23,7 @@ const SafeCover = ({ src, alt }: { src?: string; alt: string }) => {
 
   if (!src || failed) {
     return (
-      <div className="flex h-44 w-full items-center justify-center rounded-lg border border-blue-300/20 bg-white/[0.04] px-3 text-center text-sm text-blue-100/70">
+      <div className="flex h-44 w-full items-center justify-center rounded-lg border border-[#d8c69e]/20 bg-white/[0.04] px-3 text-center text-sm text-[#c3cbd4]/70">
         Cover image is not available right now.
       </div>
     );
@@ -44,16 +45,17 @@ const SafeCover = ({ src, alt }: { src?: string; alt: string }) => {
 };
 
 const InteractiveStorySections = () => {
-  const { getToken, isLoaded, userId } = useAuth();
+  const { authUser, isAuthLoaded } = useContext(UserDetailContext);
+  const userId = authUser?.id;
   const [stories, setStories] = useState<InteractiveStory[]>([]);
   const [loading, setLoading] = useState(false);
 
   const loadStories = useCallback(async () => {
-    if (!isLoaded || !userId) return;
+    if (!isAuthLoaded || !userId) return;
 
     setLoading(true);
     try {
-      const token = await getToken();
+      const token = await getAccessToken();
       const result = await apiFetch<InteractiveStory[]>("/interactive-stories/me", {
         token,
       });
@@ -64,7 +66,7 @@ const InteractiveStorySections = () => {
     } finally {
       setLoading(false);
     }
-  }, [getToken, isLoaded, userId]);
+  }, [isAuthLoaded, userId]);
 
   useEffect(() => {
     loadStories();
@@ -77,7 +79,7 @@ const InteractiveStorySections = () => {
 
   const onDeleteStory = async (storyId: string) => {
     try {
-      const token = await getToken();
+      const token = await getAccessToken();
       await apiFetch<{ storyId: string }>(`/interactive-stories/${storyId}`, {
         method: "DELETE",
         token,
@@ -92,7 +94,7 @@ const InteractiveStorySections = () => {
   const renderCards = (list: InteractiveStory[], mode: "draft" | "completed") => {
     if (!list.length) {
       return (
-        <p className="mt-4 text-blue-100/70">
+        <p className="mt-4 text-[#c3cbd4]/70">
           {mode === "draft"
             ? "No Plot Twist stories in progress."
             : "No completed Plot Twist stories yet."}
@@ -105,13 +107,13 @@ const InteractiveStorySections = () => {
         {list.map((story) => (
           <div
             key={story.storyId}
-            className="rounded-xl border border-blue-300/20 bg-white/[0.04] p-4"
+            className="rounded-[1.5rem] border border-[#d8c69e]/20 bg-[#111d2b]/75 p-4"
           >
             {story.coverImage && (
               <SafeCover src={story.coverImage} alt={story.title} />
             )}
-            <h4 className="mt-3 text-lg font-semibold text-white">{story.title}</h4>
-            <p className="mt-1 text-sm text-blue-100/70">Pages: {story.totalPages ?? 0}</p>
+            <h4 className="mt-3 text-lg font-semibold text-[#f1eadb]">{story.title}</h4>
+            <p className="mt-1 text-sm text-[#c3cbd4]/70">Pages: {story.totalPages ?? 0}</p>
 
             <div className="mt-4 flex flex-wrap gap-2">
               {mode === "draft" ? (
@@ -139,15 +141,15 @@ const InteractiveStorySections = () => {
   return (
     <div className="mt-8">
       <div className="tc-glass-panel-soft p-5 md:p-7">
-        <h3 className="tc-title-gradient text-2xl font-bold">
+        <h3 className="font-serif text-3xl font-medium text-[#f1eadb]">
           Plot Twist Stories
         </h3>
-        <p className="mt-1 text-sm text-blue-100/70">
+        <p className="mt-1 text-sm text-[#c3cbd4]/70">
           Continue the choice-driven stories whose paths you control.
         </p>
         {!loading && renderCards(draftStories, "draft")}
         {loading && (
-          <p className="mt-4 text-blue-100/70">Loading Plot Twist stories...</p>
+          <p className="mt-4 text-[#c3cbd4]/70">Loading Plot Twist stories...</p>
         )}
       </div>
     </div>

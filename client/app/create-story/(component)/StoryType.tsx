@@ -23,78 +23,86 @@ const StoryType = ({ userSelection }: StorySelectionProps) => {
   const OptionList = [
     {
       label: "Mythology",
-      imageUrl: "/mythology.webp",
+      imageUrl: "/genre/mythology.webp",
       isFree: true,
     },
     {
       label: "Sci-fi",
-      imageUrl: "/sci-fi.webp",
+      imageUrl: "/genre/sci-fi.webp",
       isFree: true,
     },
     {
       label: "Educational",
-      imageUrl: "/educational.webp",
+      imageUrl: "/genre/educational.webp",
       isFree: true,
     },
     {
       label: "History",
-      imageUrl: "/History.webp",
+      imageUrl: "/genre/history.webp",
       isFree: true,
     },
     {
       label: "Fantasy",
-      imageUrl: "/fantasy.webp",
+      imageUrl: "/genre/fantasy.webp",
       isFree: true,
     },
     {
       label: "Crime",
-      imageUrl: "/Crime-Thriller.webp",
+      imageUrl: "/genre/crime.webp",
       isFree: true,
     },
     {
       label: "Motivational",
-      imageUrl: "/motivational.webp",
+      imageUrl: "/genre/motivational.webp",
       isFree: true,
     },
     {
       label: "Horror",
-      imageUrl: "/Horror.webp",
+      imageUrl: "/genre/horror.webp",
       isFree: true,
     },
     {
       label: "Romantic",
-      imageUrl: "/Romance.webp",
+      imageUrl: "/genre/romantic.webp",
       isFree: true,
     },
   ];
 
   return (
-    <div className="mt-10">
-      <h2 className="tc-title-gradient text-2xl sm:text-3xl lg:text-4xl block w-full font-bold">
-        Story Genres
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#d8c69e]">
+        Shape the narrative
+      </p>
+      <h2 className="mt-3 block w-full font-serif text-3xl font-medium tracking-tight text-[#f1eadb] sm:text-4xl">
+        Choose a story genre
       </h2>
-      <div className="mt-5 hsb overflow-x-auto whitespace-nowrap">
-        {OptionList.map((item, index) => (
+      <p className="mt-3 text-sm leading-6 text-[#c3cbd4]/65 sm:text-base">
+        Your genre guides the story&apos;s mood, pace, and imaginative world.
+      </p>
+      <div className="hsb mt-7 overflow-x-auto whitespace-nowrap pb-3">
+        {OptionList.map((item) => (
           <button
             type="button"
-            key={index}
-            className={`relative hover:grayscale-0 m-1 p-1 sm:m-3 inline-block cursor-pointer ${
+            key={item.label}
+            aria-pressed={selectedOption === item.label}
+            className={`relative m-1 inline-flex w-[116px] cursor-pointer flex-col rounded-[1.4rem] border p-1.5 text-left transition sm:m-2 sm:w-[190px] ${
               selectedOption === item.label
-                ? "border-medium rounded-3xl border-gray-400"
-                : ""
+                ? "border-[#d8c69e] bg-[#d8c69e]/10 shadow-[0_0_0_3px_rgba(216,198,158,0.08)]"
+                : "border-[#d8c69e]/10 bg-[#0b1522]/45 hover:border-[#d8c69e]/35 hover:bg-[#d8c69e]/[0.05]"
             }`}
             onClick={() => onUserSelect(item)}
           >
             <Image
               src={item.imageUrl}
               alt={item.label}
-              width={200}
-              height={200}
-              className="obejct-cover rounded-3xl h-[100px] w-[100px] sm:h-[200px] sm:w-[200px]"
+              width={768}
+              height={768}
+              sizes="(max-width: 639px) 100px, 200px"
+              className="aspect-square w-full rounded-[1.1rem] object-cover"
             />
-            <h2 className="tc-title-gradient tracking-tighter font-semibold text-xl sm:text-2xl text-center block w-full">
+            <span className="block w-full px-2 py-3 text-center text-sm font-semibold text-[#eee7d9] sm:text-base">
               {item.label}
-            </h2>
+            </span>
           </button>
         ))}
       </div>

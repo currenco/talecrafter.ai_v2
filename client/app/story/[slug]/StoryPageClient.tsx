@@ -38,7 +38,7 @@ function SafeStoryModeImage({ src, alt }: { src: string; alt: string }) {
 
   if (!src || failed) {
     return (
-      <div className="mt-3 flex min-h-[240px] w-full items-center justify-center rounded-lg border border-blue-200/40 bg-blue-50 px-6 text-center text-sm text-slate-600">
+      <div className="mt-3 flex min-h-[240px] w-full items-center justify-center rounded-lg border border-[#d8c69e]/40 bg-[#f4eddd] px-6 text-center text-sm text-slate-600">
         We couldn&apos;t load this illustration right now. You can continue reading the story text.
       </div>
     );
@@ -288,7 +288,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
           scale: 2,
           useCORS: true,
           allowTaint: false,
-          backgroundColor: "#020b1f",
+          backgroundColor: "#0b1522",
           width: 794,
           windowWidth: 794,
           scrollX: 0,
@@ -327,15 +327,15 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
   }, []);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#020b1f] px-5 py-8 md:px-16 lg:px-28 xl:px-40">
+    <div className="relative min-h-screen overflow-hidden bg-[#0b1522] px-5 py-8 md:px-16 lg:px-28 xl:px-40">
       <div className="tc-hero-grid absolute inset-0 opacity-35" />
       <div className="tc-hero-orb tc-hero-orb-one" />
       <div className="tc-hero-orb tc-hero-orb-two" />
 
       <div className="relative">
         <div className="tc-glass-panel px-5 py-6 text-center shadow-[0_16px_45px_rgba(0,0,0,0.35)] md:px-8">
-          <h1 className="tc-title-gradient text-3xl font-extrabold sm:text-4xl md:text-5xl">{title}</h1>
-          <p className="mx-auto mt-4 max-w-4xl text-sm leading-relaxed text-blue-100/80 md:text-base">
+          <h1 className="font-serif text-4xl font-medium tracking-tight text-[#f1eadb] sm:text-5xl md:text-6xl">{title}</h1>
+          <p className="mx-auto mt-4 max-w-4xl text-sm leading-relaxed text-[#c3cbd4]/80 md:text-base">
             {introText}
           </p>
         </div>
@@ -414,8 +414,8 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
           <div className="tc-glass-panel-soft mt-10 p-4 md:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-bold text-white md:text-3xl">Full Story</h2>
-                <p className="mt-2 text-sm text-blue-100/75 md:text-base">
+                <h2 className="font-serif text-3xl font-medium text-[#f1eadb]">Full Story</h2>
+                <p className="mt-2 text-sm text-[#c3cbd4]/75 md:text-base">
                   Switch between flipbook and full story layout.
                 </p>
               </div>
@@ -455,14 +455,14 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                 {chapters.map((chapter, index) => (
                   <article
                     key={`story-map-${index}`}
-                    className="rounded-xl border border-blue-300/20 bg-[#04142e]/70 p-4"
+                    className="rounded-xl border border-[#d8c69e]/20 bg-[#111d2b]/70 p-4"
                   >
-                    <h3 className="mt-1 text-xl font-semibold text-white">{chapter?.title ?? "Untitled Chapter"}</h3>
+                    <h3 className="mt-1 text-xl font-semibold text-[#f1eadb]">{chapter?.title ?? "Untitled Chapter"}</h3>
                     <SafeStoryModeImage
                       src={getChapterImageUrl(chapter)}
                       alt={chapter?.title ?? "story chapter image"}
                     />
-                    <p className="mt-3 text-sm leading-relaxed text-blue-100/85 md:text-base">
+                    <p className="mt-3 text-sm leading-relaxed text-[#c3cbd4]/85 md:text-base">
                       {getCleanChapterText(chapter)}
                     </p>
                   </article>
@@ -473,8 +473,8 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
         )}
 
         <div className="tc-glass-panel-soft mt-10 p-5 md:p-7 text-center">
-          <h2 className="text-2xl font-bold text-white">Generate Your Own AI Story</h2>
-          <p className="mx-auto mt-2 max-w-2xl text-sm text-blue-100/75 md:text-base">
+          <h2 className="font-serif text-3xl font-medium text-[#f1eadb]">Generate Your Own AI Story</h2>
+          <p className="mx-auto mt-2 max-w-2xl text-sm text-[#c3cbd4]/75 md:text-base">
             Create your own personalized illustrated story in minutes.
           </p>
           <Link href="/create-story" className="tc-btn-primary mt-4 inline-flex px-5 py-2 text-sm" prefetch={true}>
@@ -484,13 +484,13 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
 
         <div className="tc-glass-panel-soft mt-10 p-5 md:p-7">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-2xl font-bold text-white">More Stories Like This</h2>
+            <h2 className="font-serif text-3xl font-medium text-[#f1eadb]">More Stories Like This</h2>
             <Link href="/explore" prefetch={true} className="tc-btn-ghost px-4 py-2 text-sm">
               View Explore
             </Link>
           </div>
 
-          <div className="mt-2 text-sm text-blue-100/70">
+          <div className="mt-2 text-sm text-[#c3cbd4]/70">
             Page {relatedTotalPages === 0 ? 0 : relatedPage} of {relatedTotalPages}
           </div>
 
@@ -502,7 +502,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                   key={item.storyId}
                   href={href}
                   prefetch={true}
-                  className="rounded-xl border border-blue-300/20 bg-[#04142e]/70 p-3 transition hover:border-blue-300/40"
+                  className="rounded-xl border border-[#d8c69e]/20 bg-[#111d2b]/70 p-3 transition hover:border-[#d8c69e]/40"
                 >
                   <div className="relative h-40 w-full overflow-hidden rounded-lg bg-slate-900">
                     {item?.coverImage ? (
@@ -517,7 +517,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                       />
                     ) : null}
                   </div>
-                  <h3 className="mt-3 line-clamp-2 text-sm font-semibold text-blue-100">
+                  <h3 className="mt-3 line-clamp-2 text-sm font-semibold text-[#c3cbd4]">
                     {item?.output?.title ?? "Untitled Story"}
                   </h3>
                 </Link>
@@ -526,7 +526,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
 
             {relatedLoading && (
               <div className="col-span-full flex justify-center py-5">
-                <span className="h-8 w-8 animate-spin rounded-full border-4 border-blue-400 border-t-transparent" />
+                <span className="h-8 w-8 animate-spin rounded-full border-4 border-[#d8c69e] border-t-transparent" />
               </div>
             )}
           </div>
@@ -547,8 +547,8 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                   disabled={relatedLoading}
                   className={`rounded-lg px-3 py-2 text-xs font-semibold ${
                     pageNo === relatedPage
-                      ? "bg-blue-500 text-white"
-                      : "border border-blue-300/30 bg-[#04142e]/70 text-blue-100"
+                      ? "bg-[#d8c69e] text-[#101a28]"
+                      : "border border-[#d8c69e]/30 bg-[#111d2b]/70 text-[#c3cbd4]"
                   }`}
                 >
                   {pageNo}
@@ -578,29 +578,29 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
             width: "794px",
             height: "100vh",
             overflow: "auto",
-            background: "#020b1f",
-            color: "#e2e8f0",
+            background: "#0b1522",
+            color: "#c3cbd4",
             pointerEvents: "none",
             zIndex: -1,
           }}
           aria-hidden="true"
         >
-          <div id="story-pdf-export" style={{ width: "794px", background: "#020b1f" }}>
+          <div id="story-pdf-export" style={{ width: "794px", background: "#0b1522" }}>
             <section
               style={{
                 minHeight: "1123px",
                 padding: "34px",
                 boxSizing: "border-box",
                 pageBreakAfter: "always",
-                background: "#020b1f",
+                background: "#0b1522",
               }}
             >
               <div
                 style={{
                   minHeight: "100%",
-                  border: "1px solid #16325a",
+                  border: "1px solid #665f50",
                   borderRadius: "20px",
-                  background: "linear-gradient(180deg, #031737 0%, #010d24 100%)",
+                  background: "linear-gradient(180deg, #172535 0%, #0b1522 100%)",
                   padding: "28px",
                   boxSizing: "border-box",
                 }}
@@ -611,7 +611,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                     fontSize: "20px",
                     lineHeight: 1.2,
                     letterSpacing: "0.08em",
-                    color: "#7dd3fc",
+                    color: "#d8c69e",
                     textTransform: "uppercase",
                   }}
                 >
@@ -623,7 +623,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                     fontSize: "42px",
                     lineHeight: 1.15,
                     fontWeight: 800,
-                    color: "#f8fafc",
+                    color: "#f1eadb",
                   }}
                 >
                   {title}
@@ -640,7 +640,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                       width: "auto",
                       height: "auto",
                       objectFit: "contain",
-                      background: "#001230",
+                      background: "#111d2b",
                       borderRadius: "14px",
                       display: "block",
                       margin: "0 auto",
@@ -658,15 +658,15 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                   padding: "34px",
                   boxSizing: "border-box",
                   pageBreakAfter: "always",
-                  background: "#020b1f",
+                  background: "#0b1522",
                 }}
               >
                 <article
                   style={{
                     minHeight: "100%",
-                    border: "1px solid #16325a",
+                    border: "1px solid #665f50",
                     borderRadius: "20px",
-                    background: "linear-gradient(180deg, #031737 0%, #010d24 100%)",
+                    background: "linear-gradient(180deg, #172535 0%, #0b1522 100%)",
                     padding: "28px",
                     boxSizing: "border-box",
                   }}
@@ -677,7 +677,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                       fontSize: "24px",
                       letterSpacing: "0.03em",
                       textTransform: "uppercase",
-                      color: "#7dd3fc",
+                      color: "#d8c69e",
                       fontWeight: 600,
                     }}
                   >
@@ -688,7 +688,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                       margin: "0 0 16px 0",
                       fontSize: "44px",
                       lineHeight: 1.1,
-                      color: "#f8fafc",
+                      color: "#f1eadb",
                       fontWeight: 800,
                     }}
                   >
@@ -705,7 +705,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                       width: "auto",
                       height: "auto",
                       objectFit: "contain",
-                      background: "#001230",
+                      background: "#111d2b",
                       borderRadius: "16px",
                       marginBottom: "18px",
                       display: "block",
@@ -717,7 +717,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                       margin: 0,
                       fontSize: "17px",
                       lineHeight: 1.8,
-                      color: "#cbd5e1",
+                      color: "#c3cbd4",
                       whiteSpace: "pre-wrap",
                     }}
                   >

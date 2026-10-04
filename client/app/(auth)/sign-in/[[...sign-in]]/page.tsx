@@ -82,7 +82,7 @@ export default function SignInPage() {
         </label>
         <div className="text-right">
           <Link
-            className="text-sm text-blue-300 hover:text-blue-200"
+            className="text-sm text-[#d8c69e] hover:text-[#f1eadb]"
             href="/forgot-password"
           >
             Forgot password?
