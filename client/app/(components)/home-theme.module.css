@@ -1,0 +1,61 @@
+.home {
+  --book-ink: #0b1522;
+  --book-paper: #f1eadb;
+  --book-gold: #d8c69e;
+}
+
+.home h1,
+.home h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.hero {
+  isolation: isolate;
+  background: radial-gradient(ellipse at 50% 28%, #263b52 0%, #142336 42%, var(--book-ink) 78%);
+  padding-top: 8rem;
+  padding-bottom: 6rem;
+}
+
+.heroLight {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 20%, rgb(190 204 218 / 5%) 42%, transparent 64%);
+  mask-image: linear-gradient(black, transparent 95%);
+}
+
+@media (max-width: 1023px) {
+  .hero {
+    padding-top: 7rem;
+    padding-bottom: 3.5rem;
+  }
+}
+
+.primary.primary {
+  color: #101a28;
+  background: linear-gradient(135deg, #eee0c0, #cbb789);
+  border: 1px solid #e2d2ae;
+  border-radius: 999px;
+  font-weight: 600;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 30%) inset, 0 8px 30px rgb(0 0 0 / 18%);
+  transition: background 180ms ease, box-shadow 180ms ease;
+}
+
+.primary.primary:hover {
+  background: #eee0c0;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 30%) inset, 0 8px 30px rgb(216 198 158 / 12%);
+}
+
+.home a:focus-visible {
+  outline: 2px solid #d8c69e;
+  outline-offset: 5px;
+}
+
+.closing {
+  background: radial-gradient(ellipse at 50% 100%, #25384b, #0b1522 75%);
+  border-top: 1px solid rgb(216 198 158 / 12%);
+}

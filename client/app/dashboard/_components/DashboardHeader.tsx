@@ -13,16 +13,17 @@ const DashboardHeader = () => {
     <div className="tc-glass-panel p-5 shadow-[0_16px_45px_rgba(0,0,0,0.35)] md:p-8">
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
-          <h2 className="tc-title-gradient text-3xl font-extrabold tracking-tight md:text-4xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#d8c69e]">Your library</p>
+          <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight text-[#f1eadb] md:text-6xl">
             My Stories
-          </h2>
-          <p className="mt-2 text-sm text-blue-100/70 md:text-base">
+          </h1>
+          <p className="mt-2 text-sm text-[#c3cbd4]/70 md:text-base">
             Manage your generated books, revisit ideas, and continue creating.
           </p>
         </div>
 
         <div className="flex flex-col items-start gap-3 md:items-end">
-          <span className="inline-flex items-center rounded-xl border border-blue-300/20 bg-blue-500/10 px-4 py-2 text-lg font-bold text-white md:text-xl">
+          <span className="inline-flex items-center rounded-full border border-[#d8c69e]/20 bg-[#d8c69e]/[0.08] px-4 py-2 text-lg font-bold text-[#f1eadb] md:text-xl">
             <Image
               src={"/credits.png"}
               width={28}
@@ -33,7 +34,7 @@ const DashboardHeader = () => {
             {userDetail?.credit ?? "-"}
           </span>
           <Link href="/buy-credits">
-            <Button className="tc-btn-primary group px-6 py-5 text-sm shadow-[0_0_26px_rgba(59,130,246,0.24)] duration-200 hover:scale-[1.03]">
+            <Button className="tc-btn-primary group px-6 py-5 text-sm duration-200 hover:scale-[1.03]">
               <HiSparkles className="mr-2 text-base transition-transform duration-200 group-hover:rotate-12" />
               Buy Credits
             </Button>

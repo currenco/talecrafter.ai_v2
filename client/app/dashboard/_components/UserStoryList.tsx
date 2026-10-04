@@ -1,9 +1,10 @@
 "use client";
-import { useAuth, useUser } from "@/lib/neon-auth/client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { getAccessToken } from "@/lib/neon-auth/client";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import StoryItemCard from "./StoryItemCard";
 import { apiFetch } from "@/lib/api-client";
 import type { StoryItem } from "@/types/story";
+import { UserDetailContext } from "@/app/_context/UserDetailContext";
 
 const PAGE_SIZE = 12;
 const CACHE_PREFIX = "dashboard_stories_cache_v1_";
@@ -16,9 +17,8 @@ type DashboardCache = {
 };
 
 const UserStoryList = () => {
-  const user = useUser();
-  const { getToken } = useAuth();
-  const userId = user.user?.id;
+  const { authUser } = useContext(UserDetailContext);
+  const userId = authUser?.id;
   const [storyList, setStoryList] = useState<StoryItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [offset, setOffset] = useState(0);
@@ -55,7 +55,7 @@ const UserStoryList = () => {
     setLoading(true);
 
     try {
-      const token = await getToken();
+      const token = await getAccessToken();
       const result = await apiFetch<StoryItem[]>(`/stories/me?limit=${PAGE_SIZE}&offset=${newOffset}`, { token });
 
       setOffset(newOffset);
@@ -73,7 +73,7 @@ const UserStoryList = () => {
       loadingRef.current = false;
       setLoading(false);
     }
-  }, [getToken]);
+  }, []);
 
   useEffect(() => {
     loadingRef.current = loading;
@@ -188,13 +188,13 @@ const UserStoryList = () => {
 
   return (
     <div className="tc-glass-panel-soft mt-8 p-5 md:p-7">
-      <h3 className="tc-title-gradient text-2xl font-bold">
+      <h3 className="font-serif text-3xl font-medium text-[#f1eadb]">
         Your Library
       </h3>
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {storyList?.length === 0 && !loading && (
           <div className="col-span-4">
-            <p className="text-blue-100/70">
+            <p className="text-[#c3cbd4]/70">
               You have not created a story yet.
             </p>
           </div>
@@ -213,13 +213,13 @@ const UserStoryList = () => {
 
       {loading && (
         <div className="mt-4 flex justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-400 border-t-transparent" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#d8c69e] border-t-transparent" />
         </div>
       )}
 
       {!hasMoreStories && storyList.length > 0 && (
         <div className="mt-8">
-          <p className="text-blue-100/70">
+          <p className="text-[#c3cbd4]/70">
             You have reached the end of your stories.
           </p>
         </div>

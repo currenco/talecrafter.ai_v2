@@ -7,7 +7,6 @@ import {
   useScroll,
   useMotionValueEvent,
 } from "framer-motion";
-import Image from "next/image";
 
 import React, { useRef, useState } from "react";
 
@@ -46,7 +45,6 @@ interface MobileNavMenuProps {
   children: React.ReactNode;
   className?: string;
   isOpen: boolean;
-  onClose: () => void;
 }
 
 export const Navbar = ({ children, className }: NavbarProps) => {
@@ -101,8 +99,8 @@ export const NavBody = ({ children, className, visible }: NavBodyProps) => {
       }}
 
       className={cn(
-        "relative z-[60] mx-auto hidden w-full max-w-7xl flex-row items-center justify-between self-start rounded-full border border-blue-300/15 bg-[#010715]/95 px-4 py-2 shadow-[0_10px_35px_rgba(0,0,0,0.28)] backdrop-blur-xl lg:flex",
-        visible && "bg-[#010715]/85 shadow-[0_18px_60px_rgba(0,0,0,0.34)]",
+        "relative z-[60] mx-auto hidden w-full max-w-7xl flex-row items-center justify-between self-start rounded-full border border-[#d8c69e]/15 bg-[#0b1522]/95 px-4 py-2 shadow-[0_10px_35px_rgba(0,0,0,0.28)] backdrop-blur-xl lg:flex",
+        visible && "bg-[#0b1522]/85 shadow-[0_18px_60px_rgba(0,0,0,0.34)]",
         className,
       )}
     >
@@ -118,7 +116,7 @@ export const NavItems = ({ items, className, onItemClick }: NavItemsProps) => {
     <motion.div
       onMouseLeave={() => setHovered(null)}
       className={cn(
-        "absolute inset-0 hidden flex-1 flex-row items-center justify-center space-x-2 text-sm font-medium text-blue-100/70 transition duration-200 hover:text-white lg:flex lg:space-x-2",
+        "absolute inset-0 hidden flex-1 flex-row items-center justify-center space-x-2 text-sm font-medium text-[#c3cbd4]/70 transition duration-200 hover:text-[#f1eadb] lg:flex lg:space-x-2",
         className,
       )}
     >
@@ -126,14 +124,14 @@ export const NavItems = ({ items, className, onItemClick }: NavItemsProps) => {
         <a
           onMouseEnter={() => setHovered(idx)}
           onClick={onItemClick}
-          className="relative px-4 py-2 text-blue-100/72 transition hover:text-white"
+          className="relative px-4 py-2 text-[#c3cbd4]/72 transition hover:text-[#f1eadb]"
           key={`link-${idx}`}
           href={item.link}
         >
           {hovered === idx && (
             <motion.div
               layoutId="hovered"
-              className="absolute inset-0 h-full w-full rounded-full border border-blue-300/15 bg-blue-400/10"
+              className="absolute inset-0 h-full w-full rounded-full border border-[#d8c69e]/15 bg-[#d8c69e]/[0.08]"
             />
           )}
           <span className="relative z-20">{item.name}</span>
@@ -163,8 +161,8 @@ export const MobileNav = ({ children, className, visible }: MobileNavProps) => {
         damping: 50,
       }}
       className={cn(
-        "relative z-50 mx-auto flex w-full max-w-[calc(100vw-1rem)] flex-col items-center justify-between rounded-full border border-blue-300/15 bg-[#010715]/95 px-3 py-2 shadow-[0_10px_35px_rgba(0,0,0,0.28)] backdrop-blur-xl lg:hidden",
-        visible && "bg-[#010715]/85 shadow-[0_18px_60px_rgba(0,0,0,0.34)]",
+        "relative z-50 mx-auto flex w-full max-w-[calc(100vw-1rem)] flex-col items-center justify-between rounded-full border border-[#d8c69e]/15 bg-[#0b1522] px-3 py-2 shadow-[0_10px_35px_rgba(0,0,0,0.28)] lg:hidden",
+        visible && "shadow-[0_18px_60px_rgba(0,0,0,0.34)]",
         className,
       )}
     >
@@ -193,7 +191,6 @@ export const MobileNavMenu = ({
   children,
   className,
   isOpen,
-  onClose: _onClose,
 }: MobileNavMenuProps) => {
   return (
     <AnimatePresence>
@@ -203,7 +200,7 @@ export const MobileNavMenu = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className={cn(
-            "absolute inset-x-0 top-16 z-50 flex w-full flex-col items-start justify-start gap-4 rounded-lg bg-white px-4 py-8 shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] dark:bg-neutral-950",
+            "absolute inset-x-0 top-16 z-50 flex w-full flex-col items-start justify-start gap-4 rounded-2xl border border-[#d8c69e]/15 bg-[#111d2b] px-4 py-8 shadow-[0_24px_70px_rgba(0,0,0,0.4)]",
             className,
           )}
         >
@@ -222,27 +219,9 @@ export const MobileNavToggle = ({
   onClick?: () => void;
 }) => {
   return isOpen ? (
-    <IconX className="text-blue-100" {...(onClick ? { onClick } : {})} />
+    <IconX className="text-[#c3cbd4]" {...(onClick ? { onClick } : {})} />
   ) : (
-    <IconMenu2 className="text-blue-100" {...(onClick ? { onClick } : {})} />
-  );
-};
-
-export const NavbarLogo = () => {
-  return (
-    <a
-      href="/"
-      className="relative z-20 mr-4 flex items-center space-x-2 px-2 py-1 text-sm font-normal text-black"
-    >
-      <Image
-        src="https://assets.aceternity.com/logo-dark.png"
-        alt="logo"
-        width={30}
-        height={30}
-        unoptimized
-      />
-      <span className="font-medium text-black dark:text-white">Startup</span>
-    </a>
+    <IconMenu2 className="text-[#c3cbd4]" {...(onClick ? { onClick } : {})} />
   );
 };
 
@@ -251,27 +230,24 @@ export const NavbarButton = ({
   as: Tag = "a",
   children,
   className,
-  variant = "primary",
+  variant = "secondary",
   ...props
 }: {
   href?: string;
   as?: React.ElementType;
   children: React.ReactNode;
   className?: string;
-  variant?: "primary" | "secondary" | "dark" | "gradient";
+  variant?: "secondary" | "gradient";
 } & (
   React.ComponentPropsWithoutRef<"a"> | React.ComponentPropsWithoutRef<"button">
 )) => {
   const baseStyles =
-    "px-4 py-2 rounded-md bg-white button bg-white text-black text-sm font-bold relative cursor-pointer hover:-translate-y-0.5 transition duration-200 inline-block text-center";
+    "relative inline-block cursor-pointer rounded-full px-4 py-2 text-center text-sm font-bold transition duration-200 hover:-translate-y-0.5";
 
   const variantStyles = {
-    primary:
-      "shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset]",
-    secondary: "bg-transparent shadow-none dark:text-white",
-    dark: "bg-black text-white shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset]",
+    secondary: "bg-transparent text-[#c3cbd4] shadow-none",
     gradient:
-      "bg-blue-600 text-white hover:bg-blue-500 shadow-[0px_2px_0px_0px_rgba(255,255,255,0.3)_inset]",
+      "border border-[#e2d2ae] bg-gradient-to-br from-[#eee0c0] to-[#cbb789] text-[#101a28] hover:from-[#f5e8ca] hover:to-[#d8c69e] shadow-[0px_1px_0px_0px_rgba(255,255,255,0.3)_inset]",
   };
 
   return (

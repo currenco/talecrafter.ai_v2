@@ -14,13 +14,15 @@ export default function AuthShell({
   alternateLabel: string
 }) {
   return (
-    <main className="flex min-h-[calc(100vh-9rem)] items-center justify-center bg-[#020b1f] px-4 py-12 text-white">
-      <section className="w-full max-w-md rounded-lg border border-blue-300/20 bg-[#071329] p-6 shadow-2xl sm:p-8">
-        <h1 className="text-2xl font-bold">{title}</h1>
-        <p className="mt-2 text-sm text-blue-100/70">{subtitle}</p>
+    <main className="relative flex min-h-[calc(100vh-9rem)] items-center justify-center overflow-hidden bg-[#0b1522] px-4 py-16 text-[#c3cbd4]">
+      <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_15%,rgba(67,91,117,0.5),transparent_55%)]" />
+      <section className="relative w-full max-w-md rounded-[2rem] border border-[#d8c69e]/20 bg-[#111d2b]/90 p-7 shadow-[0_30px_90px_rgba(0,0,0,0.4)] backdrop-blur-xl sm:p-9">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#d8c69e]">TaleCrafter account</p>
+        <h1 className="mt-3 font-serif text-3xl font-medium tracking-tight text-[#f1eadb]">{title}</h1>
+        <p className="mt-2 text-sm text-[#c3cbd4]/70">{subtitle}</p>
         <div className="mt-6">{children}</div>
         <Link
-          className="mt-6 block text-center text-sm font-medium text-blue-300 hover:text-blue-200"
+          className="mt-6 block text-center text-sm font-medium text-[#d8c69e] hover:text-[#f1eadb]"
           href={alternateHref}
         >
           {alternateLabel}
@@ -31,7 +33,7 @@ export default function AuthShell({
 }
 
 export const authInputClass =
-  'mt-1 w-full rounded-md border border-blue-300/25 bg-black/20 px-3 py-2.5 text-white outline-none focus:border-blue-400'
+  'mt-1 w-full rounded-xl border border-[#d8c69e]/20 bg-[#0b1522]/75 px-4 py-3 text-[#f1eadb] outline-none placeholder:text-[#c3cbd4]/35 focus:border-[#d8c69e]/60 focus:ring-2 focus:ring-[#d8c69e]/15'
 
 export const authButtonClass =
-  'flex min-h-11 w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60'
+  'flex min-h-11 w-full items-center justify-center rounded-full border border-[#e2d2ae] bg-gradient-to-br from-[#eee0c0] to-[#cbb789] px-4 py-2.5 text-sm font-semibold text-[#101a28] hover:from-[#f5e8ca] hover:to-[#d8c69e] disabled:cursor-not-allowed disabled:opacity-60'

@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { toast } from "react-toastify";
 import { useState } from "react";
-import { useAuth } from "@/lib/neon-auth/client";
+import { getAccessToken } from "@/lib/neon-auth/client";
 import {
   apiFetch,
   ApiClientError,
@@ -56,7 +56,6 @@ const StoryItemCard = ({
 }: StoryItemType) => {
   const [imgFailed, setImgFailed] = useState(false);
   const [resuming, setResuming] = useState(false);
-  const { getToken } = useAuth();
   const router = useRouter();
   const isDraft = story.status === "draft";
   const chapterImages =
@@ -72,7 +71,7 @@ const StoryItemCard = ({
     e.stopPropagation();
     e.preventDefault(); // prevent navigating via <Link>
     try {
-      const token = await getToken();
+      const token = await getAccessToken();
       await apiFetch(`/stories/${story.storyId}`, { method: "DELETE", token });
       toast.success("Story deleted successfully");
       removeStoryFromCachedLists(story.storyId);
@@ -85,7 +84,7 @@ const StoryItemCard = ({
   const handleResume = async () => {
     setResuming(true);
     try {
-      const token = await getToken();
+      const token = await getAccessToken();
       await apiFetch(`/stories/${story.storyId}/resume`, {
         method: "POST",
         token,
@@ -112,10 +111,10 @@ const StoryItemCard = ({
     <Card
       isFooterBlurred
       radius="lg"
-      className="border-none hover:scale-105 transition-all cursor-pointer overflow-hidden"
+      className="cursor-pointer overflow-hidden border border-[#d8c69e]/15 bg-[#111d2b] transition-all hover:-translate-y-1 hover:border-[#d8c69e]/35"
     >
       {imgFailed || !story?.coverImage ? (
-        <div className="flex h-[200px] w-full items-center justify-center bg-slate-100 px-4 text-center text-sm text-slate-600">
+        <div className="flex h-[200px] w-full items-center justify-center bg-[#172535] px-4 text-center text-sm text-[#c3cbd4]/70">
           {isDraft
             ? "This draft is waiting for its remaining images."
             : "Cover image is unavailable. You can still open and read this story."}
@@ -134,13 +133,13 @@ const StoryItemCard = ({
           />
         </div>
       )}
-      <CardFooter className="justify-between bg-white/10 border-white/20 border-1 py-1 absolute rounded-xl w-full bottom-0 shadow-small z-10">
+      <CardFooter className="absolute bottom-0 z-10 w-full justify-between rounded-xl border-1 border-[#d8c69e]/15 bg-[#0b1522]/85 py-2 shadow-small backdrop-blur-xl">
         <div className="min-w-0">
-          <p className="truncate text-xl text-black/80">
+          <p className="truncate text-lg font-semibold text-[#f1eadb]">
             {story?.output?.title}
           </p>
           {isDraft && (
-            <p className="text-xs text-black/70">
+            <p className="text-xs text-[#c3cbd4]/70">
               Draft - {completedImages}/{totalImages} images
             </p>
           )}

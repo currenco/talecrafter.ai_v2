@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/lib/neon-auth/client";
+import { getAccessToken } from "@/lib/neon-auth/client";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { apiFetch } from "@/lib/api-client";
@@ -35,15 +35,13 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState<UserType[]>([]);
   const [loadingStories, setLoadingStories] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const { getToken } = useAuth();
-
   const [storySearch, setStorySearch] = useState("");
   const [storyTypeFilter, setStoryTypeFilter] = useState("all");
   const [userSearch, setUserSearch] = useState("");
   const [editedCredits, setEditedCredits] = useState<Record<string, number>>({});
 
   const getAuthToken = async () => {
-    const token = await getToken();
+    const token = await getAccessToken();
     if (!token) throw new Error("Admin session is not available");
     return token;
   };
@@ -166,40 +164,40 @@ const AdminDashboard = () => {
   }, [users, userSearch]);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#020b1f] px-5 py-8 md:px-16 lg:px-28 xl:px-40">
+    <div className="relative min-h-screen overflow-hidden bg-[#0b1522] px-5 py-8 md:px-16 lg:px-28 xl:px-40">
       <div className="tc-hero-grid absolute inset-0 opacity-35" />
       <div className="tc-hero-orb tc-hero-orb-one" />
       <div className="tc-hero-orb tc-hero-orb-two" />
 
       <div className="relative">
         <div className="tc-glass-panel p-6">
-          <h1 className="tc-title-gradient text-3xl font-extrabold md:text-5xl">
+          <h1 className="font-serif text-4xl font-medium tracking-tight text-[#f1eadb] md:text-6xl">
             Admin Panel
           </h1>
-          <p className="mt-2 text-blue-100/75">
+          <p className="mt-2 text-[#c3cbd4]/75">
             Centralized story moderation and user management.
           </p>
 
           <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-            <div className="rounded-xl bg-blue-400/10 p-3 text-center">
-              <p className="text-2xl font-bold text-white">{stories.length}</p>
-              <p className="text-xs uppercase text-blue-100/70">Total Stories</p>
+            <div className="rounded-xl bg-[#d8c69e]/[0.08] p-3 text-center">
+              <p className="text-2xl font-bold text-[#f1eadb]">{stories.length}</p>
+              <p className="text-xs uppercase text-[#c3cbd4]/70">Total Stories</p>
             </div>
-            <div className="rounded-xl bg-blue-400/10 p-3 text-center">
-              <p className="text-2xl font-bold text-white">{users.length}</p>
-              <p className="text-xs uppercase text-blue-100/70">Total Users</p>
+            <div className="rounded-xl bg-[#d8c69e]/[0.08] p-3 text-center">
+              <p className="text-2xl font-bold text-[#f1eadb]">{users.length}</p>
+              <p className="text-xs uppercase text-[#c3cbd4]/70">Total Users</p>
             </div>
-            <div className="rounded-xl bg-blue-400/10 p-3 text-center">
-              <p className="text-2xl font-bold text-white">
+            <div className="rounded-xl bg-[#d8c69e]/[0.08] p-3 text-center">
+              <p className="text-2xl font-bold text-[#f1eadb]">
                 {new Set(stories.map((s) => s.storyType)).size}
               </p>
-              <p className="text-xs uppercase text-blue-100/70">Story Types</p>
+              <p className="text-xs uppercase text-[#c3cbd4]/70">Story Types</p>
             </div>
-            <div className="rounded-xl bg-blue-400/10 p-3 text-center">
-              <p className="text-2xl font-bold text-white">
+            <div className="rounded-xl bg-[#d8c69e]/[0.08] p-3 text-center">
+              <p className="text-2xl font-bold text-[#f1eadb]">
                 {users.reduce((sum, u) => sum + Number(u.credit ?? 0), 0)}
               </p>
-              <p className="text-xs uppercase text-blue-100/70">Total Credits</p>
+              <p className="text-xs uppercase text-[#c3cbd4]/70">Total Credits</p>
             </div>
           </div>
         </div>
@@ -209,8 +207,8 @@ const AdminDashboard = () => {
             onClick={() => setActiveTab("stories")}
             className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${
               activeTab === "stories"
-                ? "border-cyan-300/40 bg-cyan-400/20 text-cyan-100"
-                : "border-blue-300/20 bg-white/5 text-blue-100/80 hover:bg-white/10"
+                ? "border-[#d8c69e]/40 bg-[#d8c69e]/15 text-[#f1eadb]"
+                : "border-[#d8c69e]/20 bg-white/5 text-[#c3cbd4]/80 hover:bg-white/10"
             }`}
           >
             Stories
@@ -219,8 +217,8 @@ const AdminDashboard = () => {
             onClick={() => setActiveTab("users")}
             className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${
               activeTab === "users"
-                ? "border-cyan-300/40 bg-cyan-400/20 text-cyan-100"
-                : "border-blue-300/20 bg-white/5 text-blue-100/80 hover:bg-white/10"
+                ? "border-[#d8c69e]/40 bg-[#d8c69e]/15 text-[#f1eadb]"
+                : "border-[#d8c69e]/20 bg-white/5 text-[#c3cbd4]/80 hover:bg-white/10"
             }`}
           >
             Users
@@ -233,12 +231,12 @@ const AdminDashboard = () => {
               <input
                 type="text"
                 placeholder="Search stories, title, user, email..."
-                className="w-full rounded-lg border border-blue-300/20 bg-[#06142e] px-3 py-2 text-blue-100 outline-none"
+                className="w-full rounded-lg border border-[#d8c69e]/20 bg-[#111d2b] px-3 py-2 text-[#c3cbd4] outline-none"
                 value={storySearch}
                 onChange={(e) => setStorySearch(e.target.value)}
               />
               <select
-                className="rounded-lg border border-blue-300/20 bg-[#06142e] px-3 py-2 text-blue-100 outline-none"
+                className="rounded-lg border border-[#d8c69e]/20 bg-[#111d2b] px-3 py-2 text-[#c3cbd4] outline-none"
                 value={storyTypeFilter}
                 onChange={(e) => setStoryTypeFilter(e.target.value)}
               >
@@ -251,8 +249,8 @@ const AdminDashboard = () => {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm text-blue-100">
-                <thead className="bg-blue-500/10 text-left">
+              <table className="min-w-full text-sm text-[#c3cbd4]">
+                <thead className="bg-[#d8c69e]/[0.08] text-left">
                   <tr>
                     <th className="px-3 py-2">Title</th>
                     <th className="px-3 py-2">Type</th>
@@ -264,7 +262,7 @@ const AdminDashboard = () => {
                 </thead>
                 <tbody>
                   {filteredStories.map((story) => (
-                    <tr key={story.storyId} className="border-t border-blue-300/10">
+                    <tr key={story.storyId} className="border-t border-[#d8c69e]/10">
                       <td className="px-3 py-2">{story.output?.title ?? "-"}</td>
                       <td className="px-3 py-2">{story.storyType ?? "-"}</td>
                       <td className="px-3 py-2">{story.userName ?? "-"}</td>
@@ -285,7 +283,7 @@ const AdminDashboard = () => {
                 </tbody>
               </table>
               {!loadingStories && filteredStories.length === 0 && (
-                <p className="mt-4 text-center text-blue-100/70">No stories found.</p>
+                <p className="mt-4 text-center text-[#c3cbd4]/70">No stories found.</p>
               )}
             </div>
           </div>
@@ -297,15 +295,15 @@ const AdminDashboard = () => {
               <input
                 type="text"
                 placeholder="Search users by name or email..."
-                className="w-full rounded-lg border border-blue-300/20 bg-[#06142e] px-3 py-2 text-blue-100 outline-none"
+                className="w-full rounded-lg border border-[#d8c69e]/20 bg-[#111d2b] px-3 py-2 text-[#c3cbd4] outline-none"
                 value={userSearch}
                 onChange={(e) => setUserSearch(e.target.value)}
               />
             </div>
 
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm text-blue-100">
-                <thead className="bg-blue-500/10 text-left">
+              <table className="min-w-full text-sm text-[#c3cbd4]">
+                <thead className="bg-[#d8c69e]/[0.08] text-left">
                   <tr>
                     <th className="px-3 py-2">Name</th>
                     <th className="px-3 py-2">Email</th>
@@ -315,14 +313,14 @@ const AdminDashboard = () => {
                 </thead>
                 <tbody>
                   {filteredUsers.map((u) => (
-                    <tr key={u.id} className="border-t border-blue-300/10">
+                    <tr key={u.id} className="border-t border-[#d8c69e]/10">
                       <td className="px-3 py-2">{u.userName ?? "-"}</td>
                       <td className="px-3 py-2">{u.userEmail ?? "-"}</td>
                       <td className="px-3 py-2">
                         <input
                           type="number"
                           defaultValue={u.credit}
-                          className="w-24 rounded-md border border-blue-300/20 bg-[#06142e] px-2 py-1 text-blue-100 outline-none"
+                          className="w-24 rounded-md border border-[#d8c69e]/20 bg-[#111d2b] px-2 py-1 text-[#c3cbd4] outline-none"
                           onChange={(e) => {
                             setEditedCredits((prev) => ({
                               ...prev,
@@ -335,7 +333,7 @@ const AdminDashboard = () => {
                         <div className="flex flex-wrap gap-2">
                           <button
                             onClick={() => handleUpdateUserCredit(u.id)}
-                            className="rounded-lg bg-blue-600 px-3 py-1 font-semibold text-white hover:bg-blue-700"
+                            className="rounded-full bg-[#d8c69e] px-3 py-1 font-semibold text-[#101a28] hover:bg-[#eee0c0]"
                           >
                             Save Credit
                           </button>
@@ -352,7 +350,7 @@ const AdminDashboard = () => {
                 </tbody>
               </table>
               {!loadingUsers && filteredUsers.length === 0 && (
-                <p className="mt-4 text-center text-blue-100/70">No users found.</p>
+                <p className="mt-4 text-center text-[#c3cbd4]/70">No users found.</p>
               )}
             </div>
           </div>

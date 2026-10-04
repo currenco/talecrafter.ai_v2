@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { HiOutlineCheckCircle } from "react-icons/hi2";
 import { toast } from "react-toastify";
 import { apiFetch } from "@/lib/api-client";
-import { useAuth } from "@/lib/neon-auth/client";
+import { getAccessToken } from "@/lib/neon-auth/client";
 import { UserDetailContext, type UserDetail } from "../_context/UserDetailContext";
 
 type RazorpaySuccess = {
@@ -47,25 +47,28 @@ const paidPlans = [
   {
     id: "basic",
     title: "Basic",
-    price: "INR 199",
+    price: "$199",
     credits: 10,
     subtitle: "A quick refill for your next story",
+    features: ["10 story credits", "Classic and Plot Twist modes", "Secure one-time payment"],
     recommended: false,
   },
   {
     id: "premium",
     title: "Premium",
-    price: "INR 399",
+    price: "$399",
     credits: 75,
     subtitle: "More room for regular creation",
+    features: ["75 story credits", "Classic and Plot Twist modes", "Secure one-time payment"],
     recommended: true,
   },
   {
     id: "ultimate",
     title: "Ultimate",
-    price: "INR 599",
+    price: "$599",
     credits: 150,
     subtitle: "The best value for larger projects",
+    features: ["150 story credits", "Classic and Plot Twist modes", "Secure one-time payment"],
     recommended: false,
   },
 ] as const;
@@ -77,7 +80,6 @@ export default function BuyCreditsPage() {
   const [checkoutReady, setCheckoutReady] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const { userDetail, setUserDetail } = useContext(UserDetailContext);
-  const { getToken } = useAuth();
 
   useEffect(() => {
     setCheckoutReady(Boolean(window.Razorpay));
@@ -97,7 +99,7 @@ export default function BuyCreditsPage() {
 
     setCheckoutLoading(true);
     try {
-      const token = await getToken();
+      const token = await getAccessToken();
       const order = await apiFetch<{
         orderId: string;
         amount: number;
@@ -121,7 +123,7 @@ export default function BuyCreditsPage() {
           name: userDetail?.userName ?? undefined,
           email: userDetail?.userEmail,
         },
-        theme: { color: "#2563eb" },
+        theme: { color: "#d8c69e" },
         modal: {
           ondismiss: () => {
             setCheckoutLoading(false);
@@ -170,7 +172,7 @@ export default function BuyCreditsPage() {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#020b1f] px-5 py-10 md:px-16 lg:px-28 xl:px-40">
+    <main className="relative min-h-screen overflow-hidden bg-[#0b1522] px-5 py-10 md:px-16 lg:px-28 xl:px-40">
       <Script
         src="https://checkout.razorpay.com/v1/checkout.js"
         strategy="afterInteractive"
@@ -184,15 +186,16 @@ export default function BuyCreditsPage() {
 
       <div className="relative mx-auto max-w-6xl">
         <header className="text-center">
-          <h1 className="tc-title-gradient text-3xl font-extrabold md:text-5xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#d8c69e]">Credit shop</p>
+          <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight text-[#f1eadb] md:text-6xl">
             Add story credits
           </h1>
-          <p className="mx-auto mt-3 max-w-xl text-sm text-blue-100/75 md:text-base">
+          <p className="mx-auto mt-3 max-w-xl text-sm text-[#c3cbd4]/75 md:text-base">
             Current balance: {userDetail?.credit ?? "-"} credits
           </p>
         </header>
 
-        <div className="mt-9 grid gap-5 md:grid-cols-3">
+        <div className="mt-10 grid items-stretch gap-6 md:grid-cols-3">
           {paidPlans.map((plan, index) => {
             const selected = selectedPlan === plan.id;
             return (
@@ -201,45 +204,58 @@ export default function BuyCreditsPage() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.06 }}
-                className={`flex min-h-72 flex-col justify-between rounded-lg border p-6 shadow-xl transition ${
+                className={`flex min-h-[440px] flex-col rounded-[2rem] border p-8 shadow-[0_28px_80px_rgba(0,0,0,0.22)] transition ${
                   selected
-                    ? "border-blue-200/70 bg-blue-600/20"
-                    : "border-blue-300/20 bg-white/[0.04] hover:border-blue-300/40"
+                    ? "border-[#d8c69e]/70 bg-[#d8c69e]/12"
+                    : "border-[#d8c69e]/20 bg-white/[0.04] hover:border-[#d8c69e]/40"
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between gap-3">
-                    <h2 className="text-xl font-bold text-white">{plan.title}</h2>
+                    <h2 className="text-xl font-bold text-[#f1eadb]">{plan.title}</h2>
                     {plan.recommended && (
-                      <span className="text-xs font-semibold text-cyan-200">
+                      <span className="text-xs font-semibold text-[#d8c69e]">
                         Most popular
                       </span>
                     )}
                   </div>
-                  <p className="mt-2 text-sm text-blue-100/65">{plan.subtitle}</p>
-                  <p className="mt-5 text-4xl font-extrabold text-white">
+                  <p className="mt-2 text-sm text-[#c3cbd4]/65">{plan.subtitle}</p>
+                  <p className="mt-5 text-4xl font-extrabold text-[#f1eadb]">
                     {plan.price}
                   </p>
-                  <p className="mt-5 flex items-center text-sm text-blue-100/85">
+                  <p className="mt-5 flex items-center text-sm text-[#c3cbd4]/85">
                     <HiOutlineCheckCircle
                       className="mr-2 text-lg text-emerald-300"
                       aria-hidden="true"
                     />
                     {plan.credits} credits
                   </p>
+                  <ul className="mt-7 space-y-3 border-t border-[#d8c69e]/15 pt-6">
+                    {plan.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-3 text-sm leading-6 text-[#c3cbd4]/75">
+                        <HiOutlineCheckCircle
+                          className="mt-0.5 shrink-0 text-lg text-[#d8c69e]"
+                          aria-hidden="true"
+                        />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedPlan(plan.id)}
-                  aria-pressed={selected}
-                  className={`mt-7 w-full rounded-lg border px-4 py-3 text-sm font-semibold text-white transition ${
-                    selected
-                      ? "border-blue-200/60 bg-blue-700"
-                      : "border-blue-300/25 bg-white/10 hover:bg-white/15"
-                  }`}
-                >
-                  {selected ? "Selected" : `Choose ${plan.title}`}
-                </button>
+                <div className="mt-auto pt-8">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlan(plan.id)}
+                    aria-pressed={selected}
+                    className={`w-full rounded-full border px-4 py-3 text-sm font-semibold transition ${
+                      selected
+                        ? "border-[#e2d2ae] bg-[#d8c69e] text-[#101a28]"
+                        : "border-[#d8c69e]/25 bg-white/[0.05] text-[#f1eadb] hover:bg-[#d8c69e]/10"
+                    }`}
+                  >
+                    {selected ? "Selected" : `Choose ${plan.title}`}
+                  </button>
+                </div>
               </MotionDiv>
             );
           })}

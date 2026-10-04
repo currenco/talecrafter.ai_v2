@@ -190,7 +190,7 @@ const ExploreMore = () => {
   }, [GetAllStories, hasMoreStories, isRestored, loading, storyList.length]);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#020b1f] px-5 py-8 md:px-16 lg:px-28 xl:px-40">
+    <div className="relative min-h-screen overflow-hidden bg-[#0b1522] px-5 py-8 md:px-16 lg:px-28 xl:px-40">
       <div className="tc-hero-grid absolute inset-0 opacity-35" />
       <div className="tc-hero-orb tc-hero-orb-one" />
       <div className="tc-hero-orb tc-hero-orb-two" />
@@ -203,12 +203,13 @@ const ExploreMore = () => {
           transition={{ duration: 0.55 }}
           className="px-5 py-7 text-center md:px-8"
         >
-          <h2 className="tc-title-gradient text-3xl font-extrabold sm:text-4xl md:text-5xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#d8c69e]">Community library</p>
+          <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight text-[#f1eadb] sm:text-5xl md:text-6xl">
             Explore Stories
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-blue-100/75 md:text-base">
-            Discover storybooks created by the community across genres, styles,
-            and age groups.
+          </h1>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-[#c3cbd4]/75 md:text-base">
+            Discover storybooks created by the community across genres and
+            illustration styles.
           </p>
         </MotionDiv>
 
@@ -235,13 +236,13 @@ const ExploreMore = () => {
 
         {loading && storyList.length > 0 && (
           <div className="mt-5 flex justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-400 border-t-transparent" />
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#d8c69e] border-t-transparent" />
           </div>
         )}
 
         {!hasMoreStories && storyList.length > 0 && (
           <div className="mt-10 w-full text-center">
-            <p className="text-blue-100/70">
+            <p className="text-[#c3cbd4]/70">
               No more stories available right now. Check back later.
             </p>
           </div>
@@ -249,7 +250,7 @@ const ExploreMore = () => {
 
         {!isInitialStoriesLoading && storyList.length === 0 && (
           <div className="mt-10 w-full text-center">
-            <p className="text-blue-100/70">
+            <p className="text-[#c3cbd4]/70">
               No stories found yet.
             </p>
           </div>

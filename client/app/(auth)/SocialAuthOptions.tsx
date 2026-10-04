@@ -2,15 +2,15 @@ import { FaGithub } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 
 const socialButtonClass =
-  "flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-blue-300/25 px-4 text-sm font-semibold transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400";
+  "flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-[#d8c69e]/25 px-4 text-sm font-semibold text-[#f1eadb] transition-colors hover:bg-[#d8c69e]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d8c69e]";
 
 export default function SocialAuthOptions() {
   return (
     <div>
-      <div className="my-5 flex items-center gap-3 text-xs text-blue-100/50">
-        <span className="h-px flex-1 bg-blue-300/20" />
+      <div className="my-5 flex items-center gap-3 text-xs text-[#c3cbd4]/50">
+        <span className="h-px flex-1 bg-[#d8c69e]/20" />
         OR
-        <span className="h-px flex-1 bg-blue-300/20" />
+        <span className="h-px flex-1 bg-[#d8c69e]/20" />
       </div>
 
       <div className="space-y-3">
@@ -24,7 +24,7 @@ export default function SocialAuthOptions() {
         </a>
       </div>
 
-      <p className="mt-4 rounded-md border border-blue-300/20 bg-blue-400/10 px-3 py-2.5 text-sm leading-6 text-blue-100/80">
+      <p className="mt-4 rounded-md border border-[#d8c69e]/20 bg-[#d8c69e]/[0.08] px-3 py-2.5 text-sm leading-6 text-[#c3cbd4]/80">
         To generate content, continue with GitHub. Connect your Pollinations
         key on the Create Story page.
       </p>

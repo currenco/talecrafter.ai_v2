@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import StoryDemoFrame from "../(components)/StoryDemoFrame";
 import {
   ArrowRight,
   BookOpen,
@@ -107,17 +108,17 @@ const fadeUp = {
 
 const About = () => {
   return (
-    <main className="overflow-hidden bg-[#020b1f] text-blue-100">
+    <main className="overflow-hidden bg-[#0b1522] text-[#c3cbd4]">
       <section className="relative flex min-h-[72svh] items-end">
         <Image
-          src="/fantasy.webp"
+          src="/genre/fantasy.webp"
           alt="An open storybook unfolding into a fantasy world"
           fill
           priority
           sizes="100vw"
           className="object-cover object-center"
         />
-        <div className="absolute inset-0 bg-[#020817]/75" />
+        <div className="absolute inset-0 bg-[#0b1522]/75" />
 
         <MotionDiv
           initial="hidden"
@@ -126,13 +127,13 @@ const About = () => {
           transition={{ duration: 0.65 }}
           className="relative mx-auto w-full max-w-7xl px-6 pb-16 pt-32 sm:px-8 md:pb-20 lg:px-12"
         >
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-200">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#d8c69e]">
             About the platform
           </p>
-          <h1 className="mt-5 max-w-4xl text-5xl font-extrabold leading-[1.05] text-white sm:text-6xl lg:text-7xl">
+          <h1 className="mt-5 max-w-4xl font-serif text-5xl font-medium leading-[1.05] tracking-tight text-[#f1eadb] sm:text-6xl lg:text-7xl">
             TaleCrafter AI
           </h1>
-          <p className="mt-6 max-w-3xl text-lg leading-8 text-blue-50/85 sm:text-xl">
+          <p className="mt-6 max-w-3xl text-lg leading-8 text-[#c3cbd4]/85 sm:text-xl">
             A creative workspace for turning a simple idea into an illustrated,
             narrated storybook, with classic narratives and Plot Twist paths
             that readers can shape as they go.
@@ -155,7 +156,7 @@ const About = () => {
         </MotionDiv>
       </section>
 
-      <section className="border-t border-blue-200/10 bg-[#071328] px-6 py-20 sm:px-8 lg:px-12 lg:py-28">
+      <section className="border-t border-[#d8c69e]/10 bg-[#0b1522] px-6 py-20 sm:px-8 lg:px-12 lg:py-28">
         <MotionDiv
           initial="hidden"
           whileInView="show"
@@ -165,14 +166,14 @@ const About = () => {
           className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-20"
         >
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-cyan-200">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8c69e]">
               Why TaleCrafter exists
             </p>
-            <h2 className="mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">
+            <h2 className="mt-4 font-serif text-3xl font-medium leading-tight tracking-tight text-[#f1eadb] sm:text-4xl">
               Story creation should feel imaginative, not fragmented.
             </h2>
           </div>
-          <div className="space-y-6 text-base leading-8 text-blue-100/75 sm:text-lg">
+          <div className="space-y-6 text-base leading-8 text-[#c3cbd4]/75 sm:text-lg">
             <p>
               Writing a story is only one part of making a book. There is also
               structure, illustration, pacing, reading, narration, and sharing.
@@ -198,20 +199,20 @@ const About = () => {
             variants={fadeUp}
             className="max-w-3xl"
           >
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-cyan-200">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8c69e]">
               From prompt to storybook
             </p>
-            <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">
+            <h2 className="mt-4 font-serif text-3xl font-medium tracking-tight text-[#f1eadb] sm:text-4xl">
               One connected creative workflow
             </h2>
-            <p className="mt-5 text-lg leading-8 text-blue-100/70">
+            <p className="mt-5 text-lg leading-8 text-[#c3cbd4]/70">
               Each stage is designed to carry your original direction forward,
               so the story, artwork, and reading experience belong together.
             </p>
           </MotionDiv>
 
           <div className="mt-14 grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-16">
-            <div className="divide-y divide-blue-200/15 border-y border-blue-200/15">
+            <div className="divide-y divide-[#d8c69e]/15 border-y border-[#d8c69e]/15">
               {workflow.map((step) => (
                 <MotionDiv
                   key={step.number}
@@ -222,14 +223,14 @@ const About = () => {
                   transition={{ duration: 0.45 }}
                   className="grid grid-cols-[3.5rem_1fr] gap-4 py-7 sm:grid-cols-[5rem_1fr]"
                 >
-                  <span className="text-sm font-bold text-cyan-300">
+                  <span className="text-sm font-bold text-[#d8c69e]">
                     {step.number}
                   </span>
                   <div>
-                    <h3 className="text-xl font-semibold text-white">
+                    <h3 className="text-xl font-semibold text-[#f1eadb]">
                       {step.title}
                     </h3>
-                    <p className="mt-2 leading-7 text-blue-100/70">
+                    <p className="mt-2 leading-7 text-[#c3cbd4]/70">
                       {step.description}
                     </p>
                   </div>
@@ -243,22 +244,17 @@ const About = () => {
               viewport={{ once: true, amount: 0.25 }}
               variants={fadeUp}
               transition={{ duration: 0.6 }}
-              className="overflow-hidden rounded-lg border border-blue-200/20 bg-white"
             >
-              <Image
-                src="/demo.png"
+              <StoryDemoFrame
                 alt="TaleCrafter story reader showing illustrated story pages"
-                width={817}
-                height={754}
                 sizes="(max-width: 1024px) 100vw, 50vw"
-                className="h-auto w-full"
               />
             </MotionDiv>
           </div>
         </div>
       </section>
 
-      <section className="border-y border-blue-200/10 bg-[#08172b] px-6 py-20 sm:px-8 lg:px-12 lg:py-28">
+      <section className="border-y border-[#d8c69e]/10 bg-[#0b1522] px-6 py-20 sm:px-8 lg:px-12 lg:py-28">
         <div className="mx-auto max-w-7xl">
           <MotionDiv
             initial="hidden"
@@ -268,17 +264,17 @@ const About = () => {
             className="grid gap-10 lg:grid-cols-2 lg:gap-20"
           >
             <div>
-              <div className="flex items-center gap-3 text-cyan-200">
+              <div className="flex items-center gap-3 text-[#d8c69e]">
                 <GitBranch className="h-6 w-6" aria-hidden="true" />
                 <span className="text-sm font-semibold uppercase tracking-[0.16em]">
                   Plot Twist mode
                 </span>
               </div>
-              <h2 className="mt-5 text-3xl font-bold leading-tight text-white sm:text-4xl">
+              <h2 className="mt-5 font-serif text-3xl font-medium leading-tight tracking-tight text-[#f1eadb] sm:text-4xl">
                 The reader does more than turn the page.
               </h2>
             </div>
-            <div className="space-y-5 text-base leading-8 text-blue-100/75 sm:text-lg">
+            <div className="space-y-5 text-base leading-8 text-[#c3cbd4]/75 sm:text-lg">
               <p>
                 Plot Twist Stories pause at meaningful turning points and offer
                 two possible directions. The selected choice becomes part of the
@@ -292,7 +288,7 @@ const About = () => {
               </p>
               <Link
                 href="/create-story"
-                className="inline-flex items-center gap-2 font-semibold text-cyan-200 transition hover:text-white"
+                className="inline-flex items-center gap-2 font-semibold text-[#d8c69e] transition hover:text-[#f1eadb]"
               >
                 Start a Plot Twist story
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -305,15 +301,15 @@ const About = () => {
       <section className="px-6 py-20 sm:px-8 lg:px-12 lg:py-28">
         <div className="mx-auto max-w-7xl">
           <div className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-cyan-200">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8c69e]">
               What is included
             </p>
-            <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">
+            <h2 className="mt-4 font-serif text-3xl font-medium tracking-tight text-[#f1eadb] sm:text-4xl">
               More than generated text
             </h2>
           </div>
 
-          <div className="mt-14 grid border-y border-blue-200/15 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-14 grid border-y border-[#d8c69e]/15 sm:grid-cols-2 lg:grid-cols-3">
             {capabilities.map((item, index) => {
               const Icon = item.icon;
               return (
@@ -324,13 +320,13 @@ const About = () => {
                   viewport={{ once: true, amount: 0.25 }}
                   variants={fadeUp}
                   transition={{ delay: index * 0.04, duration: 0.45 }}
-                  className="border-b border-blue-200/15 px-0 py-8 sm:px-7 lg:border-r lg:last:border-r-0"
+                  className="border-b border-[#d8c69e]/15 px-0 py-8 sm:px-7 lg:border-r lg:last:border-r-0"
                 >
-                  <Icon className="h-6 w-6 text-cyan-300" aria-hidden="true" />
-                  <h3 className="mt-5 text-xl font-semibold text-white">
+                  <Icon className="h-6 w-6 text-[#d8c69e]" aria-hidden="true" />
+                  <h3 className="mt-5 text-xl font-semibold text-[#f1eadb]">
                     {item.title}
                   </h3>
-                  <p className="mt-3 leading-7 text-blue-100/70">
+                  <p className="mt-3 leading-7 text-[#c3cbd4]/70">
                     {item.description}
                   </p>
                 </MotionDiv>
@@ -340,18 +336,18 @@ const About = () => {
         </div>
       </section>
 
-      <section className="border-y border-blue-200/10 bg-[#071328] px-6 py-20 sm:px-8 lg:px-12 lg:py-28">
+      <section className="border-y border-[#d8c69e]/10 bg-[#0b1522] px-6 py-20 sm:px-8 lg:px-12 lg:py-28">
         <div className="mx-auto max-w-7xl">
           <div className="grid gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:gap-20">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-cyan-200">
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8c69e]">
                 Made for many kinds of storytellers
               </p>
-              <h2 className="mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">
+              <h2 className="mt-4 font-serif text-3xl font-medium leading-tight tracking-tight text-[#f1eadb] sm:text-4xl">
                 A flexible tool for ideas that need a world around them.
               </h2>
             </div>
-            <div className="divide-y divide-blue-200/15 border-y border-blue-200/15">
+            <div className="divide-y divide-[#d8c69e]/15 border-y border-[#d8c69e]/15">
               {audiences.map((audience) => {
                 const Icon = audience.icon;
                 return (
@@ -359,11 +355,11 @@ const About = () => {
                     key={audience.title}
                     className="grid gap-4 py-7 sm:grid-cols-[2rem_10rem_1fr] sm:gap-6"
                   >
-                    <Icon className="h-6 w-6 text-cyan-300" aria-hidden="true" />
-                    <h3 className="text-lg font-semibold text-white">
+                    <Icon className="h-6 w-6 text-[#d8c69e]" aria-hidden="true" />
+                    <h3 className="text-lg font-semibold text-[#f1eadb]">
                       {audience.title}
                     </h3>
-                    <p className="leading-7 text-blue-100/70">
+                    <p className="leading-7 text-[#c3cbd4]/70">
                       {audience.description}
                     </p>
                   </div>
@@ -378,7 +374,7 @@ const About = () => {
         <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-2 lg:items-center lg:gap-20">
           <div className="relative aspect-[4/3] overflow-hidden rounded-lg">
             <Image
-              src="/watercolor.png"
+              src="/art-style/watercolor.webp"
               alt="Watercolor illustration style available in TaleCrafter"
               fill
               sizes="(max-width: 1024px) 100vw, 50vw"
@@ -386,16 +382,16 @@ const About = () => {
             />
           </div>
           <div>
-            <div className="flex items-center gap-3 text-cyan-200">
+            <div className="flex items-center gap-3 text-[#d8c69e]">
               <BookOpen className="h-6 w-6" aria-hidden="true" />
               <span className="text-sm font-semibold uppercase tracking-[0.16em]">
                 Creative control
               </span>
             </div>
-            <h2 className="mt-5 text-3xl font-bold leading-tight text-white sm:text-4xl">
+            <h2 className="mt-5 font-serif text-3xl font-medium leading-tight tracking-tight text-[#f1eadb] sm:text-4xl">
               AI supports the process. Your direction defines the story.
             </h2>
-            <div className="mt-6 space-y-5 leading-8 text-blue-100/75">
+            <div className="mt-6 space-y-5 leading-8 text-[#c3cbd4]/75">
               <p>
                 TaleCrafter is built as a creative starting point, not a replacement
                 for human judgment. The subject, intended reader, tone, visual style,
@@ -411,15 +407,15 @@ const About = () => {
         </div>
       </section>
 
-      <section className="border-t border-blue-200/10 bg-[#0b1c32] px-6 py-20 text-center sm:px-8 lg:px-12 lg:py-24">
+      <section className="border-t border-[#d8c69e]/10 bg-[#0b1522] px-6 py-20 text-center sm:px-8 lg:px-12 lg:py-24">
         <div className="mx-auto max-w-3xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-cyan-200">
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8c69e]">
             Your next story starts here
           </p>
-          <h2 className="mt-5 text-3xl font-bold text-white sm:text-5xl">
+          <h2 className="mt-5 font-serif text-3xl font-medium tracking-tight text-[#f1eadb] sm:text-5xl">
             Give an idea somewhere to go.
           </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-blue-100/70">
+          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[#c3cbd4]/70">
             Create a complete classic storybook or let every decision open a new
             Plot Twist path.
           </p>
