@@ -77,7 +77,7 @@
   }
 
   * {
-    @apply !scroll-smooth border-border outline-ring;
+    @apply border-border outline-ring;
   }
 
   html,
@@ -89,18 +89,26 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-app), ui-sans-serif, system-ui, sans-serif;
   }
 
-  html.premium-scroll {
-    scroll-behavior: auto !important;
+  h1,
+  h2,
+  h3,
+  .heading {
+    font-family: var(--font-app), ui-sans-serif, system-ui, sans-serif;
+  }
+
+  html {
+    scroll-behavior: smooth;
   }
 
   button {
     @apply active:outline-none;
   }
   .theme {
-    --font-heading: var(--font-sans);
-    --font-sans: var(--font-sans);
+    --font-heading: var(--font-app);
+    --font-sans: var(--font-app);
   }
   html {
     @apply font-sans;
@@ -295,6 +303,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   .hero-actions-reveal {
     opacity: 1;
     animation: none;

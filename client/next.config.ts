@@ -7,6 +7,19 @@ const apiBaseUrl = (
 const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
   compress: true,
+  async headers() {
+    return [
+      {
+        source: "/frames/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

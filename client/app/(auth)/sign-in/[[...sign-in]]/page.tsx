@@ -15,9 +15,13 @@ export default function SignInPage() {
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    const provider = new URLSearchParams(window.location.search).get("error");
+    const search = new URLSearchParams(window.location.search);
+    const provider = search.get("error");
+    const reason = search.get("reason");
 
-    if (provider === "github") {
+    if (reason === "session-expired") {
+      setError("Your session expired. Sign in again to continue.");
+    } else if (provider === "github") {
       setError("GitHub sign-in was cancelled or could not be completed.");
     } else if (provider === "google") {
       setError("Google sign-in was cancelled or could not be completed.");

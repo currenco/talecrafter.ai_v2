@@ -1,14 +1,16 @@
 "use client";
 import { cn } from "@/lib/utils";
 import { IconMenu2, IconX } from "@tabler/icons-react";
+import Link from "next/link";
 import {
   motion,
   AnimatePresence,
   useScroll,
   useMotionValueEvent,
+  useReducedMotion,
 } from "framer-motion";
 
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 
 interface NavbarProps {
   children: React.ReactNode;
@@ -48,26 +50,19 @@ interface MobileNavMenuProps {
 }
 
 export const Navbar = ({ children, className }: NavbarProps) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollY } = useScroll({
-    target: ref,
-    offset: ["start start", "end start"],
-  });
+  const { scrollY } = useScroll();
   const [visible, setVisible] = useState<boolean>(false);
 
   useMotionValueEvent(scrollY, "change", (latest) => {
-    if (latest > 100) {
-      setVisible(true);
-    } else {
-      setVisible(false);
-    }
+    const nextVisible = latest > 100;
+    setVisible((current) =>
+      current === nextVisible ? current : nextVisible,
+    );
   });
 
   return (
-    <motion.div
-      ref={ref}
-      // IMPORTANT: Change this to class of `fixed` if you want the navbar to be fixed
-      className={cn("sticky inset-x-0 top-0 z-50 w-full", className)}
+    <div
+      className={cn("sticky inset-x-0 top-0 z-50 box-border w-full", className)}
     >
       {React.Children.map(children, (child) =>
         React.isValidElement(child)
@@ -77,29 +72,25 @@ export const Navbar = ({ children, className }: NavbarProps) => {
             )
           : child,
       )}
-    </motion.div>
+    </div>
   );
 };
 
 export const NavBody = ({ children, className, visible }: NavBodyProps) => {
+  const reducedMotion = useReducedMotion();
+
   return (
     <motion.div
       animate={{
-        backdropFilter: visible ? "blur(10px)" : "none",
-        boxShadow: visible
-          ? "0 0 24px rgba(34, 42, 53, 0.06), 0 1px 1px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(34, 42, 53, 0.04), 0 0 4px rgba(34, 42, 53, 0.08), 0 16px 68px rgba(47, 48, 55, 0.05), 0 1px 0 rgba(255, 255, 255, 0.1) inset"
-          : "none",
-        width: visible ? "min(92%, 980px)" : "100%",
-        y: visible ? 20 : 0,
+        y: visible && !reducedMotion ? 20 : 0,
       }}
       transition={{
-        type: "spring",
-        stiffness: 200,
-        damping: 50,
+        duration: reducedMotion ? 0 : 0.2,
+        ease: "easeOut",
       }}
 
       className={cn(
-        "relative z-[60] mx-auto hidden w-full max-w-7xl flex-row items-center justify-between self-start rounded-full border border-[#d8c69e]/15 bg-[#0b1522]/95 px-4 py-2 shadow-[0_10px_35px_rgba(0,0,0,0.28)] backdrop-blur-xl lg:flex",
+        "relative z-[60] mx-auto hidden w-full max-w-7xl flex-row items-center justify-between self-start rounded-full border border-[#d8c69e]/15 bg-[#0b1522]/95 px-3 py-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-colors duration-200 lg:flex",
         visible && "bg-[#0b1522]/85 shadow-[0_18px_60px_rgba(0,0,0,0.34)]",
         className,
       )}
@@ -121,7 +112,7 @@ export const NavItems = ({ items, className, onItemClick }: NavItemsProps) => {
       )}
     >
       {items.map((item, idx) => (
-        <a
+        <Link
           onMouseEnter={() => setHovered(idx)}
           onClick={onItemClick}
           className="relative px-4 py-2 text-[#c3cbd4]/72 transition hover:text-[#f1eadb]"
@@ -135,33 +126,26 @@ export const NavItems = ({ items, className, onItemClick }: NavItemsProps) => {
             />
           )}
           <span className="relative z-20">{item.name}</span>
-        </a>
+        </Link>
       ))}
     </motion.div>
   );
 };
 
 export const MobileNav = ({ children, className, visible }: MobileNavProps) => {
+  const reducedMotion = useReducedMotion();
+
   return (
     <motion.div
       animate={{
-        backdropFilter: visible ? "blur(10px)" : "none",
-        boxShadow: visible
-          ? "0 0 24px rgba(34, 42, 53, 0.06), 0 1px 1px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(34, 42, 53, 0.04), 0 0 4px rgba(34, 42, 53, 0.08), 0 16px 68px rgba(47, 48, 55, 0.05), 0 1px 0 rgba(255, 255, 255, 0.1) inset"
-          : "none",
-        width: visible ? "90%" : "100%",
-        paddingRight: visible ? "12px" : "0px",
-        paddingLeft: visible ? "12px" : "0px",
-        borderRadius: visible ? "4px" : "2rem",
-        y: visible ? 20 : 0,
+        y: visible && !reducedMotion ? 20 : 0,
       }}
       transition={{
-        type: "spring",
-        stiffness: 200,
-        damping: 50,
+        duration: reducedMotion ? 0 : 0.2,
+        ease: "easeOut",
       }}
       className={cn(
-        "relative z-50 mx-auto flex w-full max-w-[calc(100vw-1rem)] flex-col items-center justify-between rounded-full border border-[#d8c69e]/15 bg-[#0b1522] px-3 py-2 shadow-[0_10px_35px_rgba(0,0,0,0.28)] lg:hidden",
+        "relative z-50 mx-auto flex w-full min-w-0 flex-col items-center justify-between rounded-full border border-[#d8c69e]/15 bg-[#0b1522] px-2.5 py-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.28)] lg:hidden",
         visible && "shadow-[0_18px_60px_rgba(0,0,0,0.34)]",
         className,
       )}
@@ -178,7 +162,7 @@ export const MobileNavHeader = ({
   return (
     <div
       className={cn(
-        "flex w-full flex-row items-center justify-between",
+        "flex w-full min-w-0 flex-row items-center justify-between",
         className,
       )}
     >
@@ -200,7 +184,7 @@ export const MobileNavMenu = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className={cn(
-            "absolute inset-x-0 top-16 z-50 flex w-full flex-col items-start justify-start gap-4 rounded-2xl border border-[#d8c69e]/15 bg-[#111d2b] px-4 py-8 shadow-[0_24px_70px_rgba(0,0,0,0.4)]",
+            "absolute inset-x-0 top-14 z-50 flex w-full flex-col items-start justify-start gap-4 rounded-2xl border border-[#d8c69e]/15 bg-[#111d2b] px-4 py-8 shadow-[0_24px_70px_rgba(0,0,0,0.4)]",
             className,
           )}
         >
@@ -242,7 +226,7 @@ export const NavbarButton = ({
   React.ComponentPropsWithoutRef<"a"> | React.ComponentPropsWithoutRef<"button">
 )) => {
   const baseStyles =
-    "relative inline-block cursor-pointer rounded-full px-4 py-2 text-center text-sm font-bold transition duration-200 hover:-translate-y-0.5";
+    "relative inline-block cursor-pointer rounded-full px-4 py-1.5 text-center text-sm font-bold transition duration-200 hover:-translate-y-0.5";
 
   const variantStyles = {
     secondary: "bg-transparent text-[#c3cbd4] shadow-none",

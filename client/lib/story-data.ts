@@ -22,7 +22,7 @@ const API_BASE_URL =
 
 const backendFetch = async <T>(path: string): Promise<T | null> => {
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    cache: "no-store",
+    next: { revalidate: 60 },
   });
 
   if (response.status === 404) return null;

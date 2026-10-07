@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -9,25 +8,36 @@ import {
   BookOpen,
   Check,
   ChevronDown,
+  Clapperboard,
   Download,
+  FileText,
   GitBranch,
   ImageIcon,
+  Images,
   Languages,
+  ListTree,
   Mic2,
+  RefreshCcw,
   Upload,
+  UsersRound,
+  Video,
 } from "lucide-react";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
+import DeferredVideo from "./DeferredVideo";
 import ScrollStorySequence from "./ScrollStorySequence";
 import StoryDemoFrame from "./StoryDemoFrame";
 import styles from "./home-theme.module.css";
 
 const MotionDiv = motion.div;
 
+const SECTION_HEADING_CLASS =
+  "text-3xl font-bold leading-[1.08] tracking-[-0.025em] text-[#f1eadb] sm:text-4xl lg:text-5xl";
+
 const HERO_SUBTEXT =
-  "Turn a prompt or image into a complete illustrated book. Choose a classic story, or shape every turning point yourself with Plot Twist mode.";
+  "Begin with a prompt or an image. TaleCrafter writes, illustrates, and shapes it into a complete book you can read, hear, revisit, and share.";
 const HERO_TEXT_DURATION = 0.4;
-const HERO_TEXT_STAGGER = 0.035;
-const HERO_TEXT_START_DELAY = 0.8;
+const HERO_TEXT_STAGGER = 0.02;
+const HERO_TEXT_START_DELAY = 0.55;
 const HERO_ACTION_DELAY_MS = Math.ceil(
   (HERO_TEXT_START_DELAY +
     (HERO_SUBTEXT.split(" ").length - 1) * HERO_TEXT_STAGGER +
@@ -115,6 +125,45 @@ const capabilities = [
   },
 ];
 
+const upcomingProductionPipeline = [
+  {
+    number: "01",
+    icon: FileText,
+    title: "Complete story",
+    description: "A structured narrative built from one creative idea.",
+  },
+  {
+    number: "02",
+    icon: UsersRound,
+    title: "Character bible",
+    description: "Reusable character identities, traits, and visual descriptions.",
+  },
+  {
+    number: "03",
+    icon: ListTree,
+    title: "Scene breakdown",
+    description: "The story divided into exact, production-ready scenes.",
+  },
+  {
+    number: "04",
+    icon: ImageIcon,
+    title: "Prompt package",
+    description: "Consistent prompts carrying characters and style across scenes.",
+  },
+  {
+    number: "05",
+    icon: Images,
+    title: "Scene images",
+    description: "Generated visuals connected to every planned story beat.",
+  },
+  {
+    number: "06",
+    icon: Video,
+    title: "Video clips",
+    description: "Scene-level clips ready to assemble into a complete video.",
+  },
+];
+
 const pricingPlans = [
   {
     name: "Free",
@@ -192,11 +241,12 @@ const Hero = () => {
 
   return (
     <main className={`${styles.home} overflow-clip bg-[#0b1522] text-[#c3cbd4]`}>
-      <section className={`${styles.hero} section-spacing relative flex min-h-[100svh] w-full flex-col justify-center px-5 md:px-16 lg:px-32 xl:px-44`}>
+      <section className={`${styles.hero} section-spacing relative flex min-h-[100svh] w-full flex-col justify-center overflow-hidden px-5 md:px-16 lg:px-24`}>
         <div aria-hidden="true" className={styles.heroLight} />
+        <div aria-hidden="true" className={styles.heroHalo} />
 
-        <div className="relative mx-auto grid w-full max-w-7xl items-center gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:gap-8 xl:gap-14">
-          <div className="relative z-20 text-center lg:text-left">
+        <div className="relative z-20 mx-auto w-full max-w-7xl text-center">
+          <div className="mx-auto max-w-6xl">
             <MotionDiv
               initial="hidden"
               animate="show"
@@ -204,21 +254,23 @@ const Hero = () => {
               variants={fadeUp}
               className="relative"
             >
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8c69e]">
-                Illustrated stories from a single idea
-              </p>
+              <div className="mx-auto flex max-w-xl items-center justify-center gap-4 text-[9px] font-normal uppercase tracking-[0.12em] text-[#d8c69e] sm:text-[10px]">
+                <span className="h-px w-10 bg-[#d8c69e]/45 sm:w-16" />
+                TaleCrafter AI story studio
+                <span className="h-px w-10 bg-[#d8c69e]/45 sm:w-16" />
+              </div>
 
-              <h1 className="mt-6 text-4xl font-medium leading-tight tracking-tight text-[#f1eadb] sm:text-5xl md:text-6xl lg:text-[4rem] xl:text-7xl">
-                TaleCrafter AI
-                <span className="mt-5 block text-3xl sm:text-4xl md:text-5xl lg:text-[3.15rem] xl:text-6xl">
-                  Make a story worth reading together
+              <h1 className="mx-auto mt-8 max-w-[13ch] text-5xl font-medium leading-[0.96] tracking-[-0.045em] text-[#f1eadb] sm:text-6xl md:text-7xl lg:text-[6.8rem] xl:text-[7.6rem]">
+                Turn one idea into
+                <span className="mt-2 block italic text-[#d8c69e] sm:mt-3">
+                  a world of its own.
                 </span>
               </h1>
 
               <TextGenerateEffect
                 as="p"
                 words={HERO_SUBTEXT}
-                className="mx-auto mt-7 max-w-2xl text-base font-medium leading-relaxed text-[#c3cbd4]/75 sm:text-lg lg:mx-0"
+                className="mx-auto mt-8 max-w-3xl text-base font-medium leading-7 text-[#c3cbd4]/75 sm:text-lg sm:leading-8"
                 duration={HERO_TEXT_DURATION}
                 staggerDelay={HERO_TEXT_STAGGER}
                 startDelay={HERO_TEXT_START_DELAY}
@@ -226,7 +278,7 @@ const Hero = () => {
             </MotionDiv>
 
             <div
-              className="hero-actions-reveal relative mt-10 flex flex-wrap items-center justify-center gap-4 lg:justify-start"
+              className="hero-actions-reveal relative mt-10 flex flex-wrap items-center justify-center gap-4"
               style={{ animationDelay: `${HERO_ACTION_DELAY_MS}ms` }}
             >
               <Link
@@ -236,38 +288,54 @@ const Hero = () => {
                 Create your first story
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
+              <Link
+                href="/explore"
+                className="inline-flex min-h-12 items-center gap-2 rounded-full border border-[#d8c69e]/25 bg-white/[0.035] px-7 py-3 text-base font-semibold text-[#f1eadb] transition hover:border-[#d8c69e]/45 hover:bg-white/[0.07]"
+              >
+                Explore stories
+              </Link>
             </div>
-          </div>
 
-          <MotionDiv
-            initial={
-              prefersReducedMotion
-                ? { opacity: 0 }
-                : { opacity: 0, x: 32, scale: 0.97 }
-            }
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            transition={{
-              duration: prefersReducedMotion ? 0 : 0.85,
-              delay: 0.18,
-              ease: [0.16, 1, 0.3, 1],
-            }}
-            className="relative z-30 ml-auto flex min-h-[290px] w-full max-w-[940px] items-center justify-end sm:min-h-[390px] lg:min-h-[620px]"
-          >
-            <div
-              aria-hidden="true"
-              className="absolute inset-[2%] rounded-full bg-[#d8c69e]/20 blur-[90px]"
-            />
-            <Image
-              src="/heroimage-talecrafter.png"
-              alt="An enchanted illustrated storybook opening into a miniature fantasy world"
-              width={1678}
-              height={937}
-              sizes="(max-width: 1023px) 110vw, 64vw"
-              className="pointer-events-none relative z-40 h-auto w-[112%] max-w-none select-none sm:w-[120%] lg:w-[135%]"
-              unoptimized
-              priority
-            />
-          </MotionDiv>
+            <MotionDiv
+              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: prefersReducedMotion ? 0 : 0.7,
+                delay: prefersReducedMotion ? 0 : 1.05,
+                ease: [0.16, 1, 0.3, 1],
+              }}
+              className="mx-auto mt-16 grid max-w-6xl border-y border-[#d8c69e]/15 text-left md:grid-cols-4 md:text-center"
+            >
+              {[
+                ["Begin your way", "Prompt or image"],
+                ["Choose the journey", "Classic or Plot Twist"],
+                ["Keep the whole book", "Read, listen, and export"],
+                ["Coming soon", "Characters, scenes, and video"],
+              ].map(([label, value], index) => (
+                <div
+                  key={label}
+                  className={`px-4 py-5 ${
+                    index > 0
+                      ? "border-t border-[#d8c69e]/15 md:border-l md:border-t-0"
+                      : ""
+                  }`}
+                >
+                  <p
+                    className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${
+                      label === "Coming soon"
+                        ? "text-[#d8c69e]"
+                        : "text-[#c3cbd4]/45"
+                    }`}
+                  >
+                    {label}
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-[#f1eadb] sm:text-base">
+                    {value}
+                  </p>
+                </div>
+              ))}
+            </MotionDiv>
+          </div>
         </div>
       </section>
 
@@ -281,10 +349,10 @@ const Hero = () => {
             viewport={{ once: true, amount: 0.25 }}
             variants={fadeUp}
           >
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8c69e]">
+            <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-[#d8c69e] sm:text-[11px]">
               The whole book, not just the first draft
             </p>
-            <h2 className="mt-4 text-3xl font-bold leading-tight text-[#f1eadb] sm:text-5xl">
+            <h2 className={`mt-4 ${SECTION_HEADING_CLASS}`}>
               Go from a blank page to a story people can actually read.
             </h2>
             <p className="mt-6 text-lg leading-8 text-[#c3cbd4]/70">
@@ -323,7 +391,6 @@ const Hero = () => {
             <StoryDemoFrame
               alt="TaleCrafter reader showing two illustrated story pages"
               sizes="(max-width: 1024px) 100vw, 58vw"
-              priority
             />
           </MotionDiv>
         </div>
@@ -332,10 +399,10 @@ const Hero = () => {
       <section className="border-y border-[#d8c69e]/10 bg-[#0b1522] px-6 py-20 sm:px-8 lg:px-12 lg:py-28">
         <div className="mx-auto max-w-7xl">
           <div className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8c69e]">
+            <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-[#d8c69e] sm:text-[11px]">
               One idea, two ways to tell it
             </p>
-            <h2 className="mt-4 text-3xl font-bold text-[#f1eadb] sm:text-5xl">
+            <h2 className={`mt-4 ${SECTION_HEADING_CLASS}`}>
               Choose the kind of story experience you want.
             </h2>
           </div>
@@ -388,10 +455,10 @@ const Hero = () => {
               viewport={{ once: true, amount: 0.2 }}
               variants={fadeUp}
             >
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8c69e]">
+              <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-[#d8c69e] sm:text-[11px]">
                 Stories for every imagination
               </p>
-              <h2 className="mt-4 max-w-xl text-3xl font-bold leading-tight text-[#f1eadb] sm:text-5xl">
+              <h2 className={`mt-4 max-w-2xl ${SECTION_HEADING_CLASS}`}>
                 Find the genre that fits the world you want to create.
               </h2>
               <p className="mt-6 max-w-xl text-lg leading-8 text-[#c3cbd4]/75">
@@ -429,18 +496,12 @@ const Hero = () => {
               className="relative mx-auto w-full max-w-xl overflow-hidden rounded-[2rem] border border-[#d8c69e]/20 bg-[#111d2b] p-2 shadow-[0_30px_90px_rgba(0,0,0,0.4)]"
             >
               <div className="relative aspect-[4/5] overflow-hidden rounded-[1.55rem]">
-                <video
-                  className="h-full w-full object-cover"
-                  autoPlay={!prefersReducedMotion}
-                  muted
-                  loop={!prefersReducedMotion}
-                  playsInline
-                  preload="metadata"
+                <DeferredVideo
+                  src="/videos/animo-cover-ring-vertical-1350p.mp4"
                   poster="/genre/fantasy.webp"
-                  aria-label="A cinematic TaleCrafter storybook animation"
-                >
-                  <source src="/videos/animo-cover-ring-vertical-1350p.mp4" type="video/mp4" />
-                </video>
+                  label="A cinematic TaleCrafter storybook animation"
+                  className="h-full w-full object-cover"
+                />
                 <div
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0b1522]/45 via-transparent to-[#d8c69e]/[0.05]"
@@ -451,7 +512,7 @@ const Hero = () => {
 
           <section
             aria-labelledby="art-styles-heading"
-            className="grid gap-12 border-b border-[#d8c69e]/15 py-20 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-20 lg:py-28"
+            className="grid gap-12 py-20 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-20 lg:py-28"
           >
             <MotionDiv
               initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 28 }}
@@ -461,18 +522,12 @@ const Hero = () => {
               className="relative mx-auto w-full max-w-xl overflow-hidden rounded-[2rem] border border-[#d8c69e]/20 bg-[#111d2b] p-2 shadow-[0_30px_90px_rgba(0,0,0,0.4)]"
             >
               <div className="relative aspect-[4/5] overflow-hidden rounded-[1.55rem]">
-                <video
-                  className="h-full w-full object-cover"
-                  autoPlay={!prefersReducedMotion}
-                  muted
-                  loop={!prefersReducedMotion}
-                  playsInline
-                  preload="metadata"
+                <DeferredVideo
+                  src="/videos/art-style-showcase.mp4"
                   poster="/art-style/paper-cut.webp"
-                  aria-label="A cinematic preview of TaleCrafter illustration styles"
-                >
-                  <source src="/videos/art-style-showcase.mp4" type="video/mp4" />
-                </video>
+                  label="A cinematic preview of TaleCrafter illustration styles"
+                  className="h-full w-full object-cover"
+                />
                 <div
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0b1522]/45 via-transparent to-[#d8c69e]/[0.05]"
@@ -486,12 +541,12 @@ const Hero = () => {
               viewport={{ once: true, amount: 0.2 }}
               variants={fadeUp}
             >
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8c69e]">
+              <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-[#d8c69e] sm:text-[11px]">
                 Your story, your visual language
               </p>
               <h2
                 id="art-styles-heading"
-                className="mt-4 max-w-xl text-3xl font-bold leading-tight text-[#f1eadb] sm:text-5xl"
+                className={`mt-4 max-w-2xl ${SECTION_HEADING_CLASS}`}
               >
                 Give every page an art direction of its own.
               </h2>
@@ -528,10 +583,10 @@ const Hero = () => {
       <section id="how-it-works" className="bg-[#0b1522] px-6 py-20 text-[#c3cbd4] sm:px-8 lg:px-12 lg:py-28">
         <div className="mx-auto max-w-7xl">
           <div className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8c69e]">
+            <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-[#d8c69e] sm:text-[11px]">
               How it works
             </p>
-            <h2 className="mt-4 text-3xl font-bold text-[#f1eadb] sm:text-5xl">
+            <h2 className={`mt-4 ${SECTION_HEADING_CLASS}`}>
               A short path from idea to finished book.
             </h2>
           </div>
@@ -559,10 +614,10 @@ const Hero = () => {
       <section className="bg-[#0b1522] px-6 py-20 text-[#c3cbd4] sm:px-8 lg:px-12 lg:py-28">
         <div className="mx-auto grid max-w-7xl gap-14 lg:grid-cols-[0.65fr_1.35fr] lg:gap-24">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8c69e]">
+            <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-[#d8c69e] sm:text-[11px]">
               Everything stays connected
             </p>
-            <h2 className="mt-4 text-3xl font-bold leading-tight text-[#f1eadb] sm:text-4xl">
+            <h2 className={`mt-4 ${SECTION_HEADING_CLASS}`}>
               The useful details are part of the product, not add-ons.
             </h2>
             <p className="mt-5 leading-7 text-[#c3cbd4]/70">
@@ -586,13 +641,142 @@ const Hero = () => {
         </div>
       </section>
 
+      <section
+        aria-labelledby="creator-suite-heading"
+        className="border-y border-[#d8c69e]/10 bg-[#0e1927] px-6 py-16 text-[#c3cbd4] sm:px-8 lg:px-12 lg:py-20"
+      >
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-8 lg:grid-cols-2 lg:items-end lg:gap-16">
+            <MotionDiv
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.25 }}
+              variants={fadeUp}
+            >
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#d8c69e]/30 bg-[#d8c69e]/[0.08] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#d8c69e]">
+                <Clapperboard className="h-3.5 w-3.5" aria-hidden="true" />
+                Coming soon
+              </div>
+              <h2
+                id="creator-suite-heading"
+                className={`mt-5 max-w-2xl ${SECTION_HEADING_CLASS}`}
+              >
+                One idea. One connected production pipeline.
+              </h2>
+            </MotionDiv>
+
+            <MotionDiv
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.25 }}
+              variants={fadeUp}
+              transition={{ delay: 0.08, duration: 0.5 }}
+              className="space-y-5 text-base leading-8 text-[#c3cbd4]/75 sm:text-lg"
+            >
+              <p>
+                Story creators, YouTubers, educators, and short-form video teams
+                often move the same idea through several disconnected tools—then
+                repeat character descriptions, scene planning, and prompts by hand.
+              </p>
+              <p>
+                TaleCrafter is growing into a centralized workspace that will carry
+                creative decisions from the first sentence to production-ready scene
+                assets, while keeping characters and visual direction consistent.
+              </p>
+            </MotionDiv>
+          </div>
+
+          <div className="mt-10 grid overflow-hidden rounded-[2rem] border border-[#d8c69e]/15 bg-[#0b1522]/70 sm:grid-cols-2 lg:grid-cols-3">
+            {upcomingProductionPipeline.map((stage, index) => {
+              const Icon = stage.icon;
+              return (
+                <MotionDiv
+                  key={stage.number}
+                  initial="hidden"
+                  whileInView="show"
+                  viewport={{ once: true, amount: 0.25 }}
+                  variants={fadeUp}
+                  transition={{ delay: index * 0.045, duration: 0.45 }}
+                  className="relative border-b border-[#d8c69e]/15 p-5 sm:border-r sm:p-6 lg:p-7"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[#d8c69e]/20 bg-[#d8c69e]/[0.07] text-[#d8c69e]">
+                      <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+                    </span>
+                    <span className="text-xs font-semibold tracking-[0.18em] text-[#c3cbd4]/35">
+                      {stage.number}
+                    </span>
+                  </div>
+                  <h3 className="mt-5 text-lg font-semibold text-[#f1eadb] sm:text-xl">
+                    {stage.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-[#c3cbd4]/65 sm:text-base">
+                    {stage.description}
+                  </p>
+                </MotionDiv>
+              );
+            })}
+          </div>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {[
+              {
+                icon: UsersRound,
+                title: "Consistent characters",
+                text: "Reuse the same character definitions instead of rebuilding them for every scene.",
+              },
+              {
+                icon: RefreshCcw,
+                title: "Resume incomplete work",
+                text: "Continue from the last completed stage without restarting the entire project.",
+              },
+              {
+                icon: Clapperboard,
+                title: "Fewer wasted generations",
+                text: "Retry a failed production step without throwing away the work that already succeeded.",
+              },
+            ].map((benefit) => {
+              const Icon = benefit.icon;
+              return (
+                <div
+                  key={benefit.title}
+                  className="rounded-2xl border border-[#d8c69e]/15 bg-white/[0.025] p-5"
+                >
+                  <Icon className="h-5 w-5 text-[#d8c69e]" aria-hidden="true" />
+                  <h3 className="mt-4 font-semibold text-[#f1eadb]">
+                    {benefit.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-[#c3cbd4]/65">
+                    {benefit.text}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-8 flex flex-col gap-4 border-t border-[#d8c69e]/15 pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-2xl text-sm leading-6 text-[#c3cbd4]/60">
+              The illustrated storybook experience is available today. Character,
+              scene, and video production tools are part of the upcoming creator update.
+            </p>
+            <Link
+              href="/create-story"
+              className="inline-flex shrink-0 items-center gap-2 font-semibold text-[#d8c69e] transition hover:text-[#f1eadb]"
+            >
+              Create a story today
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section id="pricing" className="scroll-mt-24 bg-[#0b1522] px-6 py-20 text-[#c3cbd4] sm:px-8 lg:px-12 lg:py-28">
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto max-w-3xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8c69e]">
+            <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-[#d8c69e] sm:text-[11px]">
               Simple credit packs
             </p>
-            <h2 className="mt-4 text-3xl font-bold text-[#f1eadb] sm:text-5xl">
+            <h2 className={`mt-4 ${SECTION_HEADING_CLASS}`}>
               Start free. Add credits when you need them.
             </h2>
             <p className="mt-5 text-lg leading-8 text-[#c3cbd4]/70">
@@ -655,10 +839,10 @@ const Hero = () => {
       <section className="border-t border-[#d8c69e]/10 bg-[#0b1522] px-6 py-20 text-[#c3cbd4] sm:px-8 lg:px-12 lg:py-28">
         <div className="mx-auto max-w-4xl">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8c69e]">
+            <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-[#d8c69e] sm:text-[11px]">
               Frequently asked questions
             </p>
-            <h2 className="mt-4 font-serif text-3xl font-medium text-[#f1eadb] sm:text-5xl">
+            <h2 className={`mt-4 ${SECTION_HEADING_CLASS}`}>
               Everything you need to know.
             </h2>
             <p className="mt-5 text-lg leading-8 text-[#c3cbd4]/70">
@@ -673,7 +857,6 @@ const Hero = () => {
 
               return (
                 <MotionDiv
-                  layout={!prefersReducedMotion}
                   key={item.question}
                   className="border-b border-[#d8c69e]/15 last:border-b-0"
                 >
@@ -701,13 +884,18 @@ const Hero = () => {
                       <MotionDiv
                         id={answerId}
                         key="answer"
-                        initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: -6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
-                        transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
-                        className="max-w-3xl pb-7 pr-12"
+                        initial={{ height: 0, opacity: prefersReducedMotion ? 1 : 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: prefersReducedMotion ? 1 : 0 }}
+                        transition={{
+                          duration: prefersReducedMotion ? 0 : 0.32,
+                          ease: [0.22, 1, 0.36, 1],
+                        }}
+                        className="overflow-hidden"
                       >
-                        <p className="leading-7 text-[#c3cbd4]/70">{item.answer}</p>
+                        <div className="max-w-3xl pb-7 pr-12">
+                          <p className="leading-7 text-[#c3cbd4]/70">{item.answer}</p>
+                        </div>
                       </MotionDiv>
                     )}
                   </AnimatePresence>
@@ -720,7 +908,7 @@ const Hero = () => {
 
       <section className={`${styles.closing} px-6 py-20 text-center sm:px-8 lg:px-12 lg:py-24`}>
         <div className="mx-auto max-w-3xl">
-          <h2 className="text-3xl font-bold text-[#f1eadb] sm:text-5xl">
+          <h2 className={SECTION_HEADING_CLASS}>
             Your next story can start with one sentence.
           </h2>
           <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[#c3cbd4]/70">

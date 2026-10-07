@@ -1,11 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import Script from "next/script";
 import { useContext, useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { HiOutlineCheckCircle } from "react-icons/hi2";
 import { toast } from "react-toastify";
-import { apiFetch } from "@/lib/api-client";
+import { ApiClientError, apiFetch } from "@/lib/api-client";
 import { getAccessToken } from "@/lib/neon-auth/client";
 import { UserDetailContext, type UserDetail } from "../_context/UserDetailContext";
 
@@ -77,16 +78,34 @@ const MotionDiv = motion.div;
 
 export default function BuyCreditsPage() {
   const [selectedPlan, setSelectedPlan] = useState<string>("premium");
+  const [checkoutPlanId, setCheckoutPlanId] = useState<string | null>(null);
   const [checkoutReady, setCheckoutReady] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const { userDetail, setUserDetail } = useContext(UserDetailContext);
+  const selectedPlanDetails = paidPlans.find(plan => plan.id === selectedPlan);
 
   useEffect(() => {
     setCheckoutReady(Boolean(window.Razorpay));
   }, []);
 
+  const selectPlan = (planId: string) => {
+    if (planId === selectedPlan) return;
+    setSelectedPlan(planId);
+    setCheckoutPlanId(null);
+  };
+
+  const continueWithPlan = (planId: string) => {
+    setSelectedPlan(planId);
+    setCheckoutPlanId(planId);
+    requestAnimationFrame(() => {
+      document
+        .getElementById("secure-checkout")
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  };
+
   const startCheckout = async () => {
-    const plan = paidPlans.find(item => item.id === selectedPlan);
+    const plan = paidPlans.find(item => item.id === checkoutPlanId);
     const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
     if (!plan) {
       toast.error("Select a credit plan first.");
@@ -98,8 +117,19 @@ export default function BuyCreditsPage() {
     }
 
     setCheckoutLoading(true);
+    let token: string;
     try {
-      const token = await getAccessToken();
+      token = await getAccessToken();
+    } catch (error) {
+      console.error("Unable to create payment access token", error);
+      setCheckoutLoading(false);
+      toast.error(
+        "Your sign-in session could not be verified. Refresh the page and try again."
+      );
+      return;
+    }
+
+    try {
       const order = await apiFetch<{
         orderId: string;
         amount: number;
@@ -165,9 +195,16 @@ export default function BuyCreditsPage() {
         toast.error(response.error?.description || "Payment failed. Please retry.");
       });
       checkout.open();
-    } catch {
+    } catch (error) {
+      if (!(error instanceof ApiClientError)) {
+        console.error("Unable to create Razorpay order", error);
+      }
       setCheckoutLoading(false);
-      toast.error("Unable to start secure checkout. Please try again.");
+      toast.error(
+        error instanceof ApiClientError
+          ? error.message
+          : "Unable to reach the payment service. Please try again."
+      );
     }
   };
 
@@ -195,7 +232,11 @@ export default function BuyCreditsPage() {
           </p>
         </header>
 
-        <div className="mt-10 grid items-stretch gap-6 md:grid-cols-3">
+        <div
+          className="mt-10 grid items-stretch gap-6 md:grid-cols-3"
+          role="radiogroup"
+          aria-label="Choose a credit plan"
+        >
           {paidPlans.map((plan, index) => {
             const selected = selectedPlan === plan.id;
             return (
@@ -204,13 +245,21 @@ export default function BuyCreditsPage() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.06 }}
-                className={`flex min-h-[440px] flex-col rounded-[2rem] border p-8 shadow-[0_28px_80px_rgba(0,0,0,0.22)] transition ${
+                className={`relative flex min-h-[440px] flex-col rounded-[2rem] border p-8 shadow-[0_28px_80px_rgba(0,0,0,0.22)] transition ${
                   selected
-                    ? "border-[#d8c69e]/70 bg-[#d8c69e]/12"
-                    : "border-[#d8c69e]/20 bg-white/[0.04] hover:border-[#d8c69e]/40"
+                    ? "border-[#d8c69e]/70 bg-[#d8c69e]/12 shadow-[0_28px_80px_rgba(0,0,0,0.3),0_0_0_1px_rgba(216,198,158,0.12)]"
+                    : "border-[#d8c69e]/20 bg-white/[0.04] hover:-translate-y-0.5 hover:border-[#d8c69e]/40"
                 }`}
               >
-                <div>
+                <button
+                  type="button"
+                  className="absolute inset-0 z-0 cursor-pointer rounded-[2rem] outline-none focus-visible:ring-2 focus-visible:ring-[#d8c69e] focus-visible:ring-offset-4 focus-visible:ring-offset-[#0b1522]"
+                  aria-label={`Select ${plan.title}, ${plan.price}, ${plan.credits} credits`}
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => selectPlan(plan.id)}
+                />
+                <div className="pointer-events-none relative z-10">
                   <div className="flex items-center justify-between gap-3">
                     <h2 className="text-xl font-bold text-[#f1eadb]">{plan.title}</h2>
                     {plan.recommended && (
@@ -242,18 +291,21 @@ export default function BuyCreditsPage() {
                     ))}
                   </ul>
                 </div>
-                <div className="mt-auto pt-8">
+                <div className="relative z-20 mt-auto pt-8">
                   <button
                     type="button"
-                    onClick={() => setSelectedPlan(plan.id)}
-                    aria-pressed={selected}
+                    onClick={() =>
+                      selected
+                        ? continueWithPlan(plan.id)
+                        : selectPlan(plan.id)
+                    }
                     className={`w-full rounded-full border px-4 py-3 text-sm font-semibold transition ${
                       selected
                         ? "border-[#e2d2ae] bg-[#d8c69e] text-[#101a28]"
                         : "border-[#d8c69e]/25 bg-white/[0.05] text-[#f1eadb] hover:bg-[#d8c69e]/10"
                     }`}
                   >
-                    {selected ? "Selected" : `Choose ${plan.title}`}
+                    {selected ? "Continue" : `Choose ${plan.title}`}
                   </button>
                 </div>
               </MotionDiv>
@@ -261,20 +313,62 @@ export default function BuyCreditsPage() {
           })}
         </div>
 
-        <div className="mx-auto mt-8 max-w-xl text-center">
-          <button
-            type="button"
-            onClick={startCheckout}
-            disabled={!checkoutReady || checkoutLoading}
-            className="tc-btn-primary w-full px-6 py-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {checkoutLoading
-              ? "Processing payment..."
-              : checkoutReady
-                ? "Pay securely with Razorpay"
-                : "Loading secure checkout..."}
-          </button>
-        </div>
+        <AnimatePresence initial={false}>
+          {checkoutPlanId === selectedPlan && (
+            <MotionDiv
+              id="secure-checkout"
+              key={checkoutPlanId}
+              initial={{ opacity: 0, y: 18, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: "auto" }}
+              exit={{ opacity: 0, y: 10, height: 0 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="mx-auto mt-8 max-w-xl overflow-hidden"
+              aria-live="polite"
+            >
+              <div className="rounded-[1.75rem] border border-[#d8c69e]/25 bg-[#111d2b]/90 p-6 text-left shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:p-7">
+                <div className="flex items-center justify-between gap-5 border-b border-[#d8c69e]/15 pb-5">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-[0.08em] text-[#d8c69e]">
+                      Secure checkout
+                    </p>
+                    <p className="mt-2 font-semibold text-[#f1eadb]">
+                      {selectedPlanDetails?.title} · {selectedPlanDetails?.credits} credits
+                    </p>
+                  </div>
+                  <p className="text-2xl font-extrabold text-[#f1eadb]">
+                    {selectedPlanDetails?.price}
+                  </p>
+                </div>
+
+                <div className="mt-5 flex items-center justify-between gap-5">
+                  <p className="max-w-xs text-sm leading-6 text-[#c3cbd4]/65">
+                    Your payment is securely processed by Razorpay.
+                  </p>
+                  <Image
+                    src="/razorpay-logo.png"
+                    alt="Razorpay"
+                    width={1693}
+                    height={360}
+                    className="h-6 w-auto shrink-0 object-contain sm:h-7"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={startCheckout}
+                  disabled={!checkoutReady || checkoutLoading}
+                  className="tc-btn-primary mt-6 w-full px-6 py-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {checkoutLoading
+                    ? "Processing payment..."
+                    : checkoutReady
+                      ? "Pay securely with Razorpay"
+                      : "Loading secure checkout..."}
+                </button>
+              </div>
+            </MotionDiv>
+          )}
+        </AnimatePresence>
       </div>
     </main>
   );
