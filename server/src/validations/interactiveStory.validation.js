@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { nonEmptyString } from './common.validation.js';
+import { nonEmptyString, paginationQuerySchema } from './common.validation.js';
 
 const formDataSchema = z.object({
   storySubject: nonEmptyString('Story subject'),
@@ -12,6 +12,12 @@ export const createInteractiveStorySchema = z.object({
   body: formDataSchema,
   params: z.object({}).optional(),
   query: z.object({}).optional(),
+});
+
+export const interactiveStoryListSchema = z.object({
+  body: z.object({}).optional(),
+  params: z.object({}).optional(),
+  query: paginationQuerySchema,
 });
 
 export const interactiveStoryIdParamSchema = z.object({

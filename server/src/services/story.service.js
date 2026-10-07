@@ -10,6 +10,10 @@ import {
 import ApiError from '../utils/ApiError.js';
 import { logger } from '../utils/logger.js';
 import {
+  createPaginatedResult,
+  normalizePagination,
+} from '../utils/pagination.js';
+import {
   buildStoryAssetsInsert,
   deleteStoryAssets,
   discardUploadedAssets,
@@ -36,6 +40,7 @@ const storySelection = {
   storyId: Stories.storyId,
   ownerId: Stories.ownerId,
   slug: Stories.slug,
+  kind: Stories.kind,
   storySubject: Stories.storySubject,
   storyType: Stories.storyType,
   ageGroup: Stories.ageGroup,
@@ -144,14 +149,38 @@ export const listPublicStories = async ({ limit, offset }) => {
     .offset(normalizeOffset(offset));
 };
 
-export const listCurrentUserStories = async ({ userId, limit, offset }) => {
+export const listCurrentUserStories = async ({
+  userId,
+  limit: requestedLimit,
+  offset: requestedOffset,
+  status,
+}) => {
   const user = await syncUserFromAuth(userId);
+  const { limit, offset } = normalizePagination({
+    limit: requestedLimit,
+    offset: requestedOffset,
+  });
+  const filters = [eq(Stories.ownerId, user.id)];
+  if (status) filters.push(eq(Stories.status, status));
 
-  return selectStories()
-    .where(and(eq(Stories.ownerId, user.id), eq(Stories.kind, 'classic')))
-    .orderBy(desc(Stories.createdAt))
-    .limit(clampLimit(limit))
-    .offset(normalizeOffset(offset));
+  const [stories, aggregateRows] = await Promise.all([
+    selectStories()
+      .where(and(...filters))
+      .orderBy(desc(Stories.updatedAt), desc(Stories.id))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ totalCount: sql`count(*)` })
+      .from(Stories)
+      .where(and(...filters)),
+  ]);
+
+  return createPaginatedResult({
+    items: stories,
+    limit,
+    offset,
+    totalCount: aggregateRows[0]?.totalCount,
+  });
 };
 
 export const getStoryBySlug = async slug => {

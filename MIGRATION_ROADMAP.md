@@ -116,7 +116,58 @@ Exit criteria:
 - The user sees progress and can recover from partial failure without restarting successful scenes.
 - Provider limits and costs are reflected in product pricing and credit reservations.
 
-## 4. Production Readiness And Launch
+## 4. Performance, Caching, And Query Efficiency
+
+Status: not started
+
+Goal: make repeat navigation fast and reduce avoidable Neon compute usage without serving stale authentication, credit, payment, draft, or generation state.
+
+Tasks:
+
+- Apply the existing pagination query validation consistently to the remaining public list routes.
+- Remove unconditional one-minute session validation. Refresh near JWT expiry, after a recognized authentication `401`, and on visibility/online recovery with throttling so background tabs do not keep Neon active.
+- Add TanStack Query as the client server-state layer with centralized query keys, request deduplication, explicit `staleTime`/`gcTime`, bounded retries, and mutation-driven invalidation.
+- Replace the remaining Explore `sessionStorage` cache with versioned, timestamped query persistence. Any future dashboard persistence must scope private entries by stable Auth user ID and clear them on logout or account change.
+- Cache public story lists, published story details, and related stories at the Next.js/server layer so one cached response can serve multiple users. Use explicit lifetimes and targeted tags rather than caching only inside each browser.
+- Keep `/users/me`, credits, payments, drafts, admin data, Pollinations credentials, and generation state private. Never place them in a shared or public CDN cache.
+- Use short-lived memory caching for credits and invalidate or update it immediately after verified payment, refund, generation charge, generation refund, or administrator adjustment.
+- Poll generation status only while a job is active. Stop polling on completion, failure, navigation, or an inactive tab.
+- Move administrator search and story-type filtering to validated server query parameters before the admin datasets become large. The current controls intentionally filter only the pages already loaded.
+- Add deterministic ordering to every paginated query and migrate high-volume classic-story lists from offset pagination to cursor pagination when justified by measured dataset size and query plans.
+- Verify the application uses the pooled Neon connection for runtime traffic, select only fields needed by list views, and inspect high-frequency/slow queries before adding indexes.
+- Do not add Redis initially. Reconsider a shared external cache only when multiple backend instances, cross-instance invalidation, queues, or measured cache pressure require it.
+
+Initial cache policy:
+
+| Data                                     | Client policy                                    | Shared server policy                                                |
+| ---------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------- |
+| Public story list                        | stale for 2 minutes; session persistence         | revalidate after 60 seconds; stale-while-revalidate allowed         |
+| Published story detail                   | stale for 15 minutes                             | cache for 15-60 minutes; invalidate on publish/update/delete        |
+| Related stories                          | stale for 5 minutes                              | cache for 5-10 minutes                                              |
+| User story lists                         | stale for 1 minute; per-user session persistence | private; no shared cache                                            |
+| User profile                             | stale for 5 minutes in memory                    | private; no shared cache                                            |
+| Credits and payment status               | stale for at most 15-30 seconds in memory        | private; invalidate immediately after mutation/webhook confirmation |
+| Active generation status                 | uncached while polling                           | no shared cache                                                     |
+| Auth tokens and Pollinations credentials | memory only                                      | never persist in browser storage or public caches                   |
+
+Verification:
+
+- Confirm warm navigation does not issue duplicate API or database requests.
+- Confirm two concurrent components requesting the same query share one in-flight request.
+- Confirm logout/account switching cannot display another user's cached data.
+- Confirm create, publish, delete, payment, refund, and credit-adjustment mutations invalidate only the affected queries.
+- Confirm public cache hits avoid backend/database work and private responses include no public cache directives.
+- Confirm an idle browser does not continuously call Auth or database-backed endpoints and Neon can reach scale-to-zero.
+- Compare query count, transferred rows, response latency, and Neon active-compute time before and after implementation.
+- Test pagination with duplicate timestamps, newly inserted stories, deletions between pages, empty pages, and maximum allowed page size.
+
+Exit criteria:
+
+- Repeat page visits render cached data immediately and revalidate according to the documented policy.
+- Public traffic is served from a shared cache where safe, while sensitive and mutable data remains private and promptly consistent.
+- Background browser activity no longer keeps Neon compute active without useful work.
+
+## 5. Production Readiness And Launch
 
 Status: not started
 

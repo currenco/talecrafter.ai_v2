@@ -22,7 +22,7 @@ export const getPublicStories = asyncHandler(async (req, res) => {
 export const getCurrentUserStories = asyncHandler(async (req, res) => {
   const stories = await listCurrentUserStories({
     userId: req.auth.userId,
-    ...req.query,
+    ...req.validated.query,
   });
   return res.status(200).json(new ApiResponse(200, stories, 'Stories fetched'));
 });

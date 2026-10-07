@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   InteractiveStories,
@@ -9,6 +9,10 @@ import {
   UserProfiles,
 } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
+import {
+  createPaginatedResult,
+  normalizePagination,
+} from '../utils/pagination.js';
 import {
   buildStoryAssetsInsert,
   deleteStoryAssets,
@@ -396,14 +400,36 @@ export const createInteractiveStarter = async ({
   }
 };
 
-export const listCurrentUserInteractiveStories = async ({ userId }) => {
+export const listCurrentUserInteractiveStories = async ({
+  userId,
+  limit: requestedLimit,
+  offset: requestedOffset,
+}) => {
   const user = await syncUserFromAuth(userId);
+  const { limit, offset } = normalizePagination({
+    limit: requestedLimit,
+    offset: requestedOffset,
+  });
 
-  const stories = await interactiveStoryQuery()
-    .where(eq(Stories.ownerId, user.id))
-    .orderBy(asc(Stories.createdAt));
+  const [stories, aggregateRows] = await Promise.all([
+    interactiveStoryQuery()
+      .where(eq(Stories.ownerId, user.id))
+      .orderBy(desc(Stories.updatedAt), desc(Stories.id))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ totalCount: sql`count(*)` })
+      .from(Stories)
+      .innerJoin(InteractiveStories, eq(InteractiveStories.storyId, Stories.id))
+      .where(eq(Stories.ownerId, user.id)),
+  ]);
 
-  return stories.map(mapInteractiveStory);
+  return createPaginatedResult({
+    items: stories.map(mapInteractiveStory),
+    limit,
+    offset,
+    totalCount: aggregateRows[0]?.totalCount,
+  });
 };
 
 export const getCurrentUserInteractiveStory = async ({ userId, storyId }) => {
