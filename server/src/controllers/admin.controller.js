@@ -9,13 +9,13 @@ import {
   updateAdminUserCredit,
 } from '../services/admin.service.js';
 
-export const getAdminStories = asyncHandler(async (_req, res) => {
-  const stories = await listAdminStories();
+export const getAdminStories = asyncHandler(async (req, res) => {
+  const stories = await listAdminStories(req.validated.query);
   return res.status(200).json(new ApiResponse(200, stories, 'Stories fetched'));
 });
 
-export const getAdminUsers = asyncHandler(async (_req, res) => {
-  const users = await listAdminUsers();
+export const getAdminUsers = asyncHandler(async (req, res) => {
+  const users = await listAdminUsers(req.validated.query);
   return res.status(200).json(new ApiResponse(200, users, 'Users fetched'));
 });
 

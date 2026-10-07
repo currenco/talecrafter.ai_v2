@@ -58,6 +58,7 @@ const StoryItemCard = ({
   const [resuming, setResuming] = useState(false);
   const router = useRouter();
   const isDraft = story.status === "draft";
+  const isInteractive = story.kind === "interactive";
   const chapterImages =
     story.output?.chapters?.filter((chapter) => Boolean(chapter.imageUrl))
       .length ?? 0;
@@ -140,12 +141,25 @@ const StoryItemCard = ({
           </p>
           {isDraft && (
             <p className="text-xs text-[#c3cbd4]/70">
-              Draft - {completedImages}/{totalImages} images
+              {isInteractive
+                ? `Draft - ${story.output?.chapters?.length ?? 0} pages`
+                : `Draft - ${completedImages}/${totalImages} images`}
             </p>
           )}
         </div>
         <div className="flex shrink-0 gap-1">
-          {isDraft && (
+          {isDraft && isInteractive ? (
+            <Button
+              as={Link}
+              href={`/interactive-story/${story.storyId}`}
+              className="text-tiny text-white bg-black/40"
+              variant="flat"
+              radius="full"
+              size="sm"
+            >
+              Continue
+            </Button>
+          ) : isDraft ? (
             <Button
               onClick={handleResume}
               isLoading={resuming}
@@ -157,7 +171,7 @@ const StoryItemCard = ({
             >
               Resume
             </Button>
-          )}
+          ) : null}
           {canDelete ? (
             <Button
               onClick={handleDelete}
