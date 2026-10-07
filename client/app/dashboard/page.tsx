@@ -1,7 +1,6 @@
 "use client";
 import DashboardHeader from "./_components/DashboardHeader";
 import UserStoryList from "./_components/UserStoryList";
-import InteractiveStorySections from "./_components/InteractiveStorySections";
 import { motion } from "framer-motion";
 const MotionDiv = motion.div;
 
@@ -31,15 +30,6 @@ const Dashboard = () => {
         animate="show"
         variants={fadeUp}
         transition={{ delay: 0.08, duration: 0.5 }}
-        className="relative"
-      >
-        <InteractiveStorySections />
-      </MotionDiv>
-      <MotionDiv
-        initial="hidden"
-        animate="show"
-        variants={fadeUp}
-        transition={{ delay: 0.12, duration: 0.5 }}
         className="relative"
       >
         <UserStoryList />

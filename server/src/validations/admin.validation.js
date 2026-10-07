@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { nonEmptyString } from './common.validation.js';
+import { nonEmptyString, paginationQuerySchema } from './common.validation.js';
+
+export const adminListSchema = z.object({
+  body: z.object({}).optional(),
+  params: z.object({}).optional(),
+  query: paginationQuerySchema,
+});
 
 export const adminBackfillSlugsSchema = z.object({
   body: z

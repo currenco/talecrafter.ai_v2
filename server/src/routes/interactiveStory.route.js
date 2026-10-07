@@ -15,6 +15,7 @@ import {
   completeInteractiveStoryPathSchema,
   createInteractiveStorySchema,
   interactiveStoryIdParamSchema,
+  interactiveStoryListSchema,
 } from '../validations/interactiveStory.validation.js';
 
 const router = Router();
@@ -27,7 +28,11 @@ router.post(
   validate(createInteractiveStorySchema),
   createInteractiveStory
 );
-router.get('/me', getCurrentUserInteractiveStories);
+router.get(
+  '/me',
+  validate(interactiveStoryListSchema),
+  getCurrentUserInteractiveStories
+);
 router.get(
   '/:storyId',
   validate(interactiveStoryIdParamSchema),
