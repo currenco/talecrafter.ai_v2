@@ -35,18 +35,18 @@ type HeaderLogoProps = { onClick: () => void };
 const HeaderLogo = ({ onClick }: HeaderLogoProps) => (
   <Link
     href="/"
-    className="relative z-20 flex items-center gap-2 rounded-full px-2 py-1"
+    className="relative z-20 flex items-center gap-2 rounded-full px-1.5 py-0.5"
     onClick={onClick}
   >
     <Image
-      src="/logo.png"
+      src="/talecrafter-symbol.png"
       alt="TaleCrafter AI"
-      width={42}
-      height={42}
-      className="h-11 w-11 rounded-full border border-[#d8c69e]/25 object-cover shadow-[0_8px_24px_rgba(0,0,0,0.28)]"
+      width={36}
+      height={36}
+      className="h-9 w-9 object-contain drop-shadow-[0_8px_18px_rgba(0,0,0,0.3)]"
       priority
     />
-    <span className="tc-title-gradient hidden text-xl font-bold tracking-tight sm:block">
+    <span className="tc-title-gradient hidden font-serif text-xl font-semibold tracking-tight sm:block">
       TaleCrafterAI
     </span>
   </Link>
@@ -113,9 +113,9 @@ const Header = () => {
         href="/buy-credits"
         aria-label={`${userDetail?.credit ?? 0} credits. Manage credits`}
         title="Credits"
-        className="flex h-9 min-w-12 items-center justify-center gap-1.5 rounded-full border border-[#d8c69e]/20 bg-[#d8c69e]/10 px-2.5 text-sm font-semibold text-[#f1eadb] hover:bg-[#d8c69e]/15"
+        className="flex h-8 min-w-11 items-center justify-center gap-1.5 rounded-full border border-[#d8c69e]/20 bg-[#d8c69e]/10 px-2 text-xs font-semibold text-[#f1eadb] hover:bg-[#d8c69e]/15"
       >
-        <Coins size={17} aria-hidden="true" />
+        <Coins size={16} aria-hidden="true" />
         <span>{userDetail?.credit ?? "-"}</span>
       </Link>
       <button
@@ -124,17 +124,17 @@ const Header = () => {
         aria-haspopup="dialog"
         aria-expanded={isAccountOpen}
         title="Account"
-        className="rounded-full p-2 text-[#c3cbd4] hover:bg-white/10"
+        className="rounded-full p-1.5 text-[#c3cbd4] hover:bg-white/10"
         onClick={openAccountModal}
       >
-        <UserRound size={19} aria-hidden="true" />
+        <UserRound size={18} aria-hidden="true" />
       </button>
     </div>
   );
 
   return (
     <>
-      <Navbar className={isHome ? "fixed px-3 py-4" : "px-3 py-2"}>
+      <Navbar className={isHome ? "fixed px-3 py-3" : "px-3 py-1.5"}>
         <NavBody className="border-[#d8c69e]/15 bg-[#0b1522]/90">
           <HeaderLogo onClick={closeMobileMenu} />
           <NavItems items={navItems} />
@@ -180,12 +180,12 @@ const Header = () => {
         <MobileNav className="border-[#d8c69e]/15 bg-[#0b1522]">
           <MobileNavHeader>
             <HeaderLogo onClick={closeMobileMenu} />
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {isAuthenticated && accountControls}
               <button
                 type="button"
                 aria-label="Toggle navigation menu"
-                className="rounded-full border border-[#d8c69e]/20 p-2"
+                className="rounded-full border border-[#d8c69e]/20 p-1.5"
                 onClick={() => setIsMobileMenuOpen((value) => !value)}
               >
                 <MobileNavToggle isOpen={isMobileMenuOpen} />

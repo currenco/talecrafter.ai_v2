@@ -4,7 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { NextUIProvider } from "@nextui-org/react";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { getAccessToken, useUser } from "@/lib/neon-auth/client";
+import {
+  AuthSessionExpiredError,
+  getAccessToken,
+  useUser,
+} from "@/lib/neon-auth/client";
 import {
   UserDetailContext,
   type UserDetail,
@@ -12,6 +16,7 @@ import {
 import { apiFetch } from "@/lib/api-client";
 
 const PROFILE_CACHE_TTL_MS = 5 * 60_000;
+const SESSION_CHECK_INTERVAL_MS = 60_000;
 const profileCache = new Map<
   string,
   { value: UserDetail; expiresAt: number }
@@ -99,6 +104,37 @@ const Provider = ({ children }: { children: React.ReactNode }) => {
       ignore = true;
     };
   }, [authUserId, isLoaded, setUserDetail]);
+
+  useEffect(() => {
+    if (!isLoaded || !authUserId) return;
+
+    const validateSession = async () => {
+      try {
+        await getAccessToken();
+      } catch (error) {
+        if (!(error instanceof AuthSessionExpiredError)) {
+          console.warn("Unable to refresh the current session", error);
+        }
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") void validateSession();
+    };
+
+    const interval = window.setInterval(
+      () => void validateSession(),
+      SESSION_CHECK_INTERVAL_MS,
+    );
+    window.addEventListener("online", validateSession);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("online", validateSession);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [authUserId, isLoaded]);
 
   return (
     <UserDetailContext.Provider

@@ -7,6 +7,7 @@ import StoryDemoFrame from "../(components)/StoryDemoFrame";
 import {
   ArrowRight,
   BookOpen,
+  Clapperboard,
   Download,
   GitBranch,
   GraduationCap,
@@ -92,6 +93,12 @@ const audiences = [
     title: "Educators and families",
     description:
       "Shape stories for a reader's age and interests, making reading sessions more personal, visual, and participatory.",
+  },
+  {
+    icon: Clapperboard,
+    title: "YouTubers and video creators",
+    description:
+      "Develop a reusable story foundation for scene planning, consistent characters, visual prompts, and upcoming short-form video production tools.",
   },
   {
     icon: Users,
@@ -185,6 +192,13 @@ const About = () => {
               premise and creative boundaries; the platform helps transform them
               into a complete visual reading experience. It is designed to make
               starting easier while leaving the important decisions in your hands.
+            </p>
+            <p>
+              The next step is a connected production workflow for story creators,
+              YouTubers, educators, and short-form video teams. The upcoming update
+              will turn one idea into reusable character definitions, exact scene
+              breakdowns, consistent image prompts, generated scene visuals, and
+              eventually scene-level video clips—all inside the same project.
             </p>
           </div>
         </MotionDiv>

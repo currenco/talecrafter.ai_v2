@@ -45,7 +45,8 @@ export const getUserByProfileId = async profileId => {
 };
 
 export const getCurrentAuthUser = async userId => {
-  if (!userId) throw new ApiError(401, 'Unauthorized');
+  if (!userId)
+    throw new ApiError(401, 'Unauthorized', [{ code: 'AUTH_SESSION_INVALID' }]);
   const result = await db.execute(sql`
     SELECT id, email, name, image
     FROM neon_auth."user"
@@ -53,7 +54,10 @@ export const getCurrentAuthUser = async userId => {
     LIMIT 1
   `);
   const user = result.rows?.[0];
-  if (!user) throw new ApiError(401, 'Authenticated user no longer exists');
+  if (!user)
+    throw new ApiError(401, 'Authenticated user no longer exists', [
+      { code: 'AUTH_SESSION_INVALID' },
+    ]);
   return user;
 };
 

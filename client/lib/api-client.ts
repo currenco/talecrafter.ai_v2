@@ -1,3 +1,5 @@
+import { refreshAccessToken } from '@/lib/neon-auth/client';
+
 const API_BASE_URL = '/api/v1';
 const inFlightGetRequests = new Map<string, Promise<unknown>>();
 
@@ -9,9 +11,23 @@ type ApiRequestOptions = RequestInit & {
 export type ApiResponse<T> = {
   statusCode: number;
   data: T;
+  errors?: Array<{ code?: string }>;
   message: string;
   success: boolean;
 };
+
+type ApiErrorResponse = {
+  errors?: Array<{ code?: string }>;
+  message?: string;
+  success?: false;
+};
+
+const AUTH_FAILURE_MESSAGES = new Set([
+  'Unauthorized',
+  'Invalid or expired access token',
+  'Access token has no subject',
+  'Authenticated user no longer exists',
+]);
 
 export class ApiClientError extends Error {
   constructor(
@@ -34,20 +50,38 @@ export const apiFetch = async <T>(
   if (pending) return pending as Promise<T>;
 
   const request = (async () => {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      ...init,
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
-        ...headers,
-      },
-    });
+    const performRequest = async (accessToken?: string | null) => {
+      const response = await fetch(`${API_BASE_URL}${path}`, {
+        ...init,
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+          ...headers,
+        },
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | ApiResponse<T>
+        | ApiErrorResponse
+        | null;
+      return { response, payload };
+    };
 
-    const payload = (await response.json().catch(() => null)) as
-      | ApiResponse<T>
-      | null;
+    let result = await performRequest(token);
+    const isAccessTokenFailure =
+      Boolean(token) &&
+      result.response.status === 401 &&
+      (result.payload?.errors?.some(
+        error => error.code === 'AUTH_SESSION_INVALID'
+      ) || AUTH_FAILURE_MESSAGES.has(result.payload?.message ?? ''));
+
+    if (isAccessTokenFailure) {
+      const refreshedToken = await refreshAccessToken();
+      result = await performRequest(refreshedToken);
+    }
+
+    const { response, payload } = result;
 
     if (!response.ok || !payload?.success) {
       throw new ApiClientError(
@@ -56,7 +90,7 @@ export const apiFetch = async <T>(
       );
     }
 
-    return payload.data;
+    return (payload as ApiResponse<T>).data;
   })();
 
   if (requestKey) inFlightGetRequests.set(requestKey, request);

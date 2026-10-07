@@ -80,7 +80,7 @@ export const createRazorpayOrder = async ({ authUserId, planId }) => {
       message: error?.error?.description ?? error?.message,
     });
     if (error?.statusCode === 401) {
-      throw new ApiError(401, 'Payment provider authentication failed');
+      throw new ApiError(503, 'Secure checkout is temporarily unavailable');
     }
     throw new ApiError(500, 'Unable to create payment order');
   }

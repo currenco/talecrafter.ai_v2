@@ -6,15 +6,15 @@
 
 .home h1,
 .home h2 {
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 400;
-  letter-spacing: -0.035em;
+  font-family: var(--font-app), ui-sans-serif, system-ui, sans-serif;
   text-wrap: balance;
 }
 
 .hero {
   isolation: isolate;
-  background: radial-gradient(ellipse at 50% 28%, #263b52 0%, #142336 42%, var(--book-ink) 78%);
+  background:
+    radial-gradient(circle at 50% 42%, rgb(58 79 102 / 48%) 0%, transparent 38%),
+    radial-gradient(ellipse at 50% 15%, #24384e 0%, #142336 44%, var(--book-ink) 80%);
   padding-top: 8rem;
   padding-bottom: 6rem;
 }
@@ -26,6 +26,22 @@
   pointer-events: none;
   background: linear-gradient(115deg, transparent 20%, rgb(190 204 218 / 5%) 42%, transparent 64%);
   mask-image: linear-gradient(black, transparent 95%);
+}
+
+.heroHalo {
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: 45%;
+  width: min(74vw, 68rem);
+  aspect-ratio: 1;
+  pointer-events: none;
+  border: 1px solid rgb(216 198 158 / 8%);
+  border-radius: 999px;
+  box-shadow:
+    0 0 0 8rem rgb(216 198 158 / 1.5%),
+    0 0 0 16rem rgb(216 198 158 / 1%);
+  transform: translate(-50%, -50%);
 }
 
 @media (max-width: 1023px) {

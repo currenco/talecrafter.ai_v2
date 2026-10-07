@@ -7,6 +7,9 @@ import ApiError from '../utils/ApiError.js';
 let cachedJwks;
 let cachedJwksUrl;
 
+const invalidSession = message =>
+  new ApiError(401, message, [{ code: 'AUTH_SESSION_INVALID' }]);
+
 const getAuthConfig = () => {
   const baseUrl = process.env.NEON_AUTH_BASE_URL;
   const jwksUrl = process.env.NEON_AUTH_JWKS_URL;
@@ -33,7 +36,7 @@ export const verifyAccessToken = async token => {
     audience: issuer,
   });
 
-  if (!payload.sub) throw new ApiError(401, 'Access token has no subject');
+  if (!payload.sub) throw invalidSession('Access token has no subject');
   return payload;
 };
 
@@ -42,7 +45,7 @@ export const requireAuth = async (req, _res, next) => {
   const [scheme, token, extra] = authorization.trim().split(/\s+/);
 
   if (scheme?.toLowerCase() !== 'bearer' || !token || extra) {
-    return next(new ApiError(401, 'Unauthorized'));
+    return next(invalidSession('Unauthorized'));
   }
 
   try {
@@ -51,7 +54,7 @@ export const requireAuth = async (req, _res, next) => {
     return next();
   } catch (error) {
     if (error instanceof ApiError) return next(error);
-    return next(new ApiError(401, 'Invalid or expired access token'));
+    return next(invalidSession('Invalid or expired access token'));
   }
 };
 

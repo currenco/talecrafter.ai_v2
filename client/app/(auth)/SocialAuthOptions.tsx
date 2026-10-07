@@ -24,9 +24,8 @@ export default function SocialAuthOptions() {
         </a>
       </div>
 
-      <p className="mt-4 rounded-md border border-[#d8c69e]/20 bg-[#d8c69e]/[0.08] px-3 py-2.5 text-sm leading-6 text-[#c3cbd4]/80">
-        To generate content, continue with GitHub. Connect your Pollinations
-        key on the Create Story page.
+      <p className="mt-4 rounded-md border border-[#d8c69e]/20 bg-[#d8c69e]/[0.08] px-3 py-2.5 text-sm leading-6 text-[#c3cbd4]/80 text-center">
+        To generate content, continue with GitHub.
       </p>
     </div>
   );

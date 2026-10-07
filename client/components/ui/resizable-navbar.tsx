@@ -90,7 +90,7 @@ export const NavBody = ({ children, className, visible }: NavBodyProps) => {
       }}
 
       className={cn(
-        "relative z-[60] mx-auto hidden w-full max-w-7xl flex-row items-center justify-between self-start rounded-full border border-[#d8c69e]/15 bg-[#0b1522]/95 px-4 py-2 shadow-[0_10px_35px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-colors duration-200 lg:flex",
+        "relative z-[60] mx-auto hidden w-full max-w-7xl flex-row items-center justify-between self-start rounded-full border border-[#d8c69e]/15 bg-[#0b1522]/95 px-3 py-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-colors duration-200 lg:flex",
         visible && "bg-[#0b1522]/85 shadow-[0_18px_60px_rgba(0,0,0,0.34)]",
         className,
       )}
@@ -145,7 +145,7 @@ export const MobileNav = ({ children, className, visible }: MobileNavProps) => {
         ease: "easeOut",
       }}
       className={cn(
-        "relative z-50 mx-auto flex w-full min-w-0 flex-col items-center justify-between rounded-full border border-[#d8c69e]/15 bg-[#0b1522] px-3 py-2 shadow-[0_10px_35px_rgba(0,0,0,0.28)] lg:hidden",
+        "relative z-50 mx-auto flex w-full min-w-0 flex-col items-center justify-between rounded-full border border-[#d8c69e]/15 bg-[#0b1522] px-2.5 py-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.28)] lg:hidden",
         visible && "shadow-[0_18px_60px_rgba(0,0,0,0.34)]",
         className,
       )}
@@ -184,7 +184,7 @@ export const MobileNavMenu = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className={cn(
-            "absolute inset-x-0 top-16 z-50 flex w-full flex-col items-start justify-start gap-4 rounded-2xl border border-[#d8c69e]/15 bg-[#111d2b] px-4 py-8 shadow-[0_24px_70px_rgba(0,0,0,0.4)]",
+            "absolute inset-x-0 top-14 z-50 flex w-full flex-col items-start justify-start gap-4 rounded-2xl border border-[#d8c69e]/15 bg-[#111d2b] px-4 py-8 shadow-[0_24px_70px_rgba(0,0,0,0.4)]",
             className,
           )}
         >
@@ -226,7 +226,7 @@ export const NavbarButton = ({
   React.ComponentPropsWithoutRef<"a"> | React.ComponentPropsWithoutRef<"button">
 )) => {
   const baseStyles =
-    "relative inline-block cursor-pointer rounded-full px-4 py-2 text-center text-sm font-bold transition duration-200 hover:-translate-y-0.5";
+    "relative inline-block cursor-pointer rounded-full px-4 py-1.5 text-center text-sm font-bold transition duration-200 hover:-translate-y-0.5";
 
   const variantStyles = {
     secondary: "bg-transparent text-[#c3cbd4] shadow-none",
