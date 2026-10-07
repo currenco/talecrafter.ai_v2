@@ -17,6 +17,7 @@ import {
   Upload,
 } from "lucide-react";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
+import DeferredVideo from "./DeferredVideo";
 import ScrollStorySequence from "./ScrollStorySequence";
 import StoryDemoFrame from "./StoryDemoFrame";
 import styles from "./home-theme.module.css";
@@ -195,8 +196,8 @@ const Hero = () => {
       <section className={`${styles.hero} section-spacing relative flex min-h-[100svh] w-full flex-col justify-center px-5 md:px-16 lg:px-32 xl:px-44`}>
         <div aria-hidden="true" className={styles.heroLight} />
 
-        <div className="relative mx-auto grid w-full max-w-7xl items-center gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:gap-8 xl:gap-14">
-          <div className="relative z-20 text-center lg:text-left">
+        <div className="relative mx-auto grid w-full min-w-0 max-w-7xl items-center gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:gap-8 xl:gap-14">
+          <div className="relative z-20 min-w-0 text-center lg:text-left">
             <MotionDiv
               initial="hidden"
               animate="show"
@@ -204,13 +205,13 @@ const Hero = () => {
               variants={fadeUp}
               className="relative"
             >
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8c69e]">
+              <p className="mx-auto max-w-xs text-xs font-semibold uppercase tracking-[0.16em] text-[#d8c69e] sm:max-w-none sm:text-sm lg:mx-0">
                 Illustrated stories from a single idea
               </p>
 
               <h1 className="mt-6 text-4xl font-medium leading-tight tracking-tight text-[#f1eadb] sm:text-5xl md:text-6xl lg:text-[4rem] xl:text-7xl">
                 TaleCrafter AI
-                <span className="mt-5 block text-3xl sm:text-4xl md:text-5xl lg:text-[3.15rem] xl:text-6xl">
+                <span className="mx-auto mt-5 block max-w-[19ch] text-3xl sm:text-4xl md:text-5xl lg:mx-0 lg:text-[3.15rem] xl:text-6xl">
                   Make a story worth reading together
                 </span>
               </h1>
@@ -251,7 +252,7 @@ const Hero = () => {
               delay: 0.18,
               ease: [0.16, 1, 0.3, 1],
             }}
-            className="relative z-30 ml-auto flex min-h-[290px] w-full max-w-[940px] items-center justify-end sm:min-h-[390px] lg:min-h-[620px]"
+            className="relative z-30 mx-auto flex min-h-[260px] min-w-0 w-full max-w-[940px] items-center justify-center sm:min-h-[390px] lg:ml-auto lg:min-h-[620px] lg:justify-end"
           >
             <div
               aria-hidden="true"
@@ -262,9 +263,8 @@ const Hero = () => {
               alt="An enchanted illustrated storybook opening into a miniature fantasy world"
               width={1678}
               height={937}
-              sizes="(max-width: 1023px) 110vw, 64vw"
-              className="pointer-events-none relative z-40 h-auto w-[112%] max-w-none select-none sm:w-[120%] lg:w-[135%]"
-              unoptimized
+              sizes="(max-width: 639px) 100vw, (max-width: 1023px) 110vw, 64vw"
+              className="pointer-events-none relative z-40 h-auto w-full max-w-full select-none sm:w-[110%] sm:max-w-none lg:w-[135%]"
               priority
             />
           </MotionDiv>
@@ -323,7 +323,6 @@ const Hero = () => {
             <StoryDemoFrame
               alt="TaleCrafter reader showing two illustrated story pages"
               sizes="(max-width: 1024px) 100vw, 58vw"
-              priority
             />
           </MotionDiv>
         </div>
@@ -429,18 +428,12 @@ const Hero = () => {
               className="relative mx-auto w-full max-w-xl overflow-hidden rounded-[2rem] border border-[#d8c69e]/20 bg-[#111d2b] p-2 shadow-[0_30px_90px_rgba(0,0,0,0.4)]"
             >
               <div className="relative aspect-[4/5] overflow-hidden rounded-[1.55rem]">
-                <video
-                  className="h-full w-full object-cover"
-                  autoPlay={!prefersReducedMotion}
-                  muted
-                  loop={!prefersReducedMotion}
-                  playsInline
-                  preload="metadata"
+                <DeferredVideo
+                  src="/videos/animo-cover-ring-vertical-1350p.mp4"
                   poster="/genre/fantasy.webp"
-                  aria-label="A cinematic TaleCrafter storybook animation"
-                >
-                  <source src="/videos/animo-cover-ring-vertical-1350p.mp4" type="video/mp4" />
-                </video>
+                  label="A cinematic TaleCrafter storybook animation"
+                  className="h-full w-full object-cover"
+                />
                 <div
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0b1522]/45 via-transparent to-[#d8c69e]/[0.05]"
@@ -461,18 +454,12 @@ const Hero = () => {
               className="relative mx-auto w-full max-w-xl overflow-hidden rounded-[2rem] border border-[#d8c69e]/20 bg-[#111d2b] p-2 shadow-[0_30px_90px_rgba(0,0,0,0.4)]"
             >
               <div className="relative aspect-[4/5] overflow-hidden rounded-[1.55rem]">
-                <video
-                  className="h-full w-full object-cover"
-                  autoPlay={!prefersReducedMotion}
-                  muted
-                  loop={!prefersReducedMotion}
-                  playsInline
-                  preload="metadata"
+                <DeferredVideo
+                  src="/videos/art-style-showcase.mp4"
                   poster="/art-style/paper-cut.webp"
-                  aria-label="A cinematic preview of TaleCrafter illustration styles"
-                >
-                  <source src="/videos/art-style-showcase.mp4" type="video/mp4" />
-                </video>
+                  label="A cinematic preview of TaleCrafter illustration styles"
+                  className="h-full w-full object-cover"
+                />
                 <div
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0b1522]/45 via-transparent to-[#d8c69e]/[0.05]"

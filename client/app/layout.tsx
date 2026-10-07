@@ -2,13 +2,11 @@ import "./globals.css";
 import Provider from "./Provider";
 import Header from "./(components)/Header";
 import Footer from "./(components)/Footer";
-import { Inter, Geist } from "next/font/google";
+import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
-
-const inter = Inter({ subsets: ["latin"] });
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   verification: {
@@ -23,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={cn("dark", "font-sans", geist.variable)}>
-      <body className={inter.className}>
+      <body className={geist.className}>
         <Provider>
           <Header />
           {children}

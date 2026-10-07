@@ -10,7 +10,6 @@ import {
   type UserDetail,
 } from "./_context/UserDetailContext";
 import { apiFetch } from "@/lib/api-client";
-import SmoothScroll from "./(components)/SmoothScroll";
 
 const PROFILE_CACHE_TTL_MS = 5 * 60_000;
 const profileCache = new Map<
@@ -112,7 +111,6 @@ const Provider = ({ children }: { children: React.ReactNode }) => {
       }}
     >
       <NextUIProvider>
-        <SmoothScroll />
         {children}
         <ToastContainer
           theme="dark"
