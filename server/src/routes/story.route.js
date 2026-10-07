@@ -15,6 +15,7 @@ import { validate } from '../middlewares/validate.middleware.js';
 import { generationRateLimit } from '../middlewares/rateLimit.middleware.js';
 import {
   createStorySchema,
+  currentUserStoriesQuerySchema,
   relatedStoriesQuerySchema,
   storyIdParamSchema,
 } from '../validations/story.validation.js';
@@ -29,7 +30,12 @@ router.post(
   validate(createStorySchema),
   createStory
 );
-router.get('/me', requireAuth, getCurrentUserStories);
+router.get(
+  '/me',
+  requireAuth,
+  validate(currentUserStoriesQuerySchema),
+  getCurrentUserStories
+);
 router.get(
   '/me/:storyId/status',
   requireAuth,

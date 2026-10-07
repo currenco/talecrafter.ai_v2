@@ -26,6 +26,14 @@ export const publicStoriesQuerySchema = z.object({
   query: paginationQuerySchema,
 });
 
+export const currentUserStoriesQuerySchema = z.object({
+  body: z.object({}).optional(),
+  params: z.object({}).optional(),
+  query: paginationQuerySchema.extend({
+    status: z.enum(['draft', 'published']).optional(),
+  }),
+});
+
 export const relatedStoriesQuerySchema = z.object({
   body: z.object({}).optional(),
   params: z.object({ storyId: nonEmptyString('Story ID') }),

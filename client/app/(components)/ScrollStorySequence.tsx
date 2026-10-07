@@ -1,16 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { motion, useReducedMotion, useScroll } from "framer-motion";
 
 // Frames 241-300 only extend the final open-book hold with minimal movement.
 const FRAME_COUNT = 240;
+const FRAME_WIDTH = 1920;
+const FRAME_HEIGHT = 1080;
+const STORY_PROP_BOUNDS = {
+  left: 1650,
+  top: 650,
+  width: 320,
+  height: 320,
+};
 const frameUrl = (index: number) =>
   `/frames/ezgif-frame-${String(index + 1).padStart(3, "0")}.jpg`;
 
 export default function ScrollStorySequence() {
   const sectionRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const storyPropRef = useRef<HTMLImageElement>(null);
   const reducedMotion = useReducedMotion();
   const [shouldLoadFrames, setShouldLoadFrames] = useState(false);
   const { scrollYProgress } = useScroll({
@@ -37,6 +47,46 @@ export default function ScrollStorySequence() {
     observer.observe(section);
     return () => observer.disconnect();
   }, [reducedMotion, shouldLoadFrames]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const storyProp = storyPropRef.current;
+    if (!canvas || !storyProp) return;
+
+    const positionStoryProp = () => {
+      const rect = canvas.getBoundingClientRect();
+      const scale = Math.max(
+        rect.width / FRAME_WIDTH,
+        rect.height / FRAME_HEIGHT,
+      );
+      const renderedWidth = FRAME_WIDTH * scale;
+      const renderedHeight = FRAME_HEIGHT * scale;
+      const offsetX = (rect.width - renderedWidth) / 2;
+      const offsetY = (rect.height - renderedHeight) / 2;
+      const left = offsetX + STORY_PROP_BOUNDS.left * scale;
+      const top = offsetY + STORY_PROP_BOUNDS.top * scale;
+      const width = STORY_PROP_BOUNDS.width * scale;
+      const height = STORY_PROP_BOUNDS.height * scale;
+      const outsideViewport =
+        left >= rect.width ||
+        top >= rect.height ||
+        left + width <= 0 ||
+        top + height <= 0;
+
+      storyProp.style.display = outsideViewport ? "none" : "block";
+      storyProp.style.opacity = outsideViewport ? "0" : "1";
+      storyProp.style.left = `${left}px`;
+      storyProp.style.top = `${top}px`;
+      storyProp.style.width = `${width}px`;
+      storyProp.style.height = `${height}px`;
+    };
+
+    const observer = new window.ResizeObserver(positionStoryProp);
+    observer.observe(canvas);
+    positionStoryProp();
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -209,15 +259,25 @@ export default function ScrollStorySequence() {
           style={{ backgroundImage: `url('${frameUrl(0)}')` }}
         />
         <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 h-full w-full opacity-0 motion-reduce:hidden" />
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-[#0b1522] to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0b1522] to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-8 flex items-center justify-between px-6 text-[10px] font-medium uppercase tracking-[0.24em] text-[#f1eadb]/80 sm:bottom-10 sm:px-12 sm:text-xs">
+        <Image
+          ref={storyPropRef}
+          aria-hidden="true"
+          alt=""
+          src="/decor/story-inkwell-quill.webp"
+          width={720}
+          height={720}
+          priority
+          className="pointer-events-none absolute z-[1] origin-center -scale-x-100 object-contain opacity-0 drop-shadow-[0_18px_24px_rgba(2,8,17,0.34)]"
+        />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 z-[2] h-20 bg-gradient-to-b from-[#0b1522] to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-32 bg-gradient-to-t from-[#0b1522] to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-8 z-[3] flex items-center justify-between px-6 text-[10px] font-medium uppercase tracking-[0.24em] text-[#f1eadb]/80 sm:bottom-10 sm:px-12 sm:text-xs">
           <span>A world within every story</span>
           <span className="motion-reduce:hidden">Scroll to unfold <span aria-hidden="true">↓</span></span>
         </div>
         <motion.div
           aria-hidden="true"
-          className="absolute inset-x-0 bottom-0 h-px origin-left bg-[#d8c69e]/70 motion-reduce:hidden"
+          className="absolute inset-x-0 bottom-0 z-[3] h-px origin-left bg-[#d8c69e]/70 motion-reduce:hidden"
           style={{ scaleX: scrollYProgress }}
         />
       </div>

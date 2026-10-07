@@ -26,6 +26,7 @@ export const getCurrentUserInteractiveStories = asyncHandler(
   async (req, res) => {
     const stories = await listCurrentUserInteractiveStories({
       userId: req.auth.userId,
+      ...req.validated.query,
     });
 
     return res

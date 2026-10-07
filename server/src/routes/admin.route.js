@@ -11,6 +11,7 @@ import { requireAdmin, requireAuth } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import {
   adminBackfillSlugsSchema,
+  adminListSchema,
   adminStoryIdParamSchema,
   adminUpdateUserCreditSchema,
   adminUserIdParamSchema,
@@ -20,8 +21,8 @@ const router = Router();
 
 router.use(requireAuth, requireAdmin);
 
-router.get('/stories', getAdminStories);
-router.get('/users', getAdminUsers);
+router.get('/stories', validate(adminListSchema), getAdminStories);
+router.get('/users', validate(adminListSchema), getAdminUsers);
 router.post(
   '/stories/backfill-slugs',
   validate(adminBackfillSlugsSchema),

@@ -1,53 +1,100 @@
 import { randomUUID } from 'node:crypto';
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { asc, desc, eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   CreditAccounts,
   Payments,
   Stories,
-  StoryVersions,
   UserProfiles,
 } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
+import {
+  createPaginatedResult,
+  normalizePagination,
+} from '../utils/pagination.js';
 import { deleteStoryAssets, deleteUserAssets } from './asset.service.js';
 
-export const listAdminStories = async () =>
-  db
-    .select({
-      id: Stories.id,
-      storyId: Stories.storyId,
-      slug: Stories.slug,
-      storySubject: Stories.storySubject,
-      storyType: Stories.storyType,
-      ageGroup: Stories.ageGroup,
-      imageStyle: Stories.imageStyle,
-      coverImage: Stories.coverImage,
-      output: StoryVersions.output,
-      userName: UserProfiles.userName,
-      userImage: UserProfiles.userImage,
-      userEmail: UserProfiles.userEmail,
-    })
-    .from(Stories)
-    .innerJoin(UserProfiles, eq(UserProfiles.id, Stories.ownerId))
-    .innerJoin(
-      StoryVersions,
-      and(eq(StoryVersions.storyId, Stories.id), eq(StoryVersions.version, 1))
-    )
-    .orderBy(asc(Stories.createdAt));
+export const listAdminStories = async query => {
+  const { limit, offset } = normalizePagination(query);
+  const [items, aggregateRows, storyTypeRows] = await Promise.all([
+    db
+      .select({
+        id: Stories.id,
+        storyId: Stories.storyId,
+        slug: Stories.slug,
+        title: Stories.title,
+        storySubject: Stories.storySubject,
+        storyType: Stories.storyType,
+        ageGroup: Stories.ageGroup,
+        imageStyle: Stories.imageStyle,
+        coverImage: Stories.coverImage,
+        userName: UserProfiles.userName,
+        userImage: UserProfiles.userImage,
+        userEmail: UserProfiles.userEmail,
+      })
+      .from(Stories)
+      .innerJoin(UserProfiles, eq(UserProfiles.id, Stories.ownerId))
+      .orderBy(desc(Stories.createdAt), desc(Stories.id))
+      .limit(limit)
+      .offset(offset),
+    db.select({ totalCount: sql`count(*)` }).from(Stories),
+    db
+      .selectDistinct({ storyType: Stories.storyType })
+      .from(Stories)
+      .orderBy(asc(Stories.storyType)),
+  ]);
 
-export const listAdminUsers = async () =>
-  db
-    .select({
-      id: UserProfiles.id,
-      userEmail: UserProfiles.userEmail,
-      userName: UserProfiles.userName,
-      userImage: UserProfiles.userImage,
-      role: UserProfiles.role,
-      credit: CreditAccounts.balance,
-    })
-    .from(UserProfiles)
-    .innerJoin(CreditAccounts, eq(CreditAccounts.userId, UserProfiles.id))
-    .orderBy(desc(UserProfiles.createdAt));
+  return {
+    ...createPaginatedResult({
+      items,
+      limit,
+      offset,
+      totalCount: aggregateRows[0]?.totalCount,
+    }),
+    summary: {
+      storyTypes: storyTypeRows.map(row => row.storyType).filter(Boolean),
+    },
+  };
+};
+
+export const listAdminUsers = async query => {
+  const { limit, offset } = normalizePagination(query);
+  const [items, aggregateRows] = await Promise.all([
+    db
+      .select({
+        id: UserProfiles.id,
+        userEmail: UserProfiles.userEmail,
+        userName: UserProfiles.userName,
+        userImage: UserProfiles.userImage,
+        role: UserProfiles.role,
+        credit: CreditAccounts.balance,
+      })
+      .from(UserProfiles)
+      .innerJoin(CreditAccounts, eq(CreditAccounts.userId, UserProfiles.id))
+      .orderBy(desc(UserProfiles.createdAt), desc(UserProfiles.id))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({
+        totalCount: sql`count(*)`,
+        totalCredits: sql`coalesce(sum(${CreditAccounts.balance}), 0)`,
+      })
+      .from(UserProfiles)
+      .innerJoin(CreditAccounts, eq(CreditAccounts.userId, UserProfiles.id)),
+  ]);
+
+  return {
+    ...createPaginatedResult({
+      items,
+      limit,
+      offset,
+      totalCount: aggregateRows[0]?.totalCount,
+    }),
+    summary: {
+      totalCredits: Number(aggregateRows[0]?.totalCredits ?? 0),
+    },
+  };
+};
 
 export const deleteAdminStory = async storyId => {
   const safeStoryId = String(storyId ?? '').trim();
