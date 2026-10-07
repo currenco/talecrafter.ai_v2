@@ -16,6 +16,7 @@ export type StoryItem = {
   id: number | string;
   storyId: string;
   slug?: string | null;
+  kind?: "classic" | "interactive";
   storySubject?: string | null;
   storyType?: string | null;
   ageGroup?: string | null;
