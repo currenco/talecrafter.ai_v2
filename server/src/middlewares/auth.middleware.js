@@ -40,12 +40,12 @@ export const verifyAccessToken = async token => {
   return payload;
 };
 
-export const requireAuth = async (req, _res, next) => {
+export const attachAuthIdentity = async (req, _res, next) => {
   const authorization = req.get('authorization') ?? '';
   const [scheme, token, extra] = authorization.trim().split(/\s+/);
 
   if (scheme?.toLowerCase() !== 'bearer' || !token || extra) {
-    return next(invalidSession('Unauthorized'));
+    return next();
   }
 
   try {
@@ -53,9 +53,21 @@ export const requireAuth = async (req, _res, next) => {
     req.auth = { userId: String(claims.sub), claims };
     return next();
   } catch (error) {
-    if (error instanceof ApiError) return next(error);
-    return next(invalidSession('Invalid or expired access token'));
+    req.authError =
+      error instanceof ApiError
+        ? error
+        : invalidSession('Invalid or expired access token');
+    return next();
   }
+};
+
+export const requireAuth = async (req, res, next) => {
+  if (req.auth?.userId) return next();
+  if (req.authError) return next(req.authError);
+  await attachAuthIdentity(req, res, () => {
+    if (req.auth?.userId) return next();
+    return next(req.authError ?? invalidSession('Unauthorized'));
+  });
 };
 
 export const requireAdmin = async (req, _res, next) => {

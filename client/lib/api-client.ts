@@ -1,6 +1,6 @@
-import { refreshAccessToken } from '@/lib/neon-auth/client';
+import { refreshAccessToken } from "@/lib/neon-auth/client";
 
-const API_BASE_URL = '/api/v1';
+const API_BASE_URL = "/api/v1";
 const inFlightGetRequests = new Map<string, Promise<unknown>>();
 
 type ApiRequestOptions = RequestInit & {
@@ -23,29 +23,30 @@ type ApiErrorResponse = {
 };
 
 const AUTH_FAILURE_MESSAGES = new Set([
-  'Unauthorized',
-  'Invalid or expired access token',
-  'Access token has no subject',
-  'Authenticated user no longer exists',
+  "Unauthorized",
+  "Invalid or expired access token",
+  "Access token has no subject",
+  "Authenticated user no longer exists",
 ]);
 
 export class ApiClientError extends Error {
   constructor(
     message: string,
-    public readonly statusCode: number
+    public readonly statusCode: number,
+    public readonly retryAfterMs?: number,
   ) {
     super(message);
-    this.name = 'ApiClientError';
+    this.name = "ApiClientError";
   }
 }
 
 export const apiFetch = async <T>(
   path: string,
-  { token, idempotencyKey, headers, ...init }: ApiRequestOptions = {}
+  { token, idempotencyKey, headers, ...init }: ApiRequestOptions = {},
 ): Promise<T> => {
-  const method = (init.method ?? 'GET').toUpperCase();
-  const shouldDedupe = method === 'GET' && !init.body;
-  const requestKey = shouldDedupe ? `${path}:${token ?? 'anonymous'}` : null;
+  const method = (init.method ?? "GET").toUpperCase();
+  const shouldDedupe = method === "GET" && !init.body;
+  const requestKey = shouldDedupe ? `${path}:${token ?? "anonymous"}` : null;
   const pending = requestKey ? inFlightGetRequests.get(requestKey) : undefined;
   if (pending) return pending as Promise<T>;
 
@@ -55,9 +56,9 @@ export const apiFetch = async <T>(
         ...init,
         method,
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-          ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+          ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
           ...headers,
         },
       });
@@ -73,8 +74,9 @@ export const apiFetch = async <T>(
       Boolean(token) &&
       result.response.status === 401 &&
       (result.payload?.errors?.some(
-        error => error.code === 'AUTH_SESSION_INVALID'
-      ) || AUTH_FAILURE_MESSAGES.has(result.payload?.message ?? ''));
+        (error) => error.code === "AUTH_SESSION_INVALID",
+      ) ||
+        AUTH_FAILURE_MESSAGES.has(result.payload?.message ?? ""));
 
     if (isAccessTokenFailure) {
       const refreshedToken = await refreshAccessToken();
@@ -85,8 +87,12 @@ export const apiFetch = async <T>(
 
     if (!response.ok || !payload?.success) {
       throw new ApiClientError(
-        payload?.message || 'API request failed',
-        response.status
+        payload?.message || "API request failed",
+        response.status,
+        response.headers.has("retry-after")
+          ? Math.max(0, Number(response.headers.get("retry-after")) * 1000) ||
+              undefined
+          : undefined,
       );
     }
 

@@ -13,6 +13,18 @@ export type StoryGenerationStatus = {
 const wait = (milliseconds: number) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
+const waitUntilVisible = () => {
+  if (document.visibilityState !== "hidden") return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") return;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      resolve();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+  });
+};
+
 export const waitForStoryPublication = async ({
   storyId,
   token,
@@ -22,11 +34,28 @@ export const waitForStoryPublication = async ({
   token: string | null;
   onProgress?: (status: StoryGenerationStatus) => void;
 }) => {
-  for (let attempt = 0; attempt < 180; attempt += 1) {
-    const status = await apiFetch<StoryGenerationStatus>(
-      `/stories/me/${storyId}/status`,
-      { token },
-    );
+  const deadline = Date.now() + 10 * 60_000;
+  let delay = 2000;
+  while (Date.now() < deadline) {
+    await waitUntilVisible();
+    if (Date.now() >= deadline) break;
+    let status: StoryGenerationStatus;
+    try {
+      status = await apiFetch<StoryGenerationStatus>(
+        `/stories/me/${storyId}/status`,
+        { token },
+      );
+    } catch (error) {
+      if (!(error instanceof ApiClientError) || error.statusCode !== 429)
+        throw error;
+      await wait(
+        Math.min(
+          error.retryAfterMs ?? 60_000,
+          Math.max(0, deadline - Date.now()),
+        ),
+      );
+      continue;
+    }
     onProgress?.(status);
 
     if (status.status === "published") return status;
@@ -38,7 +67,8 @@ export const waitForStoryPublication = async ({
       );
     }
 
-    await wait(1500);
+    await wait(delay);
+    delay = Math.min(10_000, Math.round(delay * 1.5));
   }
 
   throw new ApiClientError(

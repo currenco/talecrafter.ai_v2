@@ -12,7 +12,10 @@ import {
 } from '../controllers/story.controller.js';
 import { requireAuth } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
-import { generationRateLimit } from '../middlewares/rateLimit.middleware.js';
+import {
+  generationRateLimit,
+  generationStatusRateLimit,
+} from '../middlewares/rateLimit.middleware.js';
 import {
   createStorySchema,
   currentUserStoriesQuerySchema,
@@ -38,6 +41,7 @@ router.get(
 );
 router.get(
   '/me/:storyId/status',
+  generationStatusRateLimit,
   requireAuth,
   validate(storyIdParamSchema),
   getStoryGenerationStatus
