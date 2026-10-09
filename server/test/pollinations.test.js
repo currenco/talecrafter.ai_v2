@@ -5,6 +5,37 @@ import {
   buildPollinationsImageUrl,
 } from '../src/services/image.service.js';
 import { decryptSecret, encryptSecret } from '../src/utils/secretBox.js';
+import { hasImagePermission } from '../src/utils/pollinationsPermissions.js';
+
+test('Pollinations accepts image categories, unrestricted and legacy model grants', () => {
+  const model = 'black-forest-labs/flux.1-schnell';
+  for (const models of [null, ['image'], ['text', 'image'], [model]]) {
+    assert.equal(hasImagePermission({ permissions: { models } }, model), true);
+  }
+});
+
+test('Pollinations rejects missing, malformed and unrelated image permissions', () => {
+  const model = 'black-forest-labs/flux.1-schnell';
+  for (const models of [
+    undefined,
+    [],
+    ['text'],
+    ['video'],
+    ['another/image-model'],
+    'image',
+    {},
+    [null],
+  ]) {
+    assert.equal(hasImagePermission({ permissions: { models } }, model), false);
+  }
+  for (const details of [null, undefined, {}, { permissions: null }]) {
+    assert.equal(hasImagePermission(details, model), false);
+  }
+  assert.equal(
+    hasImagePermission({ permissions: { models: [''] } }, ''),
+    false
+  );
+});
 
 test('Pollinations image requests keep user credentials out of URLs', () => {
   const request = buildPollinationsImageRequest(

@@ -7,6 +7,7 @@ import {
 } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
 import { decryptSecret, encryptSecret } from '../utils/secretBox.js';
+import { hasImagePermission } from '../utils/pollinationsPermissions.js';
 import { syncUserFromAuth } from './user.service.js';
 
 const AUTHORIZATION_URL = 'https://enter.pollinations.ai/authorize';
@@ -94,12 +95,8 @@ const inspectAccessToken = async accessToken => {
   return response.json();
 };
 
-const hasConfiguredModel = keyDetails => {
-  const allowedModels = Array.isArray(keyDetails?.permissions?.models)
-    ? keyDetails.permissions.models.map(String)
-    : [];
-  return allowedModels.includes(getConfig().imageModel);
-};
+const hasConfiguredModel = keyDetails =>
+  hasImagePermission(keyDetails, getConfig().imageModel);
 
 export const beginPollinationsConnection = async ({ userId }) => {
   const user = await syncUserFromAuth(userId);
@@ -129,7 +126,7 @@ export const beginPollinationsConnection = async ({ userId }) => {
     client_id: config.appKey,
     redirect_uri: config.redirectUri,
     scope: 'usage',
-    models: config.imageModel,
+    models: 'image',
     budget: String(DEFAULT_BUDGET),
     expiry: String(DEFAULT_EXPIRY_DAYS),
     state,
