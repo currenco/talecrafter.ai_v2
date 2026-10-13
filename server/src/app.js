@@ -5,7 +5,6 @@ import helmet from 'helmet';
 import { API_PREFIX } from './constants.js';
 import ApiError from './utils/ApiError.js';
 import { attachRequestId } from './middlewares/request.middleware.js';
-import { apiRateLimit } from './middlewares/rateLimit.middleware.js';
 import { attachAuthIdentity } from './middlewares/auth.middleware.js';
 import { getTrustProxy } from './config/proxy.js';
 import { errorHandler, notFound } from './middlewares/error.middleware.js';
@@ -71,7 +70,7 @@ app.use(`${API_PREFIX}/payments`, paymentWebhookRouter);
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(cookieParser());
-app.use(API_PREFIX, attachAuthIdentity, apiRateLimit);
+app.use(API_PREFIX, attachAuthIdentity);
 
 app.use(`${API_PREFIX}/health`, healthRouter);
 app.use(`${API_PREFIX}/users`, userRouter);

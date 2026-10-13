@@ -3,8 +3,55 @@ import test from 'node:test';
 import {
   buildPollinationsImageRequest,
   buildPollinationsImageUrl,
+  normalizeGeneratedSource,
 } from '../src/services/image.service.js';
 import { decryptSecret, encryptSecret } from '../src/utils/secretBox.js';
+import { hasImagePermission } from '../src/utils/pollinationsPermissions.js';
+
+test('generated persistence URLs cannot override model, dimensions or billing parameters', () => {
+  const normalized = new URL(
+    normalizeGeneratedSource(
+      'https://gen.pollinations.ai/image/castle?model=expensive&width=4096&height=4096&quality=high&key=secret'
+    )
+  );
+  assert.equal(
+    normalized.searchParams.get('model'),
+    process.env.POLLINATIONS_IMAGE_MODEL ?? 'black-forest-labs/flux.1-schnell'
+  );
+  assert.equal(normalized.searchParams.get('width'), '1024');
+  assert.equal(normalized.searchParams.has('quality'), false);
+  assert.equal(normalized.searchParams.has('key'), false);
+});
+
+test('Pollinations accepts image categories, unrestricted and legacy model grants', () => {
+  const model = 'black-forest-labs/flux.1-schnell';
+  for (const models of [null, ['image'], ['text', 'image'], [model]]) {
+    assert.equal(hasImagePermission({ permissions: { models } }, model), true);
+  }
+});
+
+test('Pollinations rejects missing, malformed and unrelated image permissions', () => {
+  const model = 'black-forest-labs/flux.1-schnell';
+  for (const models of [
+    undefined,
+    [],
+    ['text'],
+    ['video'],
+    ['another/image-model'],
+    'image',
+    {},
+    [null],
+  ]) {
+    assert.equal(hasImagePermission({ permissions: { models } }, model), false);
+  }
+  for (const details of [null, undefined, {}, { permissions: null }]) {
+    assert.equal(hasImagePermission(details, model), false);
+  }
+  assert.equal(
+    hasImagePermission({ permissions: { models: [''] } }, ''),
+    false
+  );
+});
 
 test('Pollinations image requests keep user credentials out of URLs', () => {
   const request = buildPollinationsImageRequest(

@@ -1,353 +1,311 @@
 import { randomUUID } from 'node:crypto';
 import Razorpay from 'razorpay';
-import { and, eq, sql } from 'drizzle-orm';
+import { creatorCheckoutEnabled } from '../config/env.js';
+import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { PaymentEvents, Payments } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
-import { logger } from '../utils/logger.js';
+import { isValidRazorpayWebhookSignature } from '../utils/razorpay.js';
+import { CREATOR_PLAN } from '../utils/plans.js';
 import {
-  CREDIT_PLANS,
-  isValidRazorpaySignature,
-  isValidRazorpayWebhookSignature,
-} from '../utils/razorpay.js';
-import { getUserByProfileId, syncUserFromAuth } from './user.service.js';
+  paidInvoicePeriod,
+  validSubscriptionSignature,
+} from '../utils/subscriptions.js';
+import { syncUserFromAuth } from './user.service.js';
 
-const getPlan = planId => {
-  const plan = CREDIT_PLANS.find(item => item.id === planId);
-  if (!plan) throw new ApiError(400, 'Invalid credit plan');
-  if (!Number.isInteger(plan.amount) || plan.amount < 100) {
-    throw new ApiError(500, 'Credit plan amount is invalid');
+const config = () => {
+  const key = process.env.RAZORPAY_KEY_ID;
+  const secret = process.env.RAZORPAY_KEY_SECRET;
+  const planId = process.env.RAZORPAY_CREATOR_PLAN_ID;
+  if (!key || !secret || !planId)
+    throw new ApiError(503, 'Creator checkout is not configured');
+  return { key, secret, planId };
+};
+const provider = () => {
+  const { key, secret } = config();
+  return new Razorpay({ key_id: key, key_secret: secret });
+};
+const callProvider = async operation => {
+  try {
+    return await operation(provider());
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(
+      502,
+      'Payment provider is temporarily unavailable. Please retry.'
+    );
   }
-  return plan;
 };
-
-const getRazorpayConfig = () => {
-  const keyId = String(process.env.RAZORPAY_KEY_ID ?? '').trim();
-  const keySecret = String(process.env.RAZORPAY_KEY_SECRET ?? '').trim();
-  if (!keyId || !keySecret) {
-    throw new ApiError(503, 'Razorpay is not configured');
-  }
-  return { keyId, keySecret };
+const subscriptionFor = async userId => {
+  const result = await db.execute(
+    sql`SELECT * FROM app.creator_subscriptions WHERE user_id = ${userId}`
+  );
+  return result.rows[0];
 };
-
-const getRazorpay = () => {
-  const { keyId, keySecret } = getRazorpayConfig();
-  return new Razorpay({ key_id: keyId, key_secret: keySecret });
-};
-
-const getRazorpayWebhookSecret = () => {
-  const secret = String(process.env.RAZORPAY_WEBHOOK_SECRET ?? '').trim();
-  if (!secret) {
-    throw new ApiError(503, 'Razorpay webhook is not configured');
-  }
-  return secret;
-};
-
-const getPaymentByOrderId = async orderId => {
-  const [payment] = await db
-    .select()
-    .from(Payments)
-    .where(
-      and(
-        eq(Payments.provider, 'razorpay'),
-        eq(Payments.providerSessionId, orderId)
-      )
-    )
-    .limit(1);
-  return payment ?? null;
-};
-
-export const createRazorpayOrder = async ({ authUserId, planId }) => {
+const ownedSubscription = async (authUserId, subscriptionId) => {
   const user = await syncUserFromAuth(authUserId);
-  const plan = getPlan(planId);
-  const paymentId = randomUUID();
-
-  let order;
-  try {
-    order = await getRazorpay().orders.create({
-      amount: plan.amount,
-      currency: plan.currency,
-      receipt: paymentId,
-      notes: {
-        paymentId,
-        planId: plan.id,
-        userId: user.id,
-      },
-    });
-  } catch (error) {
-    logger.error('Razorpay order creation failed', {
-      statusCode: error?.statusCode,
-      message: error?.error?.description ?? error?.message,
-    });
-    if (error?.statusCode === 401) {
-      throw new ApiError(503, 'Secure checkout is temporarily unavailable');
-    }
-    throw new ApiError(500, 'Unable to create payment order');
+  const subscription = await subscriptionFor(user.id);
+  if (
+    !subscription?.provider_subscription_id ||
+    (subscriptionId && subscription.provider_subscription_id !== subscriptionId)
+  ) {
+    throw new ApiError(404, 'Subscription not found');
   }
+  return { user, subscription };
+};
 
-  if (!order?.id || order.amount !== plan.amount || order.currency !== 'INR') {
-    throw new ApiError(502, 'Payment provider returned an invalid order');
-  }
-
-  try {
-    await db.insert(Payments).values({
-      id: paymentId,
-      provider: 'razorpay',
-      providerSessionId: order.id,
-      userId: user.id,
-      userEmail: user.userEmail,
-      planId: plan.id,
-      amountCents: plan.amount,
-      currency: plan.currency.toLowerCase(),
-      credits: plan.credits,
-      status: 'pending',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-  } catch (error) {
-    logger.error('Unable to persist Razorpay order', {
-      orderId: order.id,
-      paymentId,
-      message: error?.message,
-    });
-    throw error;
-  }
-
+export const subscriptionStatus = async authUserId => {
+  const user = await syncUserFromAuth(authUserId);
   return {
-    orderId: order.id,
-    amount: order.amount,
-    currency: order.currency,
+    user,
+    checkoutEnabled: creatorCheckoutEnabled(),
   };
 };
 
-export const fulfillRazorpayPayment = async ({
-  payment,
-  razorpayPaymentId,
-  providerEventId = `checkout:${razorpayPaymentId}`,
-  eventType = 'checkout.verified',
-  eventPayload,
-}) => {
-  if (payment.status === 'fulfilled') {
-    return {
-      status: 'fulfilled',
-      idempotent: true,
-      user: await getUserByProfileId(payment.userId),
-    };
+export const createSubscription = async authUserId => {
+  if (!creatorCheckoutEnabled())
+    throw new ApiError(503, 'Creator subscriptions are not available yet');
+  const { user, checkoutEnabled } = await subscriptionStatus(authUserId);
+  if (!checkoutEnabled)
+    throw new ApiError(503, 'Creator subscriptions are not available yet');
+  if (user.plan === 'creator')
+    throw new ApiError(409, 'Creator is already active');
+  const { planId, key } = config();
+  const existing = await subscriptionFor(user.id);
+  if (
+    existing &&
+    ['created', 'authenticated'].includes(existing.status) &&
+    existing.provider_subscription_id
+  ) {
+    return { subscriptionId: existing.provider_subscription_id, key };
   }
-  if (payment.status !== 'pending') {
-    throw new ApiError(409, 'Payment order cannot be fulfilled');
+  if (
+    existing &&
+    !['cancelled', 'completed', 'expired'].includes(existing.status)
+  ) {
+    throw new ApiError(
+      409,
+      'A subscription already exists. Refresh its status or contact support.'
+    );
   }
-
-  const payload = JSON.stringify(
-    eventPayload ?? {
-      razorpayOrderId: payment.providerSessionId,
-      razorpayPaymentId,
-    }
-  );
-  const result = await db.execute(sql`
-    WITH event_recorded AS (
-      INSERT INTO app.payment_events (
-        payment_id, provider, provider_event_id, event_type, payload, processed_at
-      )
-      VALUES (
-        ${payment.id}, 'razorpay', ${providerEventId}, ${eventType},
-        CAST(${payload} AS jsonb), now()
-      )
-      ON CONFLICT (provider, provider_event_id) DO NOTHING
-      RETURNING id
-    ), claimed AS (
-      UPDATE app.payments
-      SET
-        status = 'fulfilled',
-        provider_payment_intent_id = ${razorpayPaymentId},
-        fulfilled_at = now(),
-        updated_at = now()
-      WHERE id = ${payment.id}
-        AND provider = 'razorpay'
-        AND provider_session_id = ${payment.providerSessionId}
-        AND status = 'pending'
-        AND EXISTS (SELECT 1 FROM event_recorded)
-      RETURNING id, user_id, credits
-    ), credited AS (
-      UPDATE app.credit_accounts account
-      SET balance = account.balance + claimed.credits, updated_at = now()
-      FROM claimed
-      WHERE account.user_id = claimed.user_id
-      RETURNING account.id, account.user_id, account.balance,
-        claimed.id AS payment_id, claimed.credits
-    ), recorded AS (
-      INSERT INTO app.credit_ledger (
-        account_id, amount, balance_after, reason, idempotency_key,
-        reference_type, reference_id
-      )
-      SELECT id, credits, balance, 'payment', 'payment:' || payment_id,
-        'payment', payment_id::text
-      FROM credited
-      ON CONFLICT (idempotency_key) DO NOTHING
-      RETURNING account_id
-    )
-    SELECT
-      profile.id,
-      profile.auth_user_id AS "authUserId",
-      profile.email AS "userEmail",
-      profile.display_name AS "userName",
-      profile.avatar_url AS "userImage",
-      profile.role,
-      credited.balance AS credit
-    FROM credited
-    INNER JOIN recorded ON recorded.account_id = credited.id
-    INNER JOIN app.user_profiles profile ON profile.id = credited.user_id
+  const plan = await callProvider(api => api.plans.fetch(planId));
+  if (
+    plan.period !== 'monthly' ||
+    plan.interval !== 1 ||
+    plan.item?.amount !== CREATOR_PLAN.amount ||
+    plan.item?.currency !== CREATOR_PLAN.currency
+  ) {
+    throw new ApiError(503, 'Creator billing plan must be USD 9 per month');
+  }
+  const id = randomUUID();
+  // Claim before calling the external API so concurrent clicks cannot create two mandates.
+  const claimed = await db.execute(sql`
+    INSERT INTO app.creator_subscriptions (id, user_id, provider_plan_id)
+    VALUES (${id}, ${user.id}, ${planId})
+    ON CONFLICT (user_id) DO UPDATE SET
+      provider_plan_id = EXCLUDED.provider_plan_id, status = 'creating',
+      provider_subscription_id = NULL, period_start = NULL, paid_through = NULL,
+      revoked = false, cancel_at_period_end = false, updated_at = now()
+    WHERE app.creator_subscriptions.status IN ('cancelled','completed','expired')
+      AND (app.creator_subscriptions.paid_through IS NULL OR app.creator_subscriptions.paid_through <= now())
+    RETURNING id
   `);
-
-  const fulfilledUser = result.rows?.[0];
-  if (!fulfilledUser) {
-    const current = await getPaymentByOrderId(payment.providerSessionId);
-    if (current?.status === 'fulfilled') {
-      return {
-        status: 'fulfilled',
-        idempotent: true,
-        user: await getUserByProfileId(payment.userId),
-      };
-    }
-    throw new ApiError(409, 'Payment could not be fulfilled');
-  }
-
-  return { status: 'fulfilled', idempotent: false, user: fulfilledUser };
+  if (!claimed.rows[0])
+    throw new ApiError(409, 'Subscription setup is already in progress');
+  // Leave an ambiguous failed creation locked for reconciliation, never blindly create a second mandate.
+  const sub = await callProvider(api =>
+    api.subscriptions.create({
+      plan_id: planId,
+      total_count: 120,
+      quantity: 1,
+      customer_notify: 1,
+      notes: { profileId: user.id, localSubscriptionId: claimed.rows[0].id },
+    })
+  );
+  if (!sub.id || sub.plan_id !== planId)
+    throw new ApiError(502, 'Invalid subscription response');
+  await db.execute(sql`
+    UPDATE app.creator_subscriptions SET provider_subscription_id = ${sub.id},
+      status = ${sub.status}, period_start = NULL, paid_through = NULL,
+      revoked = false, cancel_at_period_end = false, updated_at = now()
+    WHERE user_id = ${user.id} AND status = 'creating'
+  `);
+  return { subscriptionId: sub.id, key };
 };
 
-export const verifyAndFulfillRazorpayPayment = async ({
+const recordPaidInvoice = async (local, paymentId) => {
+  const payment = await callProvider(api => api.payments.fetch(paymentId));
+  if (!payment.invoice_id) return false; // Mandate authorisation is not a paid subscription cycle.
+  const invoice = await callProvider(api =>
+    api.invoices.fetch(payment.invoice_id)
+  );
+  const period = paidInvoicePeriod({
+    payment,
+    invoice,
+    subscriptionId: local.provider_subscription_id,
+  });
+  if (!period || period.start > new Date()) return false;
+  await db.batch([
+    db.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${payment.id}, 0))`
+    ),
+    db.execute(sql`
+    WITH inserted AS (
+      INSERT INTO app.subscription_invoices
+        (provider_payment_id, subscription_id, provider_invoice_id, period_start, period_end, amount, currency)
+      VALUES (${payment.id}, ${local.id}, ${invoice.id}, ${period.start}, ${period.end},
+        ${payment.amount}, ${payment.currency})
+      ON CONFLICT DO NOTHING RETURNING period_start, period_end
+    )
+    UPDATE app.creator_subscriptions s SET period_start = inserted.period_start,
+      paid_through = inserted.period_end,
+      revoked = EXISTS (SELECT 1 FROM app.subscription_holds WHERE provider_payment_id = ${payment.id}),
+      updated_at = now()
+    FROM inserted WHERE s.id = ${local.id}
+      AND s.provider_subscription_id = ${local.provider_subscription_id}
+      AND (s.paid_through IS NULL OR inserted.period_end > s.paid_through)
+  `),
+  ]);
+  return true;
+};
+
+export const verifySubscription = async ({
   authUserId,
-  razorpayOrderId,
+  razorpaySubscriptionId,
   razorpayPaymentId,
   razorpaySignature,
 }) => {
-  const user = await syncUserFromAuth(authUserId);
-  const payment = await getPaymentByOrderId(razorpayOrderId);
-  if (!payment) throw new ApiError(404, 'Payment order not found');
-  if (payment.userId !== user.id) {
-    throw new ApiError(403, 'This payment order does not belong to you');
-  }
-
-  const { keySecret } = getRazorpayConfig();
-  const signatureValid = isValidRazorpaySignature({
-    orderId: payment.providerSessionId,
-    paymentId: razorpayPaymentId,
-    signature: razorpaySignature,
-    secret: keySecret,
-  });
-  if (!signatureValid) {
-    throw new ApiError(400, 'Invalid payment signature');
-  }
-  return fulfillRazorpayPayment({ payment, razorpayPaymentId });
-};
-
-const getWebhookEventId = ({ eventId, eventType, paymentId }) => {
-  const safeEventId = String(eventId ?? '').trim();
-  if (safeEventId && safeEventId.length <= 200) {
-    return `webhook:${safeEventId}`;
-  }
-  return `webhook:${eventType}:${paymentId}`;
-};
-
-const recordRazorpayEvent = async ({
-  payment,
-  providerEventId,
-  eventType,
-  eventPayload,
-}) => {
-  await db
-    .insert(PaymentEvents)
-    .values({
-      paymentId: payment?.id ?? null,
-      provider: 'razorpay',
-      providerEventId,
-      eventType,
-      payload: eventPayload,
-      processedAt: new Date(),
+  const { user, subscription } = await ownedSubscription(
+    authUserId,
+    razorpaySubscriptionId
+  );
+  if (
+    !validSubscriptionSignature({
+      paymentId: razorpayPaymentId,
+      subscriptionId: subscription.provider_subscription_id,
+      signature: razorpaySignature,
+      secret: config().secret,
     })
-    .onConflictDoNothing();
+  )
+    throw new ApiError(400, 'Invalid payment signature');
+  await recordPaidInvoice(subscription, razorpayPaymentId);
+  return subscriptionStatus(user.authUserId);
 };
 
-export const processRazorpayWebhook = async ({
-  rawBody,
-  signature,
-  eventId,
-}) => {
-  const signatureValid = isValidRazorpayWebhookSignature({
-    rawBody,
-    signature,
-    secret: getRazorpayWebhookSecret(),
-  });
-  if (!signatureValid) {
+export const refreshSubscription = async authUserId => {
+  const { subscription } = await ownedSubscription(authUserId);
+  const sub = await callProvider(api =>
+    api.subscriptions.fetch(subscription.provider_subscription_id)
+  );
+  if (sub.plan_id !== subscription.provider_plan_id)
+    throw new ApiError(502, 'Subscription plan mismatch');
+  const invoices = await callProvider(api =>
+    api.invoices.all({
+      subscription_id: sub.id,
+      count: 100,
+    })
+  );
+  for (const invoice of invoices.items ?? []) {
+    if (
+      invoice.status === 'paid' &&
+      invoice.payment_id &&
+      Number(invoice.billing_end) * 1000 > Date.now()
+    )
+      await recordPaidInvoice(subscription, invoice.payment_id);
+  }
+  await db.execute(sql`UPDATE app.creator_subscriptions SET status = ${sub.status}, updated_at = now()
+    WHERE id = ${subscription.id} AND provider_subscription_id = ${sub.id}`);
+  return subscriptionStatus(authUserId);
+};
+
+export const cancelSubscription = async authUserId => {
+  const { subscription } = await ownedSubscription(authUserId);
+  if (
+    !subscription.cancel_at_period_end &&
+    !['cancelled', 'completed', 'expired'].includes(subscription.status)
+  ) {
+    const atPeriodEnd = Boolean(
+      subscription.paid_through &&
+      new Date(subscription.paid_through) > new Date()
+    );
+    const cancelled = await callProvider(api =>
+      api.subscriptions.cancel(
+        subscription.provider_subscription_id,
+        atPeriodEnd
+      )
+    );
+    await db.execute(sql`UPDATE app.creator_subscriptions SET cancel_at_period_end = true, status = ${cancelled.status}, updated_at = now()
+      WHERE id = ${subscription.id} AND provider_subscription_id = ${subscription.provider_subscription_id}`);
+  }
+  return subscriptionStatus(authUserId);
+};
+
+export const processRazorpayWebhook = async ({ rawBody, signature }) => {
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  if (!secret) throw new ApiError(503, 'Razorpay webhook is not configured');
+  if (!isValidRazorpayWebhookSignature({ rawBody, signature, secret })) {
     throw new ApiError(400, 'Invalid Razorpay webhook signature');
   }
-
-  let eventPayload;
+  let event;
   try {
-    eventPayload = JSON.parse(rawBody.toString('utf8'));
+    event = JSON.parse(rawBody.toString('utf8'));
   } catch {
-    throw new ApiError(400, 'Invalid Razorpay webhook payload');
+    throw new ApiError(400, 'Invalid webhook payload');
   }
-
-  const eventType = String(eventPayload?.event ?? '');
-  const providerPayment = eventPayload?.payload?.payment?.entity;
   if (
-    !providerPayment?.id ||
-    !providerPayment?.order_id ||
-    !['payment.captured', 'payment.failed'].includes(eventType)
+    event.event === 'refund.processed' ||
+    event.event === 'payment.dispute.created'
   ) {
-    return { status: 'ignored', eventType: eventType || 'unknown' };
+    const paymentId =
+      event.payload?.refund?.entity?.payment_id ??
+      event.payload?.dispute?.entity?.payment_id;
+    if (paymentId) {
+      await db.batch([
+        db.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtextextended(${paymentId}, 0))`
+        ),
+        db.execute(sql`INSERT INTO app.subscription_holds(provider_payment_id, reason)
+          VALUES (${paymentId}, ${event.event}) ON CONFLICT DO NOTHING`),
+        db.execute(sql`
+      WITH changed AS (
+        UPDATE app.subscription_invoices SET refunded = true WHERE provider_payment_id = ${paymentId}
+        RETURNING subscription_id, period_end
+      )
+      UPDATE app.creator_subscriptions s SET revoked = true, updated_at = now()
+      FROM changed WHERE s.id = changed.subscription_id AND s.paid_through = changed.period_end
+    `),
+      ]);
+    }
+    return { status: 'processed' };
   }
-
-  const payment = await getPaymentByOrderId(providerPayment.order_id);
-  const providerEventId = getWebhookEventId({
-    eventId,
-    eventType,
-    paymentId: providerPayment.id,
-  });
-
-  if (!payment) {
-    logger.warn('Ignoring Razorpay webhook for an unknown order', {
-      eventType,
-      orderId: providerPayment.order_id,
-      paymentId: providerPayment.id,
-    });
-    return { status: 'ignored', eventType };
+  const sub = event.payload?.subscription?.entity;
+  if (!sub?.id || !String(event.event).startsWith('subscription.'))
+    return { status: 'ignored' };
+  const result = await db.execute(sql`SELECT * FROM app.creator_subscriptions
+    WHERE provider_subscription_id = ${sub.id}`);
+  const local = result.rows[0];
+  if (!local) {
+    if (sub.notes?.localSubscriptionId) {
+      const pending =
+        await db.execute(sql`SELECT id FROM app.creator_subscriptions
+        WHERE id::text = ${String(sub.notes.localSubscriptionId)} AND status = 'creating'`);
+      if (pending.rows[0])
+        throw new ApiError(
+          503,
+          'Subscription mapping is not ready; retry webhook'
+        );
+    }
+    return { status: 'ignored' };
   }
-
-  if (eventType === 'payment.failed') {
-    await recordRazorpayEvent({
-      payment,
-      providerEventId,
-      eventType,
-      eventPayload,
-    });
-    return { status: 'recorded', eventType };
+  if (sub.plan_id !== local.provider_plan_id)
+    throw new ApiError(400, 'Subscription plan mismatch');
+  const paymentId = event.payload?.payment?.entity?.id;
+  if (event.event === 'subscription.charged' && paymentId) {
+    if (!(await recordPaidInvoice(local, paymentId)))
+      throw new ApiError(503, 'Paid invoice is not ready; retry webhook');
   }
-
-  const amountMatches = providerPayment.amount === payment.amountCents;
-  const currencyMatches =
-    String(providerPayment.currency ?? '').toLowerCase() === payment.currency;
-  if (
-    providerPayment.status !== 'captured' ||
-    !amountMatches ||
-    !currencyMatches
-  ) {
-    logger.error('Razorpay captured payment does not match stored order', {
-      orderId: providerPayment.order_id,
-      paymentId: providerPayment.id,
-      status: providerPayment.status,
-      amountMatches,
-      currencyMatches,
-    });
-    throw new ApiError(400, 'Razorpay payment does not match the order');
-  }
-
-  return fulfillRazorpayPayment({
-    payment,
-    razorpayPaymentId: providerPayment.id,
-    providerEventId,
-    eventType,
-    eventPayload,
-  });
+  // Fetch current state instead of applying possibly delayed/out-of-order status payloads.
+  const current = await callProvider(api => api.subscriptions.fetch(sub.id));
+  await db.execute(sql`UPDATE app.creator_subscriptions SET status = ${current.status}, updated_at = now()
+    WHERE id = ${local.id} AND provider_subscription_id = ${sub.id}`);
+  return { status: 'processed' };
 };

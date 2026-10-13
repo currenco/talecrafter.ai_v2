@@ -7,7 +7,9 @@ import {
 } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
 import { decryptSecret, encryptSecret } from '../utils/secretBox.js';
+import { hasImagePermission } from '../utils/pollinationsPermissions.js';
 import { syncUserFromAuth } from './user.service.js';
+import { assertGenerationAccess } from './entitlement.service.js';
 
 const AUTHORIZATION_URL = 'https://enter.pollinations.ai/authorize';
 const TOKEN_URL = 'https://enter.pollinations.ai/api/oauth/token';
@@ -94,12 +96,8 @@ const inspectAccessToken = async accessToken => {
   return response.json();
 };
 
-const hasConfiguredModel = keyDetails => {
-  const allowedModels = Array.isArray(keyDetails?.permissions?.models)
-    ? keyDetails.permissions.models.map(String)
-    : [];
-  return allowedModels.includes(getConfig().imageModel);
-};
+const hasConfiguredModel = keyDetails =>
+  hasImagePermission(keyDetails, getConfig().imageModel);
 
 export const beginPollinationsConnection = async ({ userId }) => {
   const user = await syncUserFromAuth(userId);
@@ -129,7 +127,7 @@ export const beginPollinationsConnection = async ({ userId }) => {
     client_id: config.appKey,
     redirect_uri: config.redirectUri,
     scope: 'usage',
-    models: config.imageModel,
+    models: 'image',
     budget: String(DEFAULT_BUDGET),
     expiry: String(DEFAULT_EXPIRY_DAYS),
     state,
@@ -241,6 +239,13 @@ export const completePollinationsConnection = async ({
 };
 
 export const getPollinationsAccessTokenForProfile = async profileId => {
+  const access = await assertGenerationAccess(profileId);
+  if (access.plan === 'creator') {
+    const key = String(process.env.POLLINATIONS_PLATFORM_KEY ?? '').trim();
+    if (!key.startsWith('sk_'))
+      throw new ApiError(503, 'Platform image generation is not configured');
+    return key;
+  }
   const connection = await findConnection(profileId);
   const state = connectionState(connection);
   if (state !== 'connected') {

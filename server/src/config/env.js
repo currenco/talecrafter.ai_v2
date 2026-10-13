@@ -16,12 +16,19 @@ const environmentSchema = z.object({
   POLLINATIONS_APP_KEY: optionalString,
   POLLINATIONS_IMAGE_MODEL: optionalString,
   POLLINATIONS_TOKEN_ENCRYPTION_KEY: optionalString,
+  POLLINATIONS_PLATFORM_KEY: optionalString,
+  POLLINATIONS_PLATFORM_MONTHLY_ATTEMPT_LIMIT: z.preprocess(
+    value => (value === '' ? undefined : value),
+    z.coerce.number().int().positive().optional()
+  ),
+  CREATOR_CHECKOUT_ENABLED: z.enum(['true', 'false']).default('false'),
   CLOUDINARY_CLOUD_NAME: optionalString,
   CLOUDINARY_API_KEY: optionalString,
   CLOUDINARY_API_SECRET: optionalString,
   RAZORPAY_KEY_ID: optionalString,
   RAZORPAY_KEY_SECRET: optionalString,
   RAZORPAY_WEBHOOK_SECRET: optionalString,
+  RAZORPAY_CREATOR_PLAN_ID: optionalString,
 });
 
 const productionRequired = [
@@ -35,10 +42,18 @@ const productionRequired = [
   'CLOUDINARY_CLOUD_NAME',
   'CLOUDINARY_API_KEY',
   'CLOUDINARY_API_SECRET',
-  'RAZORPAY_KEY_ID',
-  'RAZORPAY_KEY_SECRET',
-  'RAZORPAY_WEBHOOK_SECRET',
 ];
+
+export const creatorCheckoutEnabled = (source = process.env) =>
+  Boolean(
+    source.CREATOR_CHECKOUT_ENABLED === 'true' &&
+    source.RAZORPAY_KEY_ID &&
+    source.RAZORPAY_KEY_SECRET &&
+    source.RAZORPAY_WEBHOOK_SECRET &&
+    source.RAZORPAY_CREATOR_PLAN_ID &&
+    source.POLLINATIONS_PLATFORM_KEY &&
+    Number(source.POLLINATIONS_PLATFORM_MONTHLY_ATTEMPT_LIMIT) > 0
+  );
 
 const isHttpUrl = value => {
   try {
@@ -61,6 +76,25 @@ export const validateEnvironment = (source = process.env) => {
 
   const env = result.data;
   const issues = [];
+  if (
+    env.POLLINATIONS_PLATFORM_KEY &&
+    !env.POLLINATIONS_PLATFORM_KEY.startsWith('sk_')
+  ) {
+    issues.push('POLLINATIONS_PLATFORM_KEY must start with sk_');
+  }
+  if (env.CREATOR_CHECKOUT_ENABLED === 'true') {
+    for (const name of [
+      'POLLINATIONS_PLATFORM_KEY',
+      'POLLINATIONS_PLATFORM_MONTHLY_ATTEMPT_LIMIT',
+      'RAZORPAY_CREATOR_PLAN_ID',
+      'RAZORPAY_KEY_ID',
+      'RAZORPAY_KEY_SECRET',
+      'RAZORPAY_WEBHOOK_SECRET',
+    ]) {
+      if (!env[name])
+        issues.push(`${name} is required to enable Creator checkout`);
+    }
+  }
 
   if (env.NODE_ENV === 'production') {
     for (const name of productionRequired) {

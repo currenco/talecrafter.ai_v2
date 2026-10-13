@@ -28,13 +28,3 @@ export const adminUserIdParamSchema = z.object({
   }),
   query: z.object({}).optional(),
 });
-
-export const adminUpdateUserCreditSchema = z.object({
-  body: z.object({
-    credit: z.coerce.number().int().min(0, 'Credit cannot be negative'),
-  }),
-  params: z.object({
-    userId: z.string().uuid('Valid user ID is required'),
-  }),
-  query: z.object({}).optional(),
-});

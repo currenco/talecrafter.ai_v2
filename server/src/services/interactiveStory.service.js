@@ -100,6 +100,17 @@ const interactiveStoryQuery = () =>
     .innerJoin(UserProfiles, eq(UserProfiles.id, Stories.ownerId))
     .innerJoin(InteractiveStories, eq(InteractiveStories.storyId, Stories.id));
 
+const characterBible = async storyId => {
+  const [version] = await db
+    .select({ output: StoryVersions.output })
+    .from(StoryVersions)
+    .where(
+      and(eq(StoryVersions.storyId, storyId), eq(StoryVersions.version, 1))
+    )
+    .limit(1);
+  return version?.output?.characterDescriptions ?? {};
+};
+
 const ensureOwnedStory = async ({ userId, storyId }) => {
   const user = await syncUserFromAuth(userId);
   const safeStoryId = String(storyId ?? '').trim();
@@ -238,7 +249,6 @@ export const createInteractiveStarter = async ({
     request: payload,
     provider: provider.provider,
     model: provider.model,
-    creditCost: 1,
   });
   if (reservation.cached) {
     return { ...reservation.result, user: reservation.user ?? reservedUser };
@@ -353,7 +363,11 @@ export const createInteractiveStarter = async ({
       db.insert(StoryVersions).values({
         storyId: internalStoryId,
         version: 1,
-        output: { title: interactiveTitle, chapters: starterPages },
+        output: {
+          title: interactiveTitle,
+          characterDescriptions: story.characterDescriptions,
+          chapters: starterPages,
+        },
         providerPayload: provider,
       }),
       db.insert(InteractiveStories).values({
@@ -475,7 +489,6 @@ export const completeInteractiveStory = async ({
     request: { storyId: story.storyId, selectedChoice },
     provider: provider.provider,
     model: provider.model,
-    creditCost: 0,
     storyId: story.id,
   });
   if (reservation.cached) {
@@ -498,10 +511,11 @@ export const completeInteractiveStory = async ({
 
     const linearNodes = getLinearNodes({ activeNode, nodes });
     const linearPages = linearNodes.flatMap(node => node.pages ?? []);
+    const characters = await characterBible(story.id);
     const finalPrompt = buildContinuationPrompt({
       title: story.title,
       selectedChoice,
-      context: makePageContext(linearPages, 6),
+      context: `${makePageContext(linearPages, 6)}\nKeep these character descriptions consistent: ${JSON.stringify(characters)}`,
       minPages: 2,
       maxPages: 3,
       finalResolution: true,
@@ -531,6 +545,7 @@ export const completeInteractiveStory = async ({
       pages: compiledPages,
       finalTitle: story.title,
     });
+    classicOutput.characterDescriptions = characters;
     const now = new Date();
     const result = { storyId: story.storyId, completedSlug: story.slug };
 
@@ -636,7 +651,6 @@ export const continueInteractiveStory = async ({
     request: { storyId: story.storyId, selectedChoice: safeChoice },
     provider: provider.provider,
     model: provider.model,
-    creditCost: 0,
     storyId: story.id,
   });
   if (reservation.cached) {
@@ -657,10 +671,11 @@ export const continueInteractiveStory = async ({
 
     const linearNodes = getLinearNodes({ activeNode, nodes });
     const linearPages = linearNodes.flatMap(node => node.pages ?? []);
+    const characters = await characterBible(story.id);
     const continuationPrompt = buildContinuationPrompt({
       title: story.title,
       selectedChoice: safeChoice,
-      context: makePageContext(linearPages, 6),
+      context: `${makePageContext(linearPages, 6)}\nKeep these character descriptions consistent: ${JSON.stringify(characters)}`,
       minPages: 2,
       maxPages: 3,
     });

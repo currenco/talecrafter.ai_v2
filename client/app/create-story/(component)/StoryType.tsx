@@ -56,11 +56,11 @@ const StoryType = ({ userSelection }: StorySelectionProps) => {
       imageUrl: "/genre/motivational.webp",
       isFree: true,
     },
-    {
-      label: "Horror",
-      imageUrl: "/genre/horror.webp",
-      isFree: true,
-    },
+    // {
+    //   label: "Horror",
+    //   imageUrl: "/genre/horror.webp",
+    //   isFree: true,
+    // },
     {
       label: "Romantic",
       imageUrl: "/genre/romantic.webp",

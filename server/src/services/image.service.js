@@ -61,3 +61,20 @@ export const buildPollinationsImageRequest = (
     sourceHeaders: { Authorization: `Bearer ${token}` },
   };
 };
+
+export const normalizeGeneratedSource = sourceUrl => {
+  const url = new URL(sourceUrl);
+  const prompt = decodeURIComponent(url.pathname.slice('/image/'.length));
+  const dimension = value => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 128
+      ? Math.min(1024, Math.floor(parsed))
+      : undefined;
+  };
+  // Client-supplied persistence URLs cannot select expensive models or arbitrary provider parameters.
+  return buildPollinationsImageUrl(prompt, {
+    width: dimension(url.searchParams.get('width')),
+    height: dimension(url.searchParams.get('height')),
+    seed: url.searchParams.get('seed') ?? 0,
+  });
+};

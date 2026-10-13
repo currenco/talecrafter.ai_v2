@@ -5,6 +5,11 @@ import { GenerationJobs } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
 import { getUserByProfileId, syncUserFromAuth } from './user.service.js';
 
+import {
+  assertGenerationAccess,
+  reserveProject,
+} from './entitlement.service.js';
+
 const IDEMPOTENCY_KEY_PATTERN = /^[a-zA-Z0-9._:-]{8,255}$/;
 
 const canonicalize = value => {
@@ -70,7 +75,6 @@ export const reserveGenerationForProfile = async ({
   request,
   provider,
   model,
-  creditCost = 0,
   storyId = null,
 }) => {
   const key = normalizeIdempotencyKey(idempotencyKey);
@@ -79,83 +83,36 @@ export const reserveGenerationForProfile = async ({
   if (existing) return resolveExistingJob({ job: existing, requestHash });
 
   const jobId = randomUUID();
-  const safeCreditCost = Number(creditCost);
-  if (!Number.isInteger(safeCreditCost) || safeCreditCost < 0) {
-    throw new ApiError(500, 'Generation credit cost is invalid');
-  }
-
-  let insertedJob;
-  if (safeCreditCost === 0) {
-    [insertedJob] = await db
-      .insert(GenerationJobs)
-      .values({
-        id: jobId,
-        ownerId: profileId,
-        storyId,
-        idempotencyKey: key,
-        requestHash,
-        kind,
-        provider,
-        model,
-        creditCost: 0,
-        status: 'running',
-        request,
-        startedAt: new Date(),
-      })
-      .onConflictDoNothing()
-      .returning();
-  } else {
-    const result = await db.execute(sql`
-      WITH eligible AS (
-        SELECT account.id AS account_id, account.user_id
-        FROM app.credit_accounts account
-        WHERE account.user_id = ${profileId}
-          AND account.balance >= ${safeCreditCost}
-      ), inserted AS (
-        INSERT INTO app.generation_jobs (
-          id, owner_id, story_id, idempotency_key, request_hash, kind,
-          provider, model, credit_cost, attempt_count, status, request,
-          started_at, created_at, updated_at
-        )
-        SELECT
-          ${jobId}, eligible.user_id, ${storyId}, ${key}, ${requestHash},
-          ${kind}, ${provider}, ${model}, ${safeCreditCost}, 1, 'running',
-          ${JSON.stringify(request)}::jsonb, now(), now(), now()
-        FROM eligible
-        ON CONFLICT (owner_id, idempotency_key) DO NOTHING
-        RETURNING id, owner_id
-      ), charged AS (
-        UPDATE app.credit_accounts account
-        SET balance = account.balance - ${safeCreditCost}, updated_at = now()
-        FROM inserted
-        WHERE account.user_id = inserted.owner_id
-        RETURNING account.id, account.user_id, account.balance
-      ), recorded AS (
-        INSERT INTO app.credit_ledger (
-          account_id, amount, balance_after, reason, idempotency_key,
-          reference_type, reference_id
-        )
-        SELECT
-          charged.id, ${-safeCreditCost}, charged.balance,
-          'generation', ${`generation-charge:${jobId}`},
-          'generation_job', ${jobId}
-        FROM charged
-        RETURNING account_id
-      )
-      SELECT inserted.id
-      FROM inserted
-      INNER JOIN charged ON charged.user_id = inserted.owner_id
-      INNER JOIN recorded ON recorded.account_id = charged.id
-    `);
-    insertedJob = (result.rows ?? result)?.[0];
-  }
-
+  await assertGenerationAccess(profileId, kind);
+  const [insertedJob] = await db
+    .insert(GenerationJobs)
+    .values({
+      id: jobId,
+      ownerId: profileId,
+      storyId,
+      idempotencyKey: key,
+      requestHash,
+      kind,
+      provider,
+      model,
+      status: 'running',
+      request,
+      startedAt: new Date(),
+    })
+    .onConflictDoNothing()
+    .returning();
   if (!insertedJob) {
     const racedJob = await findJob({ ownerId: profileId, idempotencyKey: key });
-    if (racedJob) {
-      return resolveExistingJob({ job: racedJob, requestHash });
+    if (racedJob) return resolveExistingJob({ job: racedJob, requestHash });
+    throw new ApiError(409, 'Unable to reserve generation');
+  }
+  try {
+    if (['classic', 'classic_resume', 'interactive_starter'].includes(kind)) {
+      await reserveProject(profileId, jobId, kind);
     }
-    throw new ApiError(402, 'Insufficient credits');
+  } catch (error) {
+    await failGenerationJob({ jobId, error, startedAt: Date.now() });
+    throw error;
   }
 
   return {
@@ -218,29 +175,11 @@ export const failGenerationJob = async ({ jobId, error, startedAt }) => {
   const durationMs = Math.max(0, Date.now() - Number(startedAt));
 
   await db.execute(sql`
-    WITH claimed AS (
-      UPDATE app.generation_jobs
-      SET status = 'failed', error_code = ${errorCode},
+    WITH failed AS (
+      UPDATE app.generation_jobs SET status = 'failed', error_code = ${errorCode},
         error_message = ${errorMessage}, duration_ms = ${durationMs},
         completed_at = now(), updated_at = now()
-      WHERE id = ${jobId} AND status = 'running'
-      RETURNING owner_id, credit_cost
-    ), credited AS (
-      UPDATE app.credit_accounts account
-      SET balance = account.balance + claimed.credit_cost, updated_at = now()
-      FROM claimed
-      WHERE account.user_id = claimed.owner_id AND claimed.credit_cost > 0
-      RETURNING account.id, account.balance, claimed.credit_cost
-    )
-    INSERT INTO app.credit_ledger (
-      account_id, amount, balance_after, reason, idempotency_key,
-      reference_type, reference_id
-    )
-    SELECT
-      credited.id, credited.credit_cost, credited.balance,
-      'generation_refund', ${`generation-refund:${jobId}`},
-      'generation_job', ${jobId}
-    FROM credited
-    ON CONFLICT (idempotency_key) DO NOTHING
+      WHERE id = ${jobId} AND status = 'running' RETURNING id
+    ) SELECT app.release_plan_usage(id) FROM failed
   `);
 };

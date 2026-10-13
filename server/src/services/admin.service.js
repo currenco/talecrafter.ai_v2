@@ -1,8 +1,7 @@
-import { randomUUID } from 'node:crypto';
 import { asc, desc, eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
-  CreditAccounts,
+  CreatorSubscriptions,
   Payments,
   Stories,
   UserProfiles,
@@ -67,20 +66,26 @@ export const listAdminUsers = async query => {
         userName: UserProfiles.userName,
         userImage: UserProfiles.userImage,
         role: UserProfiles.role,
-        credit: CreditAccounts.balance,
+        plan: sql`CASE WHEN ${CreatorSubscriptions.paidThrough} > now() AND ${CreatorSubscriptions.periodStart} <= now() AND NOT ${CreatorSubscriptions.revoked} THEN 'creator' ELSE 'free' END`,
       })
       .from(UserProfiles)
-      .innerJoin(CreditAccounts, eq(CreditAccounts.userId, UserProfiles.id))
+      .leftJoin(
+        CreatorSubscriptions,
+        eq(CreatorSubscriptions.userId, UserProfiles.id)
+      )
       .orderBy(desc(UserProfiles.createdAt), desc(UserProfiles.id))
       .limit(limit)
       .offset(offset),
     db
       .select({
         totalCount: sql`count(*)`,
-        totalCredits: sql`coalesce(sum(${CreditAccounts.balance}), 0)`,
+        totalCreators: sql`count(*) FILTER (WHERE ${CreatorSubscriptions.paidThrough} > now() AND ${CreatorSubscriptions.periodStart} <= now() AND NOT ${CreatorSubscriptions.revoked})`,
       })
       .from(UserProfiles)
-      .innerJoin(CreditAccounts, eq(CreditAccounts.userId, UserProfiles.id)),
+      .leftJoin(
+        CreatorSubscriptions,
+        eq(CreatorSubscriptions.userId, UserProfiles.id)
+      ),
   ]);
 
   return {
@@ -91,7 +96,7 @@ export const listAdminUsers = async query => {
       totalCount: aggregateRows[0]?.totalCount,
     }),
     summary: {
-      totalCredits: Number(aggregateRows[0]?.totalCredits ?? 0),
+      totalCreators: Number(aggregateRows[0]?.totalCreators ?? 0),
     },
   };
 };
@@ -137,6 +142,16 @@ export const deleteAdminUser = async userId => {
     throw new ApiError(409, 'Users with payment history cannot be deleted');
   }
 
+  const [subscription] = await db
+    .select({ id: CreatorSubscriptions.id })
+    .from(CreatorSubscriptions)
+    .where(eq(CreatorSubscriptions.userId, safeUserId))
+    .limit(1);
+  if (subscription)
+    throw new ApiError(
+      409,
+      'Users with subscription history cannot be deleted'
+    );
   await deleteUserAssets(safeUserId);
   const [deleted] = await db
     .delete(UserProfiles)
@@ -144,52 +159,6 @@ export const deleteAdminUser = async userId => {
     .returning({ id: UserProfiles.id });
 
   return deleted;
-};
-
-export const updateAdminUserCredit = async ({ userId, credit }) => {
-  const safeUserId = String(userId ?? '').trim();
-  const safeCredit = Number(credit);
-  if (!safeUserId) throw new ApiError(400, 'User ID is required');
-  if (!Number.isInteger(safeCredit) || safeCredit < 0) {
-    throw new ApiError(400, 'Credit must be a non-negative integer');
-  }
-
-  const key = `admin-adjustment:${randomUUID()}`;
-  const result = await db.execute(sql`
-    WITH target AS (
-      SELECT profile.id, account.id AS account_id, account.balance
-      FROM app.user_profiles profile
-      INNER JOIN app.credit_accounts account ON account.user_id = profile.id
-      WHERE profile.id = ${safeUserId}
-    ), updated AS (
-      UPDATE app.credit_accounts account
-      SET balance = ${safeCredit}, updated_at = now()
-      FROM target
-      WHERE account.id = target.account_id
-      RETURNING account.id, account.user_id, account.balance,
-        account.balance - target.balance AS amount
-    ), recorded AS (
-      INSERT INTO app.credit_ledger (
-        account_id, amount, balance_after, reason, idempotency_key
-      )
-      SELECT id, amount, balance, 'admin_adjustment', ${key}
-      FROM updated
-      WHERE amount <> 0
-    )
-    SELECT
-      profile.id,
-      profile.email AS "userEmail",
-      profile.display_name AS "userName",
-      profile.avatar_url AS "userImage",
-      profile.role,
-      updated.balance AS credit
-    FROM updated
-    INNER JOIN app.user_profiles profile ON profile.id = updated.user_id
-  `);
-
-  const user = result.rows?.[0];
-  if (!user) throw new ApiError(404, 'User not found');
-  return user;
 };
 
 export const backfillStorySlugs = async () => ({

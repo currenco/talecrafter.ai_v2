@@ -18,7 +18,7 @@ The following capabilities are intentionally retained while the infrastructure i
 - Interactive branching stories
 - Public story exploration and slug-based reading
 - User dashboard and story management
-- Credit accounting and Razorpay Standard Checkout
+- Monthly Creator subscriptions through Razorpay Standard Checkout
 - PDF export and browser narration
 - Administrative management
 

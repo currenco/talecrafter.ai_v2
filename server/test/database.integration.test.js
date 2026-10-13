@@ -9,7 +9,7 @@ process.env.DATABASE_URL = process.env.DATABASE_URL_UNPOOLED;
 const enabled = process.env.RUN_DATABASE_TESTS === 'true';
 
 test(
-  'fresh schema enforces ownership, balances, and idempotency',
+  'fresh schema enforces ownership and idempotency',
   { skip: !enabled },
   async () => {
     assert.match(String(process.env.NEON_BRANCH ?? ''), /^dev\//);
@@ -18,19 +18,11 @@ test(
       import('../src/db/index.js'),
       import('../src/db/schema.js'),
     ]);
-    const {
-      Assets,
-      CreditAccounts,
-      CreditLedger,
-      GenerationJobs,
-      Stories,
-      StoryVersions,
-      UserProfiles,
-    } = schema;
+    const { Assets, GenerationJobs, Stories, StoryVersions, UserProfiles } =
+      schema;
     const suffix = randomUUID();
     const profileId = randomUUID();
     const storyId = randomUUID();
-    const accountId = randomUUID();
 
     try {
       await db.insert(UserProfiles).values({
@@ -39,32 +31,6 @@ test(
         userEmail: `schema-${suffix}@example.invalid`,
         userName: 'Schema Test',
       });
-      await db
-        .insert(CreditAccounts)
-        .values({ id: accountId, userId: profileId, balance: 5 });
-      await db.insert(CreditLedger).values({
-        accountId,
-        amount: 5,
-        balanceAfter: 5,
-        reason: 'signup',
-        idempotencyKey: `schema-test:${suffix}:signup`,
-      });
-      await assert.rejects(
-        db.insert(CreditLedger).values({
-          accountId,
-          amount: 1,
-          balanceAfter: 6,
-          reason: 'duplicate',
-          idempotencyKey: `schema-test:${suffix}:signup`,
-        })
-      );
-      await assert.rejects(
-        db
-          .update(CreditAccounts)
-          .set({ balance: -1 })
-          .where(eq(CreditAccounts.id, accountId))
-      );
-
       await db.insert(Stories).values({
         id: storyId,
         ownerId: profileId,

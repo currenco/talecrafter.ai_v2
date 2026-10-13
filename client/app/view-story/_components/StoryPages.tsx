@@ -3,6 +3,7 @@ import { IoPlayCircle, IoPauseCircle } from "react-icons/io5";
 import Image from "next/image";
 import { buildPollinationsImageUrl } from "@/lib/story-images";
 import type { StoryChapter } from "@/types/story";
+import { getCleanChapterText } from "@/lib/story-text";
 
 type StoryPagesProps = {
   storyChapter: StoryChapter;
@@ -107,14 +108,7 @@ const StoryPages = ({
       </div>
       <div className="hsb2 max-h-52 overflow-y-scroll mt-2">
         <p className="mt-3 rounded-lg bg-blue-50 p-4 text-lg text-slate-800 md:text-xl">
-          {storyChapter?.textPrompt
-            ?.split(storyChapter?.imagePrompt?.substring(0, 20) || "")[0]
-            ?.replace(/\{[^}]*\}/g, "")
-            ?.replace(
-              /(Water ?Color|Watercolor|Anime( style)?|3D ?Cartoon|Oil (Paint|painting)|Comic( book)?|Paper ?Cut|Papercut|Pixel ?Art)[\s\S]*/i,
-              ""
-            )
-            ?.trim()}
+          {getCleanChapterText(storyChapter)}
         </p>
       </div>
     </div>

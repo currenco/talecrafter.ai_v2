@@ -22,7 +22,7 @@ type UserType = {
   userName: string | null;
   userEmail: string;
   userImage?: string | null;
-  credit: number;
+  plan: 'free' | 'creator';
 };
 
 type Pagination = {
@@ -41,7 +41,7 @@ type AdminStoryPage = {
 type AdminUserPage = {
   items: UserType[];
   pagination: Pagination;
-  summary: { totalCredits: number };
+  summary: { totalCreators: number };
 };
 
 const PAGE_SIZE = 12;
@@ -61,13 +61,10 @@ const AdminDashboard = () => {
   const [storyHasMore, setStoryHasMore] = useState(false);
   const [userHasMore, setUserHasMore] = useState(false);
   const [storyTypes, setStoryTypes] = useState<string[]>([]);
-  const [totalCredits, setTotalCredits] = useState(0);
+  const [totalCreators, setTotalCreators] = useState(0);
   const [storySearch, setStorySearch] = useState("");
   const [storyTypeFilter, setStoryTypeFilter] = useState("all");
   const [userSearch, setUserSearch] = useState("");
-  const [editedCredits, setEditedCredits] = useState<Record<string, number>>(
-    {},
-  );
 
   const getAuthToken = useCallback(async () => {
     const token = await getAccessToken();
@@ -129,7 +126,7 @@ const AdminDashboard = () => {
         });
         setUserTotal(result.pagination.totalCount);
         setUserHasMore(result.pagination.hasMore);
-        setTotalCredits(result.summary.totalCredits);
+        setTotalCreators(result.summary.totalCreators);
       } catch {
         setUserHasMore(false);
         toast.error("Failed to load users");
@@ -198,7 +195,6 @@ const AdminDashboard = () => {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    const deletedUser = users.find((user) => user.id === userId);
 
     try {
       const token = await getAuthToken();
@@ -208,42 +204,10 @@ const AdminDashboard = () => {
       });
       setUsers((prev) => prev.filter((u) => u.id !== userId));
       setUserTotal((previous) => Math.max(0, previous - 1));
-      setTotalCredits((previous) =>
-        Math.max(0, previous - Number(deletedUser?.credit ?? 0)),
-      );
+      void fetchUsers();
       toast.success("User deleted successfully");
     } catch {
       toast.error("Failed to delete user");
-    }
-  };
-
-  const handleUpdateUserCredit = async (userId: string) => {
-    const user = users.find((u) => u.id === userId);
-    if (!user) return;
-
-    const newCredit = editedCredits[userId] ?? user.credit;
-    if (!Number.isInteger(newCredit) || newCredit < 0) {
-      toast.error("Invalid credit value");
-      return;
-    }
-
-    try {
-      const token = await getAuthToken();
-      const updatedUser = await apiFetch<UserType>(
-        `/admin/users/${encodeURIComponent(userId)}/credit`,
-        {
-          method: "PATCH",
-          token,
-          body: JSON.stringify({ credit: newCredit }),
-        },
-      );
-      setUsers((prev) => prev.map((u) => (u.id === userId ? updatedUser : u)));
-      setTotalCredits(
-        (previous) => previous + updatedUser.credit - user.credit,
-      );
-      toast.success("User credit updated");
-    } catch {
-      toast.error("Failed to update credit");
     }
   };
 
@@ -307,10 +271,10 @@ const AdminDashboard = () => {
             </div>
             <div className="rounded-xl bg-[#d8c69e]/[0.08] p-3 text-center">
               <p className="text-2xl font-bold text-[#f1eadb]">
-                {totalCredits}
+                {totalCreators}
               </p>
               <p className="text-xs uppercase text-[#c3cbd4]/70">
-                Total Credits
+                Creator Subscribers
               </p>
             </div>
           </div>
@@ -435,7 +399,7 @@ const AdminDashboard = () => {
                   <tr>
                     <th className="px-3 py-2">Name</th>
                     <th className="px-3 py-2">Email</th>
-                    <th className="px-3 py-2">Credit</th>
+                    <th className="px-3 py-2">Plan</th>
                     <th className="px-3 py-2">Actions</th>
                   </tr>
                 </thead>
@@ -445,26 +409,10 @@ const AdminDashboard = () => {
                       <td className="px-3 py-2">{u.userName ?? "-"}</td>
                       <td className="px-3 py-2">{u.userEmail ?? "-"}</td>
                       <td className="px-3 py-2">
-                        <input
-                          type="number"
-                          defaultValue={u.credit}
-                          className="w-24 rounded-md border border-[#d8c69e]/20 bg-[#111d2b] px-2 py-1 text-[#c3cbd4] outline-none"
-                          onChange={(e) => {
-                            setEditedCredits((prev) => ({
-                              ...prev,
-                              [u.id]: Number(e.target.value),
-                            }));
-                          }}
-                        />
+                        <span className="capitalize">{u.plan}</span>
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => handleUpdateUserCredit(u.id)}
-                            className="rounded-full bg-[#d8c69e] px-3 py-1 font-semibold text-[#101a28] hover:bg-[#eee0c0]"
-                          >
-                            Save Credit
-                          </button>
                           <button
                             onClick={() => handleDeleteUser(u.id)}
                             className="rounded-lg bg-red-500 px-3 py-1 font-semibold text-white hover:bg-red-600"

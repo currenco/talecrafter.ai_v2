@@ -48,7 +48,7 @@ export default function SignUpPage() {
   return (
     <AuthShell
       title="Create your account"
-      subtitle="Start with five credits and build your first story."
+      subtitle="Explore stories and start creating with Free."
       alternateHref="/sign-in"
       alternateLabel="Already have an account? Sign in"
     >

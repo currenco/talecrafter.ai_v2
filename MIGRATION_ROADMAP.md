@@ -24,44 +24,40 @@ Express API
       +-- Neon Managed Better Auth
       +-- Neon PostgreSQL + Drizzle
       +-- Cloudinary media storage
-      +-- Razorpay Standard Checkout
+      +-- Razorpay monthly Creator subscriptions
       +-- Gemini text generation
-      +-- Pollinations user-funded image generation
+      +-- Pollinations user-funded Free / platform-funded Creator images
 ```
 
-- The active database schema is represented by migrations `0000` through `0007`.
+- Development (`dev/platform-poc`) and the existing `production` branch have migrations through `0009`.
 - Development uses `dev/platform-poc`; the deployed application uses the existing `production` branch.
 - Legacy stories and historical user references are already present on both branches. Do not rerun or recreate legacy import scripts.
 - Historical users in `app.legacy_users` are informational records only. They are not Auth users, profiles, credit accounts, or owners. Returning people authenticate as fresh users.
 - Legacy story images continue using their original Cloudinary URLs. New media uses the current Cloudinary account.
 - Existing stories remain assigned to the selected administrator account; no account-claim workflow is planned.
 
-## 1. Complete Payments And Credit Ledger
+## 1. Subscription Rollout
 
-Status: in progress
+Status: implementation ready for staging verification; not enabled in production
 
-Razorpay order creation, Standard Checkout, signature verification, signed webhook reconciliation, and idempotent purchase fulfillment already exist. Complete only the remaining work below.
+Initial release is Free-only with `CREATOR_CHECKOUT_ENABLED=false`. Production startup no longer requires payment/platform-funded-image credentials when checkout is disabled. Creator features remain implemented and gated; pricing shows coming soon. See the initial-launch section of the rollout runbook. Do not enable billing merely to launch Free access.
 
-Tasks:
+Free creation requires linked GitHub, supports Classic only, and spends the user's Pollinations balance. Creator supports Google or GitHub, Classic and branching, PDF export, character bible and scene prompts, with platform-funded images. Google and GitHub remain available for sign-in on both plans. Credit packs, signup credits and credit charging are no longer active product features.
 
-- Implement refund handling with append-only ledger entries and idempotent Razorpay event processing.
-- Implement administrator credit adjustments by stable profile ID, including reason, actor, and audit metadata.
-- Confirm every balance mutation has a corresponding ledger entry.
-- Add a ledger-to-cached-balance reconciliation command or test.
-- Finalize production pricing, credit packages, supported currencies, and Razorpay presentation rules.
+Remaining tasks:
 
-Verification:
+- Test linking GitHub to an existing Google account without creating a second profile. Development Auth column types are verified; the entitlement join handles UUID Auth IDs and text profile IDs.
+- Confirm Razorpay approval for USD recurring card subscriptions. Create separate test/live monthly USD 9 plans and set the corresponding server-side plan IDs. Do not substitute one-time orders or silently convert the currency.
+- Configure the subscription webhook events, funded platform key, provider-side spending budget, and server attempt cap using [the rollout runbook](docs/architecture/creator-subscriptions.md).
+- Test real sandbox checkout, delayed first capture, renewal, failed renewal, expiry, cancellation, refund and dispute flows. Local tests mock Razorpay and do not prove account eligibility.
+- Run true multi-connection PostgreSQL contention tests in development; the embedded PostgreSQL tests serialize database connections.
+- Reconcile any historical pending credit purchases before disabling old payment fulfillment in production. Retain financial history; no credit-to-subscription conversion is implemented.
+- Verify full Free/Creator workflows in a browser on mobile and desktop, including a subscriber with no Pollinations connection.
+- Establish alerts and manual Pollen replenishment. Revenue does not automatically buy provider balance; provider outages and insufficient balance can still delay images.
+- Rehearse recovery for an ambiguous subscription creation (`creating` row), interrupted jobs/reservations and provider downtime before enabling checkout.
+- Enable `CREATOR_CHECKOUT_ENABLED=true` only after migrations, test payments, funding and renewal configuration pass.
 
-- Duplicate and concurrent webhook tests.
-- Failed, delayed, refunded, and partially processed payment tests.
-- Wrong-user checkout and payment-status authorization tests.
-- Signup, purchase, generation charge, generation refund, payment refund, and admin adjustment reconciliation.
-
-Exit criteria:
-
-- Every balance change is auditable and applied exactly once.
-- Refunds cannot over-credit an account.
-- No payment or administrator authorization depends on mutable email.
+The headline plan cards avoid numeric quotas. Expandable plan details and the required checkout consent disclose the actual monthly allowances. This must not be marketed as unlimited generation.
 
 ## 2. Product UI, Brand, And Documentation
 
@@ -71,7 +67,7 @@ Tasks:
 
 - Finalize the product name, positioning, visual identity, logo, copy, and imagery.
 - Replace remaining old-brand text, assets, links, and pricing assumptions.
-- Rework navigation around creation, drafts, published stories, credits, and account settings.
+- Rework navigation around creation, drafts, published stories, subscriptions, and account settings.
 - Audit responsive behavior and complete mobile and desktop workflows.
 - Remove unused pages, components, assets, dependencies, and empty directories after replacement.
 - Recreate legal, contact, metadata, analytics, and SEO only after the product identity is final.
@@ -106,7 +102,7 @@ Verification requirements:
 
 - Character and style consistency across multiple scenes.
 - Resumable generation after individual scene failure.
-- No duplicate provider charge or application credit charge on retries.
+- No duplicate provider charge or allowance consumption on retries.
 - Final duration and scene ordering match the story timeline.
 - Mobile playback and downloadable output work reliably.
 
@@ -114,13 +110,13 @@ Exit criteria:
 
 - A complete story can produce one coherent video artifact through a resumable, auditable job.
 - The user sees progress and can recover from partial failure without restarting successful scenes.
-- Provider limits and costs are reflected in product pricing and credit reservations.
+- Provider limits and costs are reflected in product pricing and usage reservations.
 
 ## 4. Performance, Caching, And Query Efficiency
 
 Status: not started
 
-Goal: make repeat navigation fast and reduce avoidable Neon compute usage without serving stale authentication, credit, payment, draft, or generation state.
+Goal: make repeat navigation fast and reduce avoidable Neon compute usage without serving stale authentication, subscription, payment, draft, or generation state.
 
 Tasks:
 
@@ -129,8 +125,8 @@ Tasks:
 - Add TanStack Query as the client server-state layer with centralized query keys, request deduplication, explicit `staleTime`/`gcTime`, bounded retries, and mutation-driven invalidation.
 - Replace the remaining Explore `sessionStorage` cache with versioned, timestamped query persistence. Any future dashboard persistence must scope private entries by stable Auth user ID and clear them on logout or account change.
 - Cache public story lists, published story details, and related stories at the Next.js/server layer so one cached response can serve multiple users. Use explicit lifetimes and targeted tags rather than caching only inside each browser.
-- Keep `/users/me`, credits, payments, drafts, admin data, Pollinations credentials, and generation state private. Never place them in a shared or public CDN cache.
-- Use short-lived memory caching for credits and invalidate or update it immediately after verified payment, refund, generation charge, generation refund, or administrator adjustment.
+- Keep `/users/me`, subscriptions, payments, drafts, admin data, Pollinations credentials, and generation state private. Never place them in a shared or public CDN cache.
+- Use short-lived memory caching for plan status and invalidate it immediately after verified payment, refund, cancellation, renewal or expiry; always enforce entitlements on the server.
 - Poll generation status only while a job is active. Stop polling on completion, failure, navigation, or an inactive tab.
 - Move administrator search and story-type filtering to validated server query parameters before the admin datasets become large. The current controls intentionally filter only the pages already loaded.
 - Add deterministic ordering to every paginated query and migrate high-volume classic-story lists from offset pagination to cursor pagination when justified by measured dataset size and query plans.
@@ -146,7 +142,7 @@ Initial cache policy:
 | Related stories                          | stale for 5 minutes                              | cache for 5-10 minutes                                              |
 | User story lists                         | stale for 1 minute; per-user session persistence | private; no shared cache                                            |
 | User profile                             | stale for 5 minutes in memory                    | private; no shared cache                                            |
-| Credits and payment status               | stale for at most 15-30 seconds in memory        | private; invalidate immediately after mutation/webhook confirmation |
+| Subscription and payment status               | stale for at most 15-30 seconds in memory        | private; invalidate immediately after mutation/webhook confirmation |
 | Active generation status                 | uncached while polling                           | no shared cache                                                     |
 | Auth tokens and Pollinations credentials | memory only                                      | never persist in browser storage or public caches                   |
 
@@ -155,7 +151,7 @@ Verification:
 - Confirm warm navigation does not issue duplicate API or database requests.
 - Confirm two concurrent components requesting the same query share one in-flight request.
 - Confirm logout/account switching cannot display another user's cached data.
-- Confirm create, publish, delete, payment, refund, and credit-adjustment mutations invalidate only the affected queries.
+- Confirm create, publish, delete, payment, refund, and subscription mutations invalidate only the affected queries.
 - Confirm public cache hits avoid backend/database work and private responses include no public cache directives.
 - Confirm an idle browser does not continuously call Auth or database-backed endpoints and Neon can reach scale-to-zero.
 - Compare query count, transferred rows, response latency, and Neon active-compute time before and after implementation.
@@ -181,7 +177,8 @@ Required checks:
 - Story generation, retry, draft, publish, and refund tests.
 - Razorpay live-mode checkout and webhook idempotency tests using final pricing.
 - Authorization tests for every owner and administrator mutation.
-- Rate-limit, malformed-request, and provider-timeout tests.
+- Reintroduce API rate limiting with verified proxy attribution and separate polling budgets. Request throttling is currently removed by product-owner request; plan allowances and provider spending caps remain enforced.
+- Malformed-request and provider-timeout tests.
 - Secret, environment-variable, dependency, and dead-code audits.
 - Backup and restore rehearsal.
 - Monitoring, alerting, request tracing, and operational ownership.
@@ -198,7 +195,7 @@ Launch rules:
 ## Open Decisions
 
 - Final brand, customer promise, and primary workflow.
-- Final credit packages, prices, currencies, taxes, and refund policy.
+- Confirm USD recurring-payment availability, taxes, refund policy and production pricing before checkout is enabled.
 - Whether public story exploration remains a launch feature.
 - Video output specification, provider/model selection, and per-story cost ceiling.
 - Monitoring provider, backup retention, and old-database retirement date.

@@ -13,7 +13,6 @@ if (!connectionString) throw new Error('A database connection URL is required');
 
 const sql = neon(connectionString);
 const profileId = '00000000-0000-4000-8000-000000000101';
-const accountId = '00000000-0000-4000-8000-000000000102';
 const classicId = '00000000-0000-4000-8000-000000000201';
 const classicPublicId = '00000000-0000-4000-8000-000000000202';
 const interactiveId = '00000000-0000-4000-8000-000000000301';
@@ -28,17 +27,6 @@ await sql.transaction([
       ${profileId}, 'seed:demo-user', 'demo@example.invalid',
       'Demo Storyteller', null
     ) ON CONFLICT (auth_user_id) DO NOTHING
-  `,
-  sql`
-    INSERT INTO app.credit_accounts (id, user_id, balance)
-    VALUES (${accountId}, ${profileId}, 5)
-    ON CONFLICT (user_id) DO NOTHING
-  `,
-  sql`
-    INSERT INTO app.credit_ledger (
-      account_id, amount, balance_after, reason, idempotency_key
-    ) VALUES (${accountId}, 5, 5, 'signup', 'seed:demo-user:signup')
-    ON CONFLICT (idempotency_key) DO NOTHING
   `,
   sql`
     INSERT INTO app.stories (

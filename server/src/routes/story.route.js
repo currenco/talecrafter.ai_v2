@@ -9,13 +9,10 @@ import {
   getStorySlugDetail,
   getStoryGenerationStatus,
   resumeStoryGeneration,
+  getCreatorPack,
 } from '../controllers/story.controller.js';
 import { requireAuth } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
-import {
-  generationRateLimit,
-  generationStatusRateLimit,
-} from '../middlewares/rateLimit.middleware.js';
 import {
   createStorySchema,
   currentUserStoriesQuerySchema,
@@ -26,13 +23,7 @@ import {
 const router = Router();
 
 router.get('/', getPublicStories);
-router.post(
-  '/',
-  generationRateLimit,
-  requireAuth,
-  validate(createStorySchema),
-  createStory
-);
+router.post('/', requireAuth, validate(createStorySchema), createStory);
 router.get(
   '/me',
   requireAuth,
@@ -41,19 +32,23 @@ router.get(
 );
 router.get(
   '/me/:storyId/status',
-  generationStatusRateLimit,
   requireAuth,
   validate(storyIdParamSchema),
   getStoryGenerationStatus
 );
 router.post(
   '/:storyId/resume',
-  generationRateLimit,
   requireAuth,
   validate(storyIdParamSchema),
   resumeStoryGeneration
 );
 router.get('/slug/:slug', getStorySlugDetail);
+router.get(
+  '/:storyId/creator-pack',
+  requireAuth,
+  validate(storyIdParamSchema),
+  getCreatorPack
+);
 router.get('/id/:storyId', getStoryIdDetail);
 router.get(
   '/:storyId/related',
