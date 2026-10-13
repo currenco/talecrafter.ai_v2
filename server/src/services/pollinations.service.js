@@ -9,6 +9,7 @@ import ApiError from '../utils/ApiError.js';
 import { decryptSecret, encryptSecret } from '../utils/secretBox.js';
 import { hasImagePermission } from '../utils/pollinationsPermissions.js';
 import { syncUserFromAuth } from './user.service.js';
+import { assertGenerationAccess } from './entitlement.service.js';
 
 const AUTHORIZATION_URL = 'https://enter.pollinations.ai/authorize';
 const TOKEN_URL = 'https://enter.pollinations.ai/api/oauth/token';
@@ -238,6 +239,13 @@ export const completePollinationsConnection = async ({
 };
 
 export const getPollinationsAccessTokenForProfile = async profileId => {
+  const access = await assertGenerationAccess(profileId);
+  if (access.plan === 'creator') {
+    const key = String(process.env.POLLINATIONS_PLATFORM_KEY ?? '').trim();
+    if (!key.startsWith('sk_'))
+      throw new ApiError(503, 'Platform image generation is not configured');
+    return key;
+  }
   const connection = await findConnection(profileId);
   const state = connectionState(connection);
   if (state !== 'connected') {

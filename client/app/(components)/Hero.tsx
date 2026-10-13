@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import DeferredVideo from "./DeferredVideo";
+import PricingPlans from "@/components/PricingPlans";
 import ScrollStorySequence from "./ScrollStorySequence";
 import StoryDemoFrame from "./StoryDemoFrame";
 import styles from "./home-theme.module.css";
@@ -164,49 +165,6 @@ const upcomingProductionPipeline = [
   },
 ];
 
-const pricingPlans = [
-  {
-    name: "Free",
-    price: "$0",
-    credits: "5 credits",
-    description: "Included when you create an account.",
-    features: ["Five starter credits", "Classic and Plot Twist modes", "No payment required"],
-    ctaLabel: "Start free",
-    href: "/create-story",
-    recommended: false,
-  },
-  {
-    name: "Basic",
-    price: "$199",
-    credits: "10 credits",
-    description: "A small refill for an occasional story.",
-    features: ["Ten story credits", "Use across every story mode", "Secure one-time payment"],
-    ctaLabel: "Choose Basic",
-    href: "/buy-credits",
-    recommended: false,
-  },
-  {
-    name: "Premium",
-    price: "$399",
-    credits: "75 credits",
-    description: "The best fit for regular creation.",
-    features: ["Seventy-five story credits", "Use across every story mode", "Secure one-time payment"],
-    ctaLabel: "Choose Premium",
-    href: "/buy-credits",
-    recommended: true,
-  },
-  {
-    name: "Ultimate",
-    price: "$599",
-    credits: "150 credits",
-    description: "More room for longer creative runs.",
-    features: ["One hundred fifty credits", "Use across every story mode", "Secure one-time payment"],
-    ctaLabel: "Choose Ultimate",
-    href: "/buy-credits",
-    recommended: false,
-  },
-];
-
 const faqs = [
   {
     question: "What is the difference between Classic and Plot Twist?",
@@ -224,9 +182,9 @@ const faqs = [
       "Stories can be read in a book-style flip view or a scrolling story view. Page narration is available inside the reader, and completed stories can be exported as PDFs.",
   },
   {
-    question: "Can I try TaleCrafter before buying credits?",
+    question: "What is the difference between Free and Creator?",
     answer:
-      "Yes. New accounts start with five credits, so you can create and experience the workflow before choosing a paid credit pack.",
+      "Both plans support Google and GitHub sign-in. The Free plan requires GitHub for Classic story creation and uses your own Pollinations balance for images. Creator includes Classic and branching stories, PDF export, a complete character bible and scene-by-scene prompts, with platform-funded images and no GitHub requirement. Monthly usage limits apply; see View plan limits for the allowances. Creator checkout is available once billing setup is enabled.",
   },
 ];
 
@@ -774,65 +732,17 @@ const Hero = () => {
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-[#d8c69e] sm:text-[11px]">
-              Simple credit packs
+              Plans for your next story
             </p>
             <h2 className={`mt-4 ${SECTION_HEADING_CLASS}`}>
-              Start free. Add credits when you need them.
+              Start free. Create more with Creator.
             </h2>
             <p className="mt-5 text-lg leading-8 text-[#c3cbd4]/70">
-              No complicated tiers. Choose the amount that matches how often you create.
+              Use your own generation account, or choose a monthly plan with images included.
             </p>
           </div>
 
-          <div className="mt-14 grid items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {pricingPlans.map((plan) => (
-              <div
-                key={plan.name}
-                className={`flex min-h-[430px] flex-col rounded-[1.75rem] border p-7 shadow-[0_24px_70px_rgba(0,0,0,0.18)] ${
-                  plan.recommended
-                    ? "border-[#d8c69e]/60 bg-[#d8c69e]/10 text-[#f1eadb]"
-                    : "border-[#d8c69e]/15 bg-white/[0.04] text-[#f1eadb]"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="text-xl font-bold">{plan.name}</h3>
-                  {plan.recommended && (
-                    <span className="rounded border border-white/25 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#c3cbd4]">
-                      Popular
-                    </span>
-                  )}
-                </div>
-                <p className="mt-5 text-4xl font-extrabold">{plan.price}</p>
-                <p className="mt-2 font-semibold text-[#d8c69e]">
-                  {plan.credits}
-                </p>
-                <p className="mt-5 leading-7 text-[#c3cbd4]/70">
-                  {plan.description}
-                </p>
-                <ul className="mt-7 space-y-3 border-t border-[#d8c69e]/15 pt-6">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex gap-3 text-sm leading-6 text-[#c3cbd4]/80">
-                      <Check className="mt-1 h-4 w-4 shrink-0 text-[#d8c69e]" aria-hidden="true" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-auto pt-8">
-                  <Link
-                    href={plan.href}
-                    className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 font-semibold transition ${
-                      plan.recommended
-                        ? "bg-[#d8c69e] text-[#101a28] hover:bg-[#eee0c0]"
-                        : "border border-[#d8c69e]/25 bg-white/10 text-[#f1eadb] hover:bg-white/15"
-                    }`}
-                  >
-                    {plan.ctaLabel}
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
+          <div className="mt-10"><PricingPlans /></div>
         </div>
       </section>
 

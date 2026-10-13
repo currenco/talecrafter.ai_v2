@@ -9,7 +9,6 @@ import {
 } from '../controllers/interactiveStory.controller.js';
 import { requireAuth } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
-import { generationRateLimit } from '../middlewares/rateLimit.middleware.js';
 import {
   chooseInteractiveStoryPathSchema,
   completeInteractiveStoryPathSchema,
@@ -24,7 +23,6 @@ router.use(requireAuth);
 
 router.post(
   '/',
-  generationRateLimit,
   validate(createInteractiveStorySchema),
   createInteractiveStory
 );
@@ -40,13 +38,11 @@ router.get(
 );
 router.post(
   '/:storyId/choices',
-  generationRateLimit,
   validate(chooseInteractiveStoryPathSchema),
   chooseInteractiveStoryPath
 );
 router.post(
   '/:storyId/complete',
-  generationRateLimit,
   validate(completeInteractiveStoryPathSchema),
   completeInteractiveStoryPath
 );

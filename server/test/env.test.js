@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateEnvironment } from '../src/config/env.js';
+import {
+  creatorCheckoutEnabled,
+  validateEnvironment,
+} from '../src/config/env.js';
 
 const baseEnvironment = {
   NODE_ENV: 'development',
@@ -14,6 +17,29 @@ test('accepts a valid development environment', () => {
   const env = validateEnvironment(baseEnvironment);
   assert.equal(env.PORT, 8000);
   assert.equal(env.NODE_ENV, 'development');
+});
+
+test('Creator checkout stays disabled until billing and platform funding are configured', () => {
+  assert.equal(
+    validateEnvironment(baseEnvironment).CREATOR_CHECKOUT_ENABLED,
+    'false'
+  );
+  assert.throws(
+    () =>
+      validateEnvironment({
+        ...baseEnvironment,
+        CREATOR_CHECKOUT_ENABLED: 'true',
+      }),
+    /required to enable Creator checkout/
+  );
+  assert.throws(
+    () =>
+      validateEnvironment({
+        ...baseEnvironment,
+        POLLINATIONS_PLATFORM_KEY: 'pk_public',
+      }),
+    /must start with sk_/
+  );
 });
 
 test('rejects an invalid client origin', () => {
@@ -42,6 +68,33 @@ test('requires service configuration in production', () => {
   assert.throws(
     () => validateEnvironment({ ...baseEnvironment, NODE_ENV: 'production' }),
     /CORS_ORIGIN is required in production/
+  );
+});
+
+test('production Free launch needs no billing or platform-funded image credentials', () => {
+  const source = {
+    ...baseEnvironment,
+    NODE_ENV: 'production',
+    CLIENT_ORIGIN: 'https://example.com',
+    CORS_ORIGIN: 'https://example.com',
+    GEMINI_API_KEY: 'test',
+    POLLINATIONS_APP_KEY: 'pk_test',
+    POLLINATIONS_TOKEN_ENCRYPTION_KEY: 'x'.repeat(32),
+    CLOUDINARY_CLOUD_NAME: 'test',
+    CLOUDINARY_API_KEY: 'test',
+    CLOUDINARY_API_SECRET: 'test',
+    POLLINATIONS_PLATFORM_MONTHLY_ATTEMPT_LIMIT: '',
+    CREATOR_CHECKOUT_ENABLED: 'false',
+  };
+  assert.equal(validateEnvironment(source).CREATOR_CHECKOUT_ENABLED, 'false');
+  assert.equal(creatorCheckoutEnabled(source), false);
+  assert.throws(
+    () => validateEnvironment({ ...source, CREATOR_CHECKOUT_ENABLED: 'true' }),
+    /required to enable Creator checkout/
+  );
+  assert.equal(
+    creatorCheckoutEnabled({ ...source, CREATOR_CHECKOUT_ENABLED: 'true' }),
+    false
   );
 });
 

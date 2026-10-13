@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
@@ -12,6 +12,11 @@ import { buildPollinationsImageUrl } from "@/lib/story-images";
 import { apiFetch } from "@/lib/api-client";
 import type { StoryRecord } from "@/lib/story-data";
 import type { StoryChapter } from "@/types/story";
+import { getCleanChapterText } from "@/lib/story-text";
+
+import CreatorStoryPack from "@/components/CreatorStoryPack";
+import { UserDetailContext } from "@/app/_context/UserDetailContext";
+import { getAccessToken } from "@/lib/neon-auth/client";
 
 type StoryPageClientProps = {
   initialStory: StoryRecord;
@@ -63,19 +68,6 @@ function SafeStoryModeImage({ src, alt }: { src: string; alt: string }) {
 const getOutputTitle = (story: StoryRecord) =>
   String(story.output?.title ?? "AI Generated Story");
 
-const getCleanChapterText = (chapter: StoryChapter) => {
-  return (
-    chapter?.textPrompt
-      ?.split(chapter?.imagePrompt?.substring(0, 20) || "")[0]
-      ?.replace(/\{[^}]*\}/g, "")
-      ?.replace(
-        /(Water ?Color|Watercolor|Anime( style)?|3D ?Cartoon|Oil (Paint|painting)|Comic( book)?|Paper ?Cut|Papercut|Pixel ?Art)[\s\S]*/i,
-        ""
-      )
-      ?.trim() ?? ""
-  );
-};
-
 const getStorySummary = (story: StoryRecord) => {
   const firstText = String(story?.output?.chapters?.[0]?.textPrompt ?? story?.storySubject ?? "")
     .replace(/\{[^}]*\}/g, "")
@@ -89,6 +81,7 @@ const getStorySummary = (story: StoryRecord) => {
 };
 
 export default function StoryPageClient({ initialStory }: StoryPageClientProps) {
+  const { userDetail } = useContext(UserDetailContext);
   const RELATED_PAGE_SIZE = 10;
   const bookRef = useRef<FlipBookHandle | null>(null);
   const [story] = useState<StoryRecord>(initialStory);
@@ -195,6 +188,8 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
     let exportRoot: HTMLElement | null = null;
 
     try {
+      if (!userDetail?.canExport) { toast.info("PDF export is included with Creator."); return; }
+      await apiFetch(`/stories/${encodeURIComponent(story.storyId ?? "")}/creator-pack`, { token: await getAccessToken() });
       setDownloadingPdf(true);
       const { default: html2canvas } = await import("html2canvas");
       const { jsPDF: JsPDF } = await import("jspdf");
@@ -425,7 +420,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                   disabled={downloadingPdf || !story}
                   className="tc-btn-ghost px-5 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {downloadingPdf ? "Generating PDF..." : "Download PDF"}
+                  {downloadingPdf ? "Generating PDF..." : userDetail?.canExport ? "Download PDF" : "PDF export - Creator"}
                 </button>
                 <div className="tc-toggle-wrap">
                   <button
@@ -729,6 +724,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
           </div>
         </div>
       </div>
+      <CreatorStoryPack storyId={story.storyId} />
     </div>
   );
 }

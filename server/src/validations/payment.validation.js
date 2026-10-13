@@ -1,19 +1,9 @@
 import { z } from 'zod';
-import { nonEmptyString } from './common.validation.js';
-
-const planId = z.enum(['basic', 'premium', 'ultimate']);
-
-export const createRazorpayOrderSchema = z.object({
-  body: z.object({ planId }),
-  params: z.object({}).optional(),
-  query: z.object({}).optional(),
-});
-
-export const verifyRazorpayPaymentSchema = z.object({
+export const verifyRazorpaySubscriptionSchema = z.object({
   body: z.object({
-    razorpayPaymentId: nonEmptyString('Razorpay payment ID'),
-    razorpayOrderId: nonEmptyString('Razorpay order ID'),
-    razorpaySignature: nonEmptyString('Razorpay signature'),
+    razorpayPaymentId: z.string().regex(/^pay_[a-zA-Z0-9]+$/),
+    razorpaySubscriptionId: z.string().regex(/^sub_[a-zA-Z0-9]+$/),
+    razorpaySignature: z.string().regex(/^[a-fA-F0-9]{64}$/),
   }),
   params: z.object({}).optional(),
   query: z.object({}).optional(),

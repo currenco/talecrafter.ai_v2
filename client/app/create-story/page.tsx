@@ -21,6 +21,7 @@ import type { UserDetail } from "@/app/_context/UserDetailContext";
 import type { StorySelection } from "@/types/story";
 import { waitForStoryPublication } from "@/lib/story-generation";
 import { CircleCheck, KeyRound, Link2, LoaderCircle } from "lucide-react";
+import ConnectGithub from "@/components/ConnectGithub";
 const MotionDiv = motion.div;
 
 export interface FormDataType {
@@ -81,7 +82,7 @@ const CreateStory = () => {
 
   useEffect(() => {
     let ignore = false;
-    if (!userId) {
+    if (!userId || !userDetail || userDetail.plan === 'creator') {
       setWalletStatus(undefined);
       setWalletLoading(false);
       return;
@@ -108,7 +109,7 @@ const CreateStory = () => {
     return () => {
       ignore = true;
     };
-  }, [userId]);
+  }, [userId, userDetail]);
 
   const connectPollinations = async () => {
     setWalletPending(true);
@@ -171,19 +172,21 @@ const CreateStory = () => {
       return;
     }
 
-    if (!userDetail || userDetail.credit === undefined) {
+    if (!userDetail) {
       notifyError("User details not loaded yet. Please try again.");
       return;
     }
 
-    if (userDetail.credit <= 0) {
-      notifyError(
-        "You have no credit left! Please buy credit to generate story",
-      );
+    if (!userDetail.canCreate) {
+      notifyError("Connect GitHub to create on Free, or choose Creator.");
+      return;
+    }
+    if (mode === "interactive" && !userDetail.canBranch) {
+      router.push("/pricing");
       return;
     }
 
-    if (!walletStatus?.connected) {
+    if (userDetail.plan !== 'creator' && !walletStatus?.connected) {
       notifyError("Connect your Pollinations key before generating images");
       return;
     }
@@ -307,16 +310,18 @@ const CreateStory = () => {
             </div>
             <div className="inline-flex items-center self-start rounded-full border border-[#d8c69e]/25 bg-[#d8c69e]/[0.08] px-5 py-3 text-[#f1eadb]">
               <span className="text-sm font-medium text-[#c3cbd4]/75">
-                Credits left:
+                Your plan:
               </span>
               <span className="ml-2 text-xl font-bold text-[#d8c69e]">
-                {userDetail?.credit ?? "-"}
+                {userDetail?.plan === "creator" ? "Creator" : "Free"}
               </span>
             </div>
           </div>
         </MotionDiv>
 
-        {authUser && (
+        {authUser && userDetail?.plan === "free" && !userDetail.githubConnected && <ConnectGithub />}
+        {authUser && userDetail?.plan === "creator" && <p className="mt-6 text-sm text-emerald-200">Image generation included with Creator.</p>}
+        {authUser && userDetail?.plan === "free" && (
           <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-[#d8c69e]/15 bg-[#111d2b]/65 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#d8c69e]/10 text-[#d8c69e]">
@@ -433,9 +438,9 @@ const CreateStory = () => {
                 <Button
                   disabled={loading}
                   className="rounded-full border border-[#d8c69e]/30 bg-transparent px-8 py-6 text-base font-semibold text-[#f1eadb] transition hover:bg-[#d8c69e]/10 disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={() => GenerateStory("interactive")}
+                  onClick={() => userDetail?.canBranch ? GenerateStory("interactive") : router.push("/pricing")}
                 >
-                  Create Plot Twist Story
+                  {userDetail?.canBranch ? "Create Plot Twist Story" : "Plot Twist - Creator"}
                 </Button>
                 <Button
                   disabled={loading}

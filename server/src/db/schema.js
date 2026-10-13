@@ -16,6 +16,79 @@ import {
 
 export const appSchema = pgSchema('app');
 
+export const CreatorSubscriptions = appSchema.table('creator_subscriptions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .unique()
+    .references(() => UserProfiles.id, { onDelete: 'restrict' }),
+  providerSubscriptionId: text('provider_subscription_id').unique(),
+  providerPlanId: text('provider_plan_id').notNull(),
+  status: text('status').default('creating').notNull(),
+  periodStart: timestamp('period_start', { withTimezone: true }),
+  paidThrough: timestamp('paid_through', { withTimezone: true }),
+  revoked: boolean('revoked').default(false).notNull(),
+  cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const SubscriptionInvoices = appSchema.table(
+  'subscription_invoices',
+  {
+    providerPaymentId: text('provider_payment_id').primaryKey(),
+    subscriptionId: uuid('subscription_id')
+      .notNull()
+      .references(() => CreatorSubscriptions.id, { onDelete: 'restrict' }),
+    providerInvoiceId: text('provider_invoice_id').notNull().unique(),
+    periodStart: timestamp('period_start', { withTimezone: true }).notNull(),
+    periodEnd: timestamp('period_end', { withTimezone: true }).notNull(),
+    amount: integer('amount').notNull(),
+    currency: text('currency').notNull(),
+    refunded: boolean('refunded').default(false).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  table => [
+    check('subscription_invoice_amount_check', sql`${table.amount} > 0`),
+  ]
+);
+
+export const SubscriptionHolds = appSchema.table('subscription_holds', {
+  providerPaymentId: text('provider_payment_id').primaryKey(),
+  reason: text('reason').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const PlanUsageBuckets = appSchema.table(
+  'plan_usage_buckets',
+  {
+    key: text('key').primaryKey(),
+    used: integer('used').default(0).notNull(),
+  },
+  table => [check('plan_usage_nonnegative', sql`${table.used} >= 0`)]
+);
+
+export const PlanUsageReservations = appSchema.table(
+  'plan_usage_reservations',
+  {
+    id: uuid('id').primaryKey(),
+    bucketKey: text('bucket_key')
+      .notNull()
+      .references(() => PlanUsageBuckets.key),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  }
+);
+
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()
@@ -61,6 +134,7 @@ export const LegacyUsers = appSchema.table(
   ]
 );
 
+// Historical financial records only. Subscription services never read or mutate these balances.
 export const CreditAccounts = appSchema.table(
   'credit_accounts',
   {

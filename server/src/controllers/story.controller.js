@@ -13,10 +13,35 @@ import {
 } from '../services/story.service.js';
 import ApiError from '../utils/ApiError.js';
 import { getIdempotencyKey } from '../utils/idempotency.js';
+import { publicStory } from '../utils/publicStory.js';
+import { syncUserFromAuth } from '../services/user.service.js';
+
+export const getCreatorPack = asyncHandler(async (req, res) => {
+  const user = await syncUserFromAuth(req.auth.userId);
+  if (!user.canExport)
+    throw new ApiError(403, 'Creator subscription required', [
+      { code: 'CREATOR_REQUIRED' },
+    ]);
+  const story = await getStoryByStoryId(req.params.storyId);
+  if (!story) throw new ApiError(404, 'Published story not found');
+  res.set('Cache-Control', 'private, no-store');
+  return res.json(
+    new ApiResponse(
+      200,
+      {
+        characters: story.output?.characterDescriptions ?? {},
+        scenes: story.output?.chapters ?? [],
+      },
+      'Creator story pack'
+    )
+  );
+});
 
 export const getPublicStories = asyncHandler(async (req, res) => {
   const stories = await listPublicStories(req.query ?? {});
-  return res.status(200).json(new ApiResponse(200, stories, 'Stories fetched'));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, stories.map(publicStory), 'Stories fetched'));
 });
 
 export const getCurrentUserStories = asyncHandler(async (req, res) => {
@@ -24,19 +49,31 @@ export const getCurrentUserStories = asyncHandler(async (req, res) => {
     userId: req.auth.userId,
     ...req.validated.query,
   });
-  return res.status(200).json(new ApiResponse(200, stories, 'Stories fetched'));
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { ...stories, items: stories.items.map(publicStory) },
+        'Stories fetched'
+      )
+    );
 });
 
 export const getStorySlugDetail = asyncHandler(async (req, res) => {
   const story = await getStoryBySlug(req.params.slug);
   if (!story) throw new ApiError(404, 'Story not found');
-  return res.status(200).json(new ApiResponse(200, story, 'Story fetched'));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, publicStory(story), 'Story fetched'));
 });
 
 export const getStoryIdDetail = asyncHandler(async (req, res) => {
   const story = await getStoryByStoryId(req.params.storyId);
   if (!story) throw new ApiError(404, 'Story not found');
-  return res.status(200).json(new ApiResponse(200, story, 'Story fetched'));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, publicStory(story), 'Story fetched'));
 });
 
 export const getRelatedStoryList = asyncHandler(async (req, res) => {
@@ -48,7 +85,13 @@ export const getRelatedStoryList = asyncHandler(async (req, res) => {
   });
   return res
     .status(200)
-    .json(new ApiResponse(200, result, 'Related stories fetched'));
+    .json(
+      new ApiResponse(
+        200,
+        { ...result, stories: result.stories.map(publicStory) },
+        'Related stories fetched'
+      )
+    );
 });
 
 export const deleteStory = asyncHandler(async (req, res) => {

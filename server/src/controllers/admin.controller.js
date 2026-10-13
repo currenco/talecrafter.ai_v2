@@ -6,7 +6,6 @@ import {
   deleteAdminUser,
   listAdminStories,
   listAdminUsers,
-  updateAdminUserCredit,
 } from '../services/admin.service.js';
 
 export const getAdminStories = asyncHandler(async (req, res) => {
@@ -27,16 +26,6 @@ export const removeAdminStory = asyncHandler(async (req, res) => {
 export const removeAdminUser = asyncHandler(async (req, res) => {
   const user = await deleteAdminUser(req.validated.params.userId);
   return res.status(200).json(new ApiResponse(200, user, 'User deleted'));
-});
-
-export const setAdminUserCredit = asyncHandler(async (req, res) => {
-  const user = await updateAdminUserCredit({
-    userId: req.validated.params.userId,
-    credit: req.validated.body.credit,
-  });
-  return res
-    .status(200)
-    .json(new ApiResponse(200, user, 'User credit updated'));
 });
 
 export const backfillAdminStorySlugs = asyncHandler(async (req, res) => {

@@ -1,7 +1,8 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { CreditAccounts, UserProfiles } from '../db/schema.js';
+import { UserProfiles } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
+import { getEntitlement } from './entitlement.service.js';
 
 const selectUserByAuthId = async authUserId => {
   const rows = await db
@@ -12,15 +13,12 @@ const selectUserByAuthId = async authUserId => {
       userName: UserProfiles.userName,
       userImage: UserProfiles.userImage,
       role: UserProfiles.role,
-      accountId: CreditAccounts.id,
-      credit: CreditAccounts.balance,
     })
     .from(UserProfiles)
-    .innerJoin(CreditAccounts, eq(CreditAccounts.userId, UserProfiles.id))
     .where(eq(UserProfiles.authUserId, authUserId))
     .limit(1);
 
-  return rows[0] ?? null;
+  return rows[0] ? { ...rows[0], ...(await getEntitlement(rows[0].id)) } : null;
 };
 
 export const getUserByProfileId = async profileId => {
@@ -32,16 +30,13 @@ export const getUserByProfileId = async profileId => {
       userName: UserProfiles.userName,
       userImage: UserProfiles.userImage,
       role: UserProfiles.role,
-      accountId: CreditAccounts.id,
-      credit: CreditAccounts.balance,
     })
     .from(UserProfiles)
-    .innerJoin(CreditAccounts, eq(CreditAccounts.userId, UserProfiles.id))
     .where(eq(UserProfiles.id, profileId))
     .limit(1);
 
   if (!rows[0]) throw new ApiError(404, 'User profile not found');
-  return rows[0];
+  return { ...rows[0], ...(await getEntitlement(rows[0].id)) };
 };
 
 export const getCurrentAuthUser = async userId => {
@@ -77,7 +72,7 @@ export const syncUserFromAuth = async userId => {
     updatedAt: new Date(),
   };
 
-  const [profile] = await db
+  await db
     .insert(UserProfiles)
     .values(values)
     .onConflictDoUpdate({
@@ -90,24 +85,6 @@ export const syncUserFromAuth = async userId => {
       },
     })
     .returning({ id: UserProfiles.id });
-
-  const insertedAccounts = await db
-    .insert(CreditAccounts)
-    .values({ userId: profile.id })
-    .onConflictDoNothing({ target: CreditAccounts.userId })
-    .returning({ id: CreditAccounts.id, balance: CreditAccounts.balance });
-
-  if (insertedAccounts[0]) {
-    await db.execute(sql`
-      INSERT INTO app.credit_ledger (
-        account_id, amount, balance_after, reason, idempotency_key
-      ) VALUES (
-        ${insertedAccounts[0].id}, ${insertedAccounts[0].balance},
-        ${insertedAccounts[0].balance}, 'signup', ${`signup:${userId}`}
-      )
-      ON CONFLICT (idempotency_key) DO NOTHING
-    `);
-  }
 
   const user = await selectUserByAuthId(userId);
   if (!user) throw new ApiError(500, 'Unable to initialize user profile');

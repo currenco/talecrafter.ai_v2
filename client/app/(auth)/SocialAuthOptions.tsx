@@ -25,7 +25,7 @@ export default function SocialAuthOptions() {
       </div>
 
       <p className="mt-4 rounded-md border border-[#d8c69e]/20 bg-[#d8c69e]/[0.08] px-3 py-2.5 text-sm leading-6 text-[#c3cbd4]/80 text-center">
-        To generate content, continue with GitHub.
+        Sign in with either account. Free creation requires a linked GitHub account; Creator supports either sign-in method.
       </p>
     </div>
   );

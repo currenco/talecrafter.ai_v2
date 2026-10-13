@@ -5,7 +5,6 @@ import {
   getAdminUsers,
   removeAdminStory,
   removeAdminUser,
-  setAdminUserCredit,
 } from '../controllers/admin.controller.js';
 import { requireAdmin, requireAuth } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
@@ -13,7 +12,6 @@ import {
   adminBackfillSlugsSchema,
   adminListSchema,
   adminStoryIdParamSchema,
-  adminUpdateUserCreditSchema,
   adminUserIdParamSchema,
 } from '../validations/admin.validation.js';
 
@@ -37,11 +35,6 @@ router.delete(
   '/users/:userId',
   validate(adminUserIdParamSchema),
   removeAdminUser
-);
-router.patch(
-  '/users/:userId/credit',
-  validate(adminUpdateUserCreditSchema),
-  setAdminUserCredit
 );
 
 export default router;

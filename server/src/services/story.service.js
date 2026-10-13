@@ -525,7 +525,6 @@ export const createClassicStory = async ({
     request: payload,
     provider: provider.provider,
     model: provider.model,
-    creditCost: 1,
     storyId: draft?.id ?? null,
   });
   if (reservation.cached) {
@@ -694,7 +693,6 @@ export const resumeClassicStory = async ({
     request: payload,
     provider: provider.provider,
     model: provider.model,
-    creditCost: 1,
     storyId: draft.id,
   });
   const startedAt = Date.now();

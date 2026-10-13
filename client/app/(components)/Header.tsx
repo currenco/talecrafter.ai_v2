@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Coins, LogOut, UserRound } from "lucide-react";
+import { Sparkles, LogOut, UserRound } from "lucide-react";
 import { useContext, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -110,13 +110,13 @@ const Header = () => {
   const accountControls = (
     <div className="flex items-center gap-1">
       <Link
-        href="/buy-credits"
-        aria-label={`${userDetail?.credit ?? 0} credits. Manage credits`}
-        title="Credits"
+        href="/pricing"
+        aria-label="View plans"
+        title="View plans"
         className="flex h-8 min-w-11 items-center justify-center gap-1.5 rounded-full border border-[#d8c69e]/20 bg-[#d8c69e]/10 px-2 text-xs font-semibold text-[#f1eadb] hover:bg-[#d8c69e]/15"
       >
-        <Coins size={16} aria-hidden="true" />
-        <span>{userDetail?.credit ?? "-"}</span>
+        <Sparkles size={16} aria-hidden="true" />
+        <span>Plans</span>
       </Link>
       <button
         type="button"

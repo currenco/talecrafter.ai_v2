@@ -7,7 +7,14 @@ export type UserDetail = {
   userName: string | null;
   userImage: string | null;
   role: 'user' | 'admin';
-  credit: number;
+  plan: 'free' | 'creator';
+  githubConnected: boolean;
+  canCreate: boolean;
+  canBranch: boolean;
+  canExport: boolean;
+  paidThrough: string | null;
+  subscriptionStatus: string | null;
+  cancelAtPeriodEnd: boolean;
 };
 
 export type AuthUserSummary = {

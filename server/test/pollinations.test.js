@@ -3,9 +3,25 @@ import test from 'node:test';
 import {
   buildPollinationsImageRequest,
   buildPollinationsImageUrl,
+  normalizeGeneratedSource,
 } from '../src/services/image.service.js';
 import { decryptSecret, encryptSecret } from '../src/utils/secretBox.js';
 import { hasImagePermission } from '../src/utils/pollinationsPermissions.js';
+
+test('generated persistence URLs cannot override model, dimensions or billing parameters', () => {
+  const normalized = new URL(
+    normalizeGeneratedSource(
+      'https://gen.pollinations.ai/image/castle?model=expensive&width=4096&height=4096&quality=high&key=secret'
+    )
+  );
+  assert.equal(
+    normalized.searchParams.get('model'),
+    process.env.POLLINATIONS_IMAGE_MODEL ?? 'black-forest-labs/flux.1-schnell'
+  );
+  assert.equal(normalized.searchParams.get('width'), '1024');
+  assert.equal(normalized.searchParams.has('quality'), false);
+  assert.equal(normalized.searchParams.has('key'), false);
+});
 
 test('Pollinations accepts image categories, unrestricted and legacy model grants', () => {
   const model = 'black-forest-labs/flux.1-schnell';
