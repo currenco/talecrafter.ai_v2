@@ -8,6 +8,7 @@ import {
   getStoryByStoryId,
   listCurrentUserStories,
   listPublicStories,
+  listPublicGenres,
   listRelatedStories,
   resumeClassicStory,
 } from '../services/story.service.js';
@@ -38,10 +39,20 @@ export const getCreatorPack = asyncHandler(async (req, res) => {
 });
 
 export const getPublicStories = asyncHandler(async (req, res) => {
-  const stories = await listPublicStories(req.query ?? {});
+  if (req.authError) throw req.authError;
+  res.set('Cache-Control', 'private, no-store');
+  const stories = await listPublicStories({
+    ...req.validated.query,
+    preview: !req.auth?.userId,
+  });
   return res
     .status(200)
     .json(new ApiResponse(200, stories.map(publicStory), 'Stories fetched'));
+});
+
+export const getPublicGenres = asyncHandler(async (_req, res) => {
+  const genres = await listPublicGenres();
+  return res.json(new ApiResponse(200, genres, 'Genres fetched'));
 });
 
 export const getCurrentUserStories = asyncHandler(async (req, res) => {

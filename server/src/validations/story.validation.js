@@ -23,7 +23,9 @@ export const storyIdParamSchema = z.object({
 export const publicStoriesQuerySchema = z.object({
   body: z.object({}).optional(),
   params: z.object({}).optional(),
-  query: paginationQuerySchema,
+  query: paginationQuerySchema.extend({
+    genre: z.string().trim().max(100).optional(),
+  }),
 });
 
 export const currentUserStoriesQuerySchema = z.object({

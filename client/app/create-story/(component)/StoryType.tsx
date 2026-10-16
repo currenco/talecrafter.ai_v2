@@ -56,11 +56,11 @@ const StoryType = ({ userSelection }: StorySelectionProps) => {
       imageUrl: "/genre/motivational.webp",
       isFree: true,
     },
-    // {
-    //   label: "Horror",
-    //   imageUrl: "/genre/horror.webp",
-    //   isFree: true,
-    // },
+    {
+      label: "Horror",
+      imageUrl: "/genre/horror.webp",
+      isFree: true,
+    },
     {
       label: "Romantic",
       imageUrl: "/genre/romantic.webp",
@@ -70,16 +70,16 @@ const StoryType = ({ userSelection }: StorySelectionProps) => {
 
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#d8c69e]">
+      <p className="text-xs font-semibold uppercase tracking-normal text-[#d8c69e]">
         Shape the narrative
       </p>
-      <h2 className="mt-3 block w-full font-serif text-3xl font-medium tracking-tight text-[#f1eadb] sm:text-4xl">
+      <h2 className="mt-3 block w-full font-serif text-xl font-medium leading-snug tracking-normal text-[#f1eadb] sm:text-2xl lg:text-3xl">
         Choose a story genre
       </h2>
       <p className="mt-3 text-sm leading-6 text-[#c3cbd4]/65 sm:text-base">
         Your genre guides the story&apos;s mood, pace, and imaginative world.
       </p>
-      <div className="hsb mt-7 overflow-x-auto whitespace-nowrap pb-3">
+      <div className="hsb mt-4 overflow-x-auto whitespace-nowrap pb-2 sm:mt-7 sm:pb-3">
         {OptionList.map((item) => (
           <button
             type="button"

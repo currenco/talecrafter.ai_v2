@@ -27,6 +27,11 @@ const removeStoryFromCachedLists = (storyId: string) => {
   const cacheKeys = ["explore_stories_cache_v1"];
   for (let index = 0; index < sessionStorage.length; index += 1) {
     const key = sessionStorage.key(index);
+    if (key?.startsWith("explore_stories_cache_v2:")) {
+      sessionStorage.removeItem(key);
+      index -= 1;
+      continue;
+    }
     if (key?.startsWith("dashboard_stories_cache_v1_")) {
       cacheKeys.push(key);
     }
@@ -136,7 +141,7 @@ const StoryItemCard = ({
       )}
       <CardFooter className="absolute bottom-0 z-10 w-full justify-between rounded-xl border-1 border-[#d8c69e]/15 bg-[#0b1522]/85 py-2 shadow-small backdrop-blur-xl">
         <div className="min-w-0">
-          <p className="truncate text-lg font-semibold text-[#f1eadb]">
+          <p className="truncate text-base font-semibold leading-6 text-[#f1eadb]">
             {story?.output?.title}
           </p>
           {isDraft && (

@@ -61,7 +61,7 @@ export default function SignInPage() {
       alternateHref="/sign-up"
       alternateLabel="New here? Create an account"
     >
-      <form className="space-y-4" onSubmit={signIn}>
+      <form className="space-y-3" onSubmit={signIn}>
         <label className="block text-sm font-medium">
           Email
           <input

@@ -141,12 +141,39 @@ export const generateUniqueStorySlug = async (title, opts = {}) => {
   return `${baseSlug}-${maxSuffix + 1}`;
 };
 
-export const listPublicStories = async ({ limit, offset }) => {
+export const listPublicGenres = async () => {
+  const genre = sql`trim(${Stories.storyType})`;
+  const rows = await db
+    .selectDistinct({ genre })
+    .from(Stories)
+    .where(and(eq(Stories.status, 'published'), sql`${genre} <> ''`))
+    .orderBy(genre);
+  return rows.map(row => row.genre);
+};
+
+export const listPublicStories = async ({
+  limit,
+  offset,
+  genre,
+  preview = false,
+}) => {
+  const start = normalizeOffset(offset);
+  if (preview && start >= 8) return [];
+  const pageLimit = preview
+    ? Math.min(clampLimit(limit), 8 - start)
+    : clampLimit(limit);
   return selectStories()
-    .where(eq(Stories.status, 'published'))
-    .orderBy(desc(Stories.createdAt))
-    .limit(clampLimit(limit))
-    .offset(normalizeOffset(offset));
+    .where(
+      and(
+        eq(Stories.status, 'published'),
+        genre
+          ? sql`lower(trim(${Stories.storyType})) = lower(${genre})`
+          : undefined
+      )
+    )
+    .orderBy(desc(Stories.createdAt), desc(Stories.id))
+    .limit(pageLimit)
+    .offset(start);
 };
 
 export const listCurrentUserStories = async ({

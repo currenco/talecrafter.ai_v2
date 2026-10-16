@@ -3,8 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, LogOut, UserRound } from "lucide-react";
-import { useContext, useState } from "react";
+import { Sparkles, LogOut, UserRound, Home, Info, Compass, BookOpen, PenLine, ShieldCheck } from "lucide-react";
+import { useContext, useEffect, useState } from "react";
+import { useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
   Modal,
@@ -22,7 +23,6 @@ import { UserDetailContext } from "@/app/_context/UserDetailContext";
 import {
   MobileNav,
   MobileNavHeader,
-  MobileNavMenu,
   MobileNavToggle,
   NavBody,
   NavItems,
@@ -53,7 +53,14 @@ const HeaderLogo = ({ onClick }: HeaderLogoProps) => (
 );
 
 const Header = () => {
+  const reduceMotion = useReducedMotion();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const closeOnDesktop = () => { if (desktop.matches) setIsMobileMenuOpen(false); };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
   const pathname = usePathname();
   const isHome = pathname === "/";
   const router = useRouter();
@@ -181,10 +188,11 @@ const Header = () => {
           <MobileNavHeader>
             <HeaderLogo onClick={closeMobileMenu} />
             <div className="flex items-center gap-2">
-              {isAuthenticated && accountControls}
               <button
                 type="button"
                 aria-label="Toggle navigation menu"
+                aria-haspopup="dialog"
+                aria-expanded={isMobileMenuOpen}
                 className="rounded-full border border-[#d8c69e]/20 p-1.5"
                 onClick={() => setIsMobileMenuOpen((value) => !value)}
               >
@@ -193,62 +201,55 @@ const Header = () => {
             </div>
           </MobileNavHeader>
 
-          <MobileNavMenu
-            isOpen={isMobileMenuOpen}
-            className="border border-[#d8c69e]/15 bg-[#111d2b]"
-          >
-            {navItems.map((item) => (
-              <Link
-                key={item.link}
-                href={item.link}
-                onClick={closeMobileMenu}
-                className={`w-full rounded-xl px-4 py-3 text-base font-semibold transition ${
-                  pathname === item.link
-                    ? "border border-[#d8c69e]/20 bg-[#d8c69e]/12 text-[#f1eadb]"
-                    : "text-[#c3cbd4]/75 hover:bg-white/10 hover:text-[#f1eadb]"
-                }`}
-              >
-                {item.name}
-              </Link>
-            ))}
-
-            <div className="flex w-full flex-col gap-3 border-t border-[#d8c69e]/15 pt-4">
-              {isAuthenticated ? (
-                <Link href="/create-story" onClick={closeMobileMenu}>
-                  <NavbarButton
-                    as="button"
-                    variant="gradient"
-                    className="tc-btn-primary w-full rounded-xl"
-                  >
-                    Create Story
-                  </NavbarButton>
-                </Link>
-              ) : (
-                <>
-                  <Link href="/sign-in" onClick={closeMobileMenu}>
-                    <NavbarButton
-                      as="button"
-                      variant="secondary"
-                      className="w-full rounded-xl border border-[#d8c69e]/20 text-[#c3cbd4]"
-                    >
-                      Login
-                    </NavbarButton>
-                  </Link>
-                  <Link href="/sign-up" onClick={closeMobileMenu}>
-                    <NavbarButton
-                      as="button"
-                      variant="gradient"
-                      className="tc-btn-primary w-full rounded-xl"
-                    >
-                      Sign Up
-                    </NavbarButton>
-                  </Link>
-                </>
-              )}
-            </div>
-          </MobileNavMenu>
         </MobileNav>
       </Navbar>
+
+      <Modal
+        isOpen={isMobileMenuOpen}
+        onOpenChange={setIsMobileMenuOpen}
+        placement="center"
+        scrollBehavior="inside"
+        disableAnimation={Boolean(reduceMotion)}
+        motionProps={{ variants: { enter: { x: 0, opacity: 1, transition: { duration: 0.2 } }, exit: { x: "100%", opacity: 1, transition: { duration: 0.2 } } } }}
+        classNames={{
+          wrapper: "!items-stretch !justify-end",
+          backdrop: "bg-black/60",
+          base: "!m-0 !h-[100dvh] !max-h-[100dvh] !w-[min(340px,90vw)] !max-w-none !rounded-none border-l border-[#d8c69e]/20 bg-[#111d2b] text-[#f1eadb]",
+          closeButton: "right-3 top-4 text-[#c3cbd4] hover:bg-white/10",
+        }}
+      >
+        <ModalContent>
+          <ModalHeader className="items-center gap-2 border-b border-[#d8c69e]/15 py-5 pr-12">
+            <Image src="/talecrafter-symbol.png" alt="" width={30} height={30} className="shrink-0 object-contain" />
+            <span className="text-lg font-semibold">TaleCrafterAI</span>
+          </ModalHeader>
+          <ModalBody className="gap-5 px-5 py-5">
+            {isAuthenticated && <div className="border-b border-[#d8c69e]/15 pb-5 text-center">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#d8c69e]/10 text-[#d8c69e]"><UserRound size={28} aria-hidden="true" /></span>
+              <p className="mt-3 break-words font-semibold">{accountName}</p>
+              <p className="mt-1 break-all text-xs text-[#c3cbd4]/75">{accountEmail}</p>
+              <p className="mt-2 text-xs font-medium text-[#d8c69e]">{userDetail?.plan === "creator" ? "Creator" : "Free"}</p>
+            </div>}
+            <nav aria-label="Mobile navigation" className="space-y-1">
+              {[...navItems, { name: "Plans", link: "/pricing" }].map(item => {
+                const Icon = ({ "/": Home, "/about": Info, "/explore": Compass, "/create-story": PenLine, "/dashboard": BookOpen, "/admin": ShieldCheck, "/pricing": Sparkles } as Record<string, typeof Home>)[item.link];
+                return <Link key={item.link} href={item.link} onClick={closeMobileMenu} aria-current={pathname === item.link ? "page" : undefined}
+                  className={`flex min-h-11 items-center gap-3 rounded-md px-3 py-3 text-sm font-semibold ${pathname === item.link ? "bg-[#d8c69e]/15 text-[#f1eadb]" : "text-[#c3cbd4] hover:bg-white/5"}`}>
+                  <Icon size={19} className="shrink-0" aria-hidden="true" />{item.name}
+                </Link>;
+              })}
+            </nav>
+          </ModalBody>
+          <ModalFooter className="flex-col border-t border-[#d8c69e]/15 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4">
+            {isAuthenticated ? <button type="button" onClick={signOut} className="flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-3 text-sm font-semibold text-red-200 hover:bg-red-500/10">
+              <LogOut size={19} aria-hidden="true" />Log out
+            </button> : <>
+              <Link href="/sign-in" onClick={closeMobileMenu} className="flex min-h-11 items-center justify-center rounded-md border border-[#d8c69e]/25 px-4 py-2 text-sm font-semibold">Login</Link>
+              <Link href="/sign-up" onClick={closeMobileMenu} className="tc-btn-primary flex min-h-11 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold">Sign Up</Link>
+            </>}
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       <Modal
         backdrop="blur"

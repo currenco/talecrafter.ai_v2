@@ -52,7 +52,7 @@ export default function SignUpPage() {
       alternateHref="/sign-in"
       alternateLabel="Already have an account? Sign in"
     >
-      <form className="space-y-4" onSubmit={signUp}>
+      <form className="space-y-3" onSubmit={signUp}>
         <label className="block text-sm font-medium">
           Name
           <input

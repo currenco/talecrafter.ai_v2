@@ -48,6 +48,20 @@ const fetchCurrentUser = (authUserId: string) => {
 };
 
 const Provider = ({ children }: { children: React.ReactNode }) => {
+  useEffect(() => {
+    // Discourage casual media saving; public browser assets are not copy-protected.
+    const preventMediaSave = (event: Event) => {
+      if (event.target instanceof Element && event.target.closest("img, video, canvas")) {
+        event.preventDefault();
+      }
+    };
+    document.addEventListener("contextmenu", preventMediaSave, true);
+    document.addEventListener("dragstart", preventMediaSave, true);
+    return () => {
+      document.removeEventListener("contextmenu", preventMediaSave, true);
+      document.removeEventListener("dragstart", preventMediaSave, true);
+    };
+  }, []);
   const [userDetail, setUserDetailState] = useState<UserDetail>();
   const { user, isLoaded, isSignedIn } = useUser();
   const authUserId = user?.id;

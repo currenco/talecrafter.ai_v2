@@ -14,6 +14,7 @@ import { apiFetch } from "@/lib/api-client";
 import { getAccessToken } from "@/lib/neon-auth/client";
 import type { StoryItem } from "@/types/story";
 import StoryItemCard from "./StoryItemCard";
+import StoryGridSkeleton from "@/components/StoryGridSkeleton";
 
 const PAGE_SIZE = 12;
 
@@ -208,12 +209,12 @@ const UserStoryList = () => {
     <section className="tc-glass-panel-soft mt-8 p-5 md:p-7">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h3 className="font-serif text-3xl font-medium text-[#f1eadb]">
+          <h3 className="font-serif text-xl font-medium leading-snug tracking-normal text-[#f1eadb] sm:text-2xl lg:text-3xl">
             {title}
           </h3>
           <p className="mt-1 text-sm text-[#c3cbd4]/70">{description}</p>
         </div>
-        {!loading[status] || collection.totalCount > 0 ? (
+        {(isAuthLoaded && !loading[status]) || collection.totalCount > 0 ? (
           <p className="text-sm text-[#c3cbd4]/60">
             {collection.totalCount}{" "}
             {collection.totalCount === 1 ? "story" : "stories"}
@@ -232,17 +233,13 @@ const UserStoryList = () => {
             />
           ))}
         </div>
-      ) : !loading[status] ? (
-        <p className="mt-6 text-[#c3cbd4]/70">{emptyMessage}</p>
+      ) : isAuthLoaded && !loading[status] ? (
+        <p className="mt-6 text-sm leading-6 text-[#c3cbd4]/70 sm:text-base">{emptyMessage}</p>
       ) : null}
+
+      <StoryGridSkeleton isLoading={!isAuthLoaded || loading[status]} count={4} />
 
       <div ref={loadTriggerRef} className="h-6" aria-hidden="true" />
-
-      {loading[status] ? (
-        <div className="mt-6 flex justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#d8c69e] border-t-transparent" />
-        </div>
-      ) : null}
     </section>
   );
 

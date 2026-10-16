@@ -77,17 +77,17 @@ export default function UploadImage({
     <section className="w-full">
       <div>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#d8c69e]">
+          <p className="text-xs font-semibold uppercase tracking-normal text-[#d8c69e]">
             Or begin with an image
           </p>
-          <h2 className="mt-3 font-serif text-3xl font-medium tracking-tight text-[#f1eadb] sm:text-4xl">
+          <h2 className="mt-3 font-serif text-xl font-medium leading-snug tracking-normal text-[#f1eadb] sm:text-2xl lg:text-3xl">
             Let a picture inspire the premise
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#c3cbd4]/65 sm:text-base">
             Upload a scene or character and TaleCrafter will turn its visual details
             into a starting idea you can build on.
           </p>
-          <div className="mt-7 flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[#d8c69e]/30 bg-[#0b1522]/55 px-6 py-10">
+          <div className="mt-4 flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[#d8c69e]/30 bg-[#0b1522]/55 px-3 py-5 sm:mt-7 sm:gap-4 sm:px-6 sm:py-10">
             <input
               id="image-upload"
               type="file"
@@ -97,7 +97,7 @@ export default function UploadImage({
             />
             <label
               htmlFor="image-upload"
-              className="inline-flex cursor-pointer items-center justify-center rounded-full border border-[#d8c69e]/30 bg-[#d8c69e]/[0.08] px-6 py-3 text-sm font-semibold text-[#f1eadb] transition hover:bg-[#d8c69e]/15"
+              className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-full border border-[#d8c69e]/30 bg-[#d8c69e]/[0.08] px-4 py-2 text-sm font-semibold text-[#f1eadb] transition hover:bg-[#d8c69e]/15 sm:px-6 sm:py-3"
             >
               Choose Image
             </label>
@@ -122,7 +122,7 @@ export default function UploadImage({
             type="button"
             onClick={() => identifyImage()}
             disabled={!image || loading}
-            className="mt-6 w-full rounded-full border border-[#e2d2ae] bg-gradient-to-br from-[#eee0c0] to-[#cbb789] px-6 py-3 text-base font-semibold text-[#101a28] transition hover:from-[#f5e8ca] hover:to-[#d8c69e] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-4 min-h-11 w-full rounded-full border border-[#e2d2ae] bg-gradient-to-br from-[#eee0c0] to-[#cbb789] px-4 py-2 text-sm font-semibold text-[#101a28] transition hover:from-[#f5e8ca] hover:to-[#d8c69e] disabled:cursor-not-allowed disabled:opacity-50 sm:mt-6 sm:px-6 sm:py-3 sm:text-base"
           >
             {loading ? "Identifying image..." : "Generate Idea"}
           </button>
@@ -130,14 +130,14 @@ export default function UploadImage({
 
         {result && (
           <div className="mt-6 rounded-2xl border border-[#d8c69e]/15 bg-[#0b1522]/55 p-5">
-            <h3 className="font-serif text-2xl font-medium text-[#f1eadb]">
+            <h3 className="font-serif text-lg font-medium leading-snug text-[#f1eadb] sm:text-xl">
               Suggested story idea
             </h3>
             <div className="prose prose-blue max-w-none">
               {result.split("\n").map((line, index) => {
                 if (line.trim() !== "") {
                   return (
-                    <p key={index} className="mt-3 leading-7 text-[#c3cbd4]/80">
+                    <p key={index} className="mt-3 text-sm leading-6 text-[#c3cbd4]/80 sm:text-base sm:leading-7">
                       {line}
                     </p>
                   );

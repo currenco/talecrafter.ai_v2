@@ -20,7 +20,7 @@ import {
 import type { UserDetail } from "@/app/_context/UserDetailContext";
 import type { StorySelection } from "@/types/story";
 import { waitForStoryPublication } from "@/lib/story-generation";
-import { CircleCheck, KeyRound, Link2, LoaderCircle } from "lucide-react";
+import { CircleCheck, KeyRound, Link2, LoaderCircle, LockKeyhole } from "lucide-react";
 import ConnectGithub from "@/components/ConnectGithub";
 const MotionDiv = motion.div;
 
@@ -31,7 +31,7 @@ export interface FormDataType {
 }
 
 const primaryButtonClass =
-  "rounded-full border border-[#e2d2ae] bg-gradient-to-br from-[#eee0c0] to-[#cbb789] px-8 py-6 text-base font-semibold text-[#101a28] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_12px_35px_rgba(0,0,0,0.22)] transition hover:from-[#f5e8ca] hover:to-[#d8c69e] disabled:cursor-not-allowed disabled:opacity-60";
+  "h-auto min-h-11 max-w-full whitespace-normal rounded-full border border-[#e2d2ae] bg-gradient-to-br from-[#eee0c0] to-[#cbb789] px-4 py-2 text-sm font-semibold leading-5 text-[#101a28] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_12px_35px_rgba(0,0,0,0.22)] transition hover:from-[#f5e8ca] hover:to-[#d8c69e] disabled:cursor-not-allowed disabled:opacity-60 sm:px-8 sm:py-6 sm:text-base";
 
 type ClassicStoryResponse = {
   slug?: string;
@@ -277,7 +277,7 @@ const CreateStory = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0b1522] px-5 pb-20 pt-4 text-[#c3cbd4] md:px-12 lg:px-20 xl:px-28">
+    <div className="relative min-h-screen overflow-hidden bg-[#0b1522] px-3 pb-8 pt-1 text-[#c3cbd4] sm:px-5 sm:pb-20 sm:pt-4 md:px-12 lg:px-20 xl:px-28">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(55,79,105,0.55),transparent_48%)]"
@@ -293,26 +293,26 @@ const CreateStory = () => {
           animate="show"
           variants={fadeUp}
           transition={{ duration: 0.6 }}
-          className="mt-6 rounded-[2rem] border border-[#d8c69e]/20 bg-[#111d2b]/85 px-6 py-9 shadow-[0_24px_80px_rgba(0,0,0,0.3)] backdrop-blur-xl md:px-10 md:py-12"
+          className="mt-2 rounded-[2rem] border border-[#d8c69e]/20 bg-[#111d2b]/85 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.3)] backdrop-blur-xl sm:mt-4 sm:px-6 sm:py-5"
         >
-          <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#d8c69e]">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3">
+            <div className="contents">
+              <p className="col-start-1 row-start-1 text-[11px] font-semibold uppercase tracking-normal text-[#d8c69e] sm:text-xs">
                 TaleCrafter studio
               </p>
-              <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight text-[#f1eadb] sm:text-5xl md:text-6xl">
+              <h1 className="col-span-2 mt-1 font-serif text-2xl font-medium leading-tight tracking-normal text-[#f1eadb] sm:text-3xl lg:text-4xl">
                 Create your next story
               </h1>
-              <p className="mt-5 max-w-2xl text-base leading-7 text-[#c3cbd4]/75 md:text-lg">
+              <p className="col-span-2 mt-2 max-w-2xl text-sm leading-6 text-[#c3cbd4]/75 sm:text-base sm:leading-7">
                 Set the idea, genre, and art direction. Then create a complete
                 Classic book or a Plot Twist story shaped by your decisions.
               </p>
             </div>
-            <div className="inline-flex items-center self-start rounded-full border border-[#d8c69e]/25 bg-[#d8c69e]/[0.08] px-5 py-3 text-[#f1eadb]">
-              <span className="text-sm font-medium text-[#c3cbd4]/75">
+            <div className="col-start-2 row-start-1 inline-flex items-center justify-self-end gap-2 whitespace-nowrap rounded-full border border-[#d8c69e]/25 bg-[#d8c69e]/[0.08] px-3 py-2 text-[#f1eadb]">
+              <span className="text-xs font-medium text-[#c3cbd4]/75 sm:text-sm">
                 Your plan:
               </span>
-              <span className="ml-2 text-xl font-bold text-[#d8c69e]">
+              <span className="text-sm font-bold text-[#d8c69e]">
                 {userDetail?.plan === "creator" ? "Creator" : "Free"}
               </span>
             </div>
@@ -320,9 +320,8 @@ const CreateStory = () => {
         </MotionDiv>
 
         {authUser && userDetail?.plan === "free" && !userDetail.githubConnected && <ConnectGithub />}
-        {authUser && userDetail?.plan === "creator" && <p className="mt-6 text-sm text-emerald-200">Image generation included with Creator.</p>}
         {authUser && userDetail?.plan === "free" && (
-          <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-[#d8c69e]/15 bg-[#111d2b]/65 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-[#d8c69e]/15 bg-[#111d2b]/65 px-4 py-4 sm:mt-6 sm:gap-4 sm:px-5 sm:py-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#d8c69e]/10 text-[#d8c69e]">
                 <KeyRound size={20} aria-hidden="true" />
@@ -383,7 +382,7 @@ const CreateStory = () => {
           viewport={{ once: true, amount: 0.1 }}
           variants={fadeUp}
           transition={{ delay: 0.1, duration: 0.5 }}
-          className="mt-8 rounded-[2rem] border border-[#d8c69e]/15 bg-[#111d2b]/70 p-6 shadow-[0_18px_60px_rgba(0,0,0,0.18)] backdrop-blur-md md:p-8"
+          className="mt-4 rounded-[2rem] border border-[#d8c69e]/15 bg-[#111d2b]/70 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.18)] backdrop-blur-md sm:mt-8 sm:p-6 md:p-8"
         >
           <div className="flex flex-col justify-between gap-5">
             <StorySubjectInput userSelection={onHandleUserSelection} />
@@ -396,7 +395,7 @@ const CreateStory = () => {
           viewport={{ once: true, amount: 0.1 }}
           variants={fadeUp}
           transition={{ delay: 0.12, duration: 0.5 }}
-          className="mt-7 rounded-[2rem] border border-[#d8c69e]/15 bg-[#111d2b]/70 p-6 shadow-[0_18px_60px_rgba(0,0,0,0.18)] backdrop-blur-md md:p-8"
+          className="mt-4 rounded-[2rem] border border-[#d8c69e]/15 bg-[#111d2b]/70 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.18)] backdrop-blur-md sm:mt-7 sm:p-6 md:p-8"
         >
           <UploadImage setImageSubject={setStorySubject} />
         </MotionDiv>
@@ -407,7 +406,7 @@ const CreateStory = () => {
           viewport={{ once: true, amount: 0.1 }}
           variants={fadeUp}
           transition={{ delay: 0.14, duration: 0.5 }}
-          className="mt-7 rounded-[2rem] border border-[#d8c69e]/15 bg-[#111d2b]/70 p-6 shadow-[0_18px_60px_rgba(0,0,0,0.18)] backdrop-blur-md md:p-8"
+          className="mt-4 rounded-[2rem] border border-[#d8c69e]/15 bg-[#111d2b]/70 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.18)] backdrop-blur-md sm:mt-7 sm:p-6 md:p-8"
         >
           <StoryType userSelection={onHandleUserSelection} />
         </MotionDiv>
@@ -418,13 +417,13 @@ const CreateStory = () => {
           viewport={{ once: true, amount: 0.1 }}
           variants={fadeUp}
           transition={{ delay: 0.16, duration: 0.5 }}
-          className="mt-7 rounded-[2rem] border border-[#d8c69e]/15 bg-[#111d2b]/70 p-6 shadow-[0_18px_60px_rgba(0,0,0,0.18)] backdrop-blur-md md:p-8"
+          className="mt-4 rounded-[2rem] border border-[#d8c69e]/15 bg-[#111d2b]/70 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.18)] backdrop-blur-md sm:mt-7 sm:p-6 md:p-8"
         >
           <ImageStyle userSelection={onHandleUserSelection} />
         </MotionDiv>
 
-        <div className="mt-10 flex justify-end border-t border-[#d8c69e]/15 pt-8">
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="mt-5 flex justify-end border-t border-[#d8c69e]/15 pt-4 sm:mt-10 sm:pt-8">
+          <div className={authUser ? "grid w-full grid-cols-2 items-stretch gap-2 sm:flex sm:w-auto sm:gap-3" : "flex items-center gap-3"}>
             {!authUser ? (
               <Button
                 disabled={loading}
@@ -436,18 +435,22 @@ const CreateStory = () => {
             ) : (
               <>
                 <Button
-                  disabled={loading}
-                  className="rounded-full border border-[#d8c69e]/30 bg-transparent px-8 py-6 text-base font-semibold text-[#f1eadb] transition hover:bg-[#d8c69e]/10 disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={() => userDetail?.canBranch ? GenerateStory("interactive") : router.push("/pricing")}
+                  isDisabled={loading || !userDetail?.canBranch}
+                  title={!userDetail?.canBranch ? "Creator subscription required" : undefined}
+                  className="h-auto min-h-11 min-w-0 max-w-full gap-1.5 whitespace-normal rounded-full border border-[#e2d2ae] bg-gradient-to-br from-[#eee0c0] to-[#cbb789] px-4 py-2 text-sm font-semibold leading-5 text-[#101a28] shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] transition enabled:hover:from-[#f5e8ca] enabled:hover:to-[#d8c69e] disabled:cursor-not-allowed disabled:!opacity-100 data-[disabled=true]:!opacity-100 sm:px-5 sm:py-2.5"
+                  onClick={() => { if (userDetail?.canBranch) void GenerateStory("interactive"); }}
                 >
-                  {userDetail?.canBranch ? "Create Plot Twist Story" : "Plot Twist - Creator"}
+                  {!userDetail?.canBranch && <LockKeyhole size={18} className="shrink-0" aria-hidden="true" />}
+                  <span className="sm:hidden">Plot Twist</span>
+                  <span className="hidden sm:inline">{userDetail?.canBranch ? "Create Plot Twist Story" : "Plot Twist - Creator"}</span>
                 </Button>
                 <Button
                   disabled={loading}
-                  className={primaryButtonClass}
+                  className="h-auto min-h-11 min-w-0 max-w-full whitespace-normal rounded-full border border-[#d8c69e]/30 bg-transparent px-3 py-2 text-sm font-semibold leading-5 text-[#f1eadb] transition hover:bg-[#d8c69e]/10 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:py-2.5"
                   onClick={() => GenerateStory("classic")}
                 >
-                  Create Classic Story
+                  <span className="sm:hidden">Classic Story</span>
+                  <span className="hidden sm:inline">Create Classic Story</span>
                 </Button>
               </>
             )}

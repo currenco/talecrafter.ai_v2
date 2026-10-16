@@ -4,6 +4,26 @@ import { getAccessToken } from "@/lib/neon-auth/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { apiFetch } from "@/lib/api-client";
+import shimmer from "@/components/StoryGridSkeleton.module.css";
+
+function SkeletonValue() {
+  return <span role="status" aria-label="Loading count" className={`${shimmer.card} relative mx-auto block h-8 w-16 overflow-hidden rounded bg-white/10`} />;
+}
+
+function SkeletonRows({ columns, count }: { columns: number; count: number }) {
+  return <>
+    <tr className="sr-only"><td colSpan={columns}><span role="status">Loading records</span></td></tr>
+    {Array.from({ length: count }, (_, row) => (
+      <tr key={row} aria-hidden="true" className="border-t border-[#d8c69e]/10">
+        {Array.from({ length: columns }, (_, column) => (
+          <td key={column} className="px-3 py-3">
+            <span className={`${shimmer.card} relative block h-5 overflow-hidden rounded bg-white/10 ${column === columns - 1 ? "w-16" : "w-full min-w-16"}`} />
+          </td>
+        ))}
+      </tr>
+    ))}
+  </>;
+}
 
 type StoryItemType = {
   id: string;
@@ -54,8 +74,8 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<"stories" | "users">("stories");
   const [stories, setStories] = useState<StoryItemType[]>([]);
   const [users, setUsers] = useState<UserType[]>([]);
-  const [loadingStories, setLoadingStories] = useState(false);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadingStories, setLoadingStories] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(true);
   const [storyTotal, setStoryTotal] = useState(0);
   const [userTotal, setUserTotal] = useState(0);
   const [storyHasMore, setStoryHasMore] = useState(false);
@@ -254,25 +274,25 @@ const AdminDashboard = () => {
 
           <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
             <div className="rounded-xl bg-[#d8c69e]/[0.08] p-3 text-center">
-              <p className="text-2xl font-bold text-[#f1eadb]">{storyTotal}</p>
+              {loadingStories && stories.length === 0 ? <SkeletonValue /> : <p className="text-2xl font-bold text-[#f1eadb]">{storyTotal}</p>}
               <p className="text-xs uppercase text-[#c3cbd4]/70">
                 Total Stories
               </p>
             </div>
             <div className="rounded-xl bg-[#d8c69e]/[0.08] p-3 text-center">
-              <p className="text-2xl font-bold text-[#f1eadb]">{userTotal}</p>
+              {loadingUsers && users.length === 0 ? <SkeletonValue /> : <p className="text-2xl font-bold text-[#f1eadb]">{userTotal}</p>}
               <p className="text-xs uppercase text-[#c3cbd4]/70">Total Users</p>
             </div>
             <div className="rounded-xl bg-[#d8c69e]/[0.08] p-3 text-center">
-              <p className="text-2xl font-bold text-[#f1eadb]">
+              {loadingStories && stories.length === 0 ? <SkeletonValue /> : <p className="text-2xl font-bold text-[#f1eadb]">
                 {storyTypes.length}
-              </p>
+              </p>}
               <p className="text-xs uppercase text-[#c3cbd4]/70">Story Types</p>
             </div>
             <div className="rounded-xl bg-[#d8c69e]/[0.08] p-3 text-center">
-              <p className="text-2xl font-bold text-[#f1eadb]">
+              {loadingUsers && users.length === 0 ? <SkeletonValue /> : <p className="text-2xl font-bold text-[#f1eadb]">
                 {totalCreators}
-              </p>
+              </p>}
               <p className="text-xs uppercase text-[#c3cbd4]/70">
                 Creator Subscribers
               </p>
@@ -327,7 +347,7 @@ const AdminDashboard = () => {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm text-[#c3cbd4]">
+              <table aria-busy={loadingStories} className="min-w-full text-sm text-[#c3cbd4]">
                 <thead className="bg-[#d8c69e]/[0.08] text-left">
                   <tr>
                     <th className="px-3 py-2">Title</th>
@@ -361,6 +381,7 @@ const AdminDashboard = () => {
                       </td>
                     </tr>
                   ))}
+                  {loadingStories && <SkeletonRows columns={6} count={stories.length ? 3 : 6} />}
                 </tbody>
               </table>
               {!loadingStories && filteredStories.length === 0 && (
@@ -370,13 +391,10 @@ const AdminDashboard = () => {
               )}
             </div>
             <div className="mt-5 flex flex-col items-center gap-3">
-              <p className="text-sm text-[#c3cbd4]/60">
+              {(!loadingStories || stories.length > 0) && <p className="text-sm text-[#c3cbd4]/60">
                 Showing {stories.length} of {storyTotal} stories
-              </p>
+              </p>}
               <div ref={storyTriggerRef} className="h-6" aria-hidden="true" />
-              {loadingStories && stories.length > 0 ? (
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#d8c69e] border-t-transparent" />
-              ) : null}
             </div>
           </div>
         )}
@@ -394,7 +412,7 @@ const AdminDashboard = () => {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm text-[#c3cbd4]">
+              <table aria-busy={loadingUsers} className="min-w-full text-sm text-[#c3cbd4]">
                 <thead className="bg-[#d8c69e]/[0.08] text-left">
                   <tr>
                     <th className="px-3 py-2">Name</th>
@@ -423,6 +441,7 @@ const AdminDashboard = () => {
                       </td>
                     </tr>
                   ))}
+                  {loadingUsers && <SkeletonRows columns={4} count={users.length ? 3 : 6} />}
                 </tbody>
               </table>
               {!loadingUsers && filteredUsers.length === 0 && (
@@ -432,13 +451,10 @@ const AdminDashboard = () => {
               )}
             </div>
             <div className="mt-5 flex flex-col items-center gap-3">
-              <p className="text-sm text-[#c3cbd4]/60">
+              {(!loadingUsers || users.length > 0) && <p className="text-sm text-[#c3cbd4]/60">
                 Showing {users.length} of {userTotal} users
-              </p>
+              </p>}
               <div ref={userTriggerRef} className="h-6" aria-hidden="true" />
-              {loadingUsers && users.length > 0 ? (
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#d8c69e] border-t-transparent" />
-              ) : null}
             </div>
           </div>
         )}

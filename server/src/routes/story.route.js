@@ -4,6 +4,7 @@ import {
   deleteStory,
   getCurrentUserStories,
   getPublicStories,
+  getPublicGenres,
   getRelatedStoryList,
   getStoryIdDetail,
   getStorySlugDetail,
@@ -18,11 +19,13 @@ import {
   currentUserStoriesQuerySchema,
   relatedStoriesQuerySchema,
   storyIdParamSchema,
+  publicStoriesQuerySchema,
 } from '../validations/story.validation.js';
 
 const router = Router();
 
-router.get('/', getPublicStories);
+router.get('/', validate(publicStoriesQuerySchema), getPublicStories);
+router.get('/genres', getPublicGenres);
 router.post('/', requireAuth, validate(createStorySchema), createStory);
 router.get(
   '/me',

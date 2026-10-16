@@ -3,6 +3,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { LockKeyhole } from "lucide-react";
 import dynamic from "next/dynamic";
 import { IoIosArrowDropleftCircle, IoIosArrowDroprightCircle } from "react-icons/io";
 import { toast } from "react-toastify";
@@ -21,6 +22,8 @@ import { getAccessToken } from "@/lib/neon-auth/client";
 type StoryPageClientProps = {
   initialStory: StoryRecord;
 };
+
+const SHOW_STORY_LAYOUT_SWITCH = false;
 
 type FlipBookHandle = {
   pageFlip: () => {
@@ -410,19 +413,21 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="font-serif text-3xl font-medium text-[#f1eadb]">Full Story</h2>
-                <p className="mt-2 text-sm text-[#c3cbd4]/75 md:text-base">
+                {SHOW_STORY_LAYOUT_SWITCH && <p className="mt-2 text-sm text-[#c3cbd4]/75 md:text-base">
                   Switch between flipbook and full story layout.
-                </p>
+                </p>}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={onDownloadPdf}
-                  disabled={downloadingPdf || !story}
-                  className="tc-btn-ghost px-5 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={downloadingPdf || !story || !userDetail?.canExport}
+                  title={!userDetail?.canExport ? "Creator subscription required" : undefined}
+                  className="tc-btn-ghost inline-flex items-center gap-2 px-5 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {downloadingPdf ? "Generating PDF..." : userDetail?.canExport ? "Download PDF" : "PDF export - Creator"}
+                  {!userDetail?.canExport && <LockKeyhole size={18} className="shrink-0" aria-hidden="true" />}
+                  {downloadingPdf ? "Generating PDF..." : userDetail?.canExport ? "Download PDF" : "PDF export - Creator Only"}
                 </button>
-                <div className="tc-toggle-wrap">
+                {SHOW_STORY_LAYOUT_SWITCH && <div className="tc-toggle-wrap">
                   <button
                     onClick={() => {
                       stopNarration();
@@ -441,7 +446,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                   >
                     Story
                   </button>
-                </div>
+                </div>}
               </div>
             </div>
 

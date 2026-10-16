@@ -5,6 +5,14 @@
 @tailwind utilities;
 
 @layer base {
+  img,
+  video,
+  canvas {
+    -webkit-touch-callout: none;
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+
   :root {
     --background: #0b1522;
     --foreground: #c3cbd4;

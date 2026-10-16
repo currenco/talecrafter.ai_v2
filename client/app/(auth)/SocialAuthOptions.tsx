@@ -7,13 +7,13 @@ const socialButtonClass =
 export default function SocialAuthOptions() {
   return (
     <div>
-      <div className="my-5 flex items-center gap-3 text-xs text-[#c3cbd4]/50">
+      <div className="my-3 flex items-center gap-3 text-xs text-[#c3cbd4]/50">
         <span className="h-px flex-1 bg-[#d8c69e]/20" />
         OR
         <span className="h-px flex-1 bg-[#d8c69e]/20" />
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         <a className={socialButtonClass} href="/auth/github">
           <FaGithub aria-hidden="true" className="size-5" />
           Continue with GitHub
@@ -24,8 +24,8 @@ export default function SocialAuthOptions() {
         </a>
       </div>
 
-      <p className="mt-4 rounded-md border border-[#d8c69e]/20 bg-[#d8c69e]/[0.08] px-3 py-2.5 text-sm leading-6 text-[#c3cbd4]/80 text-center">
-        Sign in with either account. Free creation requires a linked GitHub account; Creator supports either sign-in method.
+      <p className="mt-3 text-xs leading-5 text-[#c3cbd4]/80 text-center">
+        Free creation requires a linked GitHub account; Creator supports either sign-in method.
       </p>
     </div>
   );

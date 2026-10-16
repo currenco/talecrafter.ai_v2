@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 const Footer = () => {
@@ -9,9 +10,9 @@ const Footer = () => {
     { label: "Explore Stories", href: "/explore" },
   ];
 
-  const connectLinks = [
-    { label: "contact@talecrafterai.tech", href: "mailto:contact@talecrafterai.tech" },
-    { label: "Create with TaleCrafter", href: "/create-story" },
+  const genres = [
+    "Mythology", "Sci-fi", "Educational", "History", "Fantasy",
+    "Crime", "Motivational", "Horror", "Romantic",
   ];
 
   const footerLinkClass =
@@ -22,8 +23,9 @@ const Footer = () => {
       <div className="mx-auto w-full max-w-screen-xl px-6 py-16 sm:px-8 lg:px-10 lg:py-20">
         <div className="grid gap-12 md:grid-cols-[1.4fr_1fr_1fr] lg:gap-16">
           <div className="max-w-sm">
-            <Link href="/" className="font-serif text-3xl font-medium tracking-tight text-[#f1eadb]">
-              TaleCrafter AI
+            <Link href="/" className="inline-flex items-center gap-3 font-serif text-2xl font-medium tracking-normal text-[#f1eadb] sm:text-3xl">
+              <Image src="/talecrafter-symbol.png" alt="" width={36} height={36} className="shrink-0 object-contain" />
+              <span>TaleCrafter AI</span>
             </Link>
             <p className="mt-6 text-sm leading-7 text-[#c3cbd4]/50">
               AI storybook creator for building illustrated stories, interactive paths,
@@ -44,13 +46,13 @@ const Footer = () => {
             </ul>
           </nav>
 
-          <nav aria-label="Connect links">
-            <h2 className="text-base font-bold text-[#f1eadb]">Connect</h2>
-            <ul className="mt-6 space-y-4">
-              {connectLinks.map((item) => (
-                <li key={item.href}>
-                  <Link href={item.href} className={footerLinkClass}>
-                    {item.label}
+          <nav aria-label="Story genres">
+            <h2 className="text-base font-bold text-[#f1eadb]">Genres</h2>
+            <ul className="mt-6 grid grid-cols-2 gap-x-4 gap-y-4">
+              {genres.map((genre) => (
+                <li key={genre}>
+                  <Link href={`/explore?${new URLSearchParams({ genre })}`} className={footerLinkClass}>
+                    {genre}
                   </Link>
                 </li>
               ))}
