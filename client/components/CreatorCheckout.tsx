@@ -72,7 +72,7 @@ export default function CreatorCheckout() {
     finally { setBusy(false); }
   };
   const subscribe = async () => {
-    if (!consent || !window.Razorpay || busy) return;
+    if (!enabled || !loaded || !consent || !window.Razorpay || busy) return;
     setBusy(true);
     setMessage("");
     try {
@@ -126,17 +126,16 @@ export default function CreatorCheckout() {
         </>
       ) : enabled ? (
         <>
-          <details className="border-t border-white/20 pt-3">
-            <summary className="cursor-pointer font-semibold">Review subscription and continue</summary>
-            <p className="my-3 text-xs leading-5">USD 9 billed automatically every month. Includes up to 15 story projects, 120 images and 60 image-to-story ideas per billing month. Covers, references and requested variations count. Unused monthly allowances do not roll over. Cancel renewal here before your next billing date. Video is not included. The mandate lasts up to 120 monthly payments.</p>
+          <div className="border-t border-white/15 pt-4">
             <label className="flex items-start gap-2 text-xs leading-5">
-              <input type="checkbox" className="mt-1" checked={consent} onChange={e => setConsent(e.target.checked)} />
-              I agree to the monthly price, automatic renewal and usage limits.
+              <input type="checkbox" className="mt-1 shrink-0 accent-emerald-300" checked={consent} disabled={busy} onChange={e => setConsent(e.target.checked)} />
+              I agree to $9 USD/month, automatic renewal and the plan allowances. Cancel before the next billing date.
             </label>
-            <button className={button + " mt-3 bg-emerald-200 text-emerald-950"} onClick={() => void subscribe()} disabled={!ready || !consent || busy}>
+            <button className={button + " mt-3 bg-emerald-200 text-emerald-950 hover:bg-emerald-100"} onClick={() => void subscribe()} disabled={!loaded || !ready || !consent || busy}>
               {busy ? "Processing..." : "Subscribe for $9 / month"}
             </button>
-          </details>
+            {!ready && <p role="status" className="mt-2 text-xs">Loading secure checkout...</p>}
+          </div>
         </>
       ) : <div className="space-y-3"><p>{loaded ? "Creator is coming soon. Payments are not open yet." : "Loading subscription..."}</p>{loaded && <Link href="/create-story" className={button + " block text-center"}>Start with Free</Link>}</div>}
       {userDetail?.subscriptionStatus && <button className={button} disabled={busy} onClick={() => void update("refresh")}>Refresh status</button>}
