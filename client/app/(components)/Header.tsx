@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, LogOut, UserRound, Home, Info, Compass, BookOpen, PenLine, ShieldCheck } from "lucide-react";
+import { Sparkles, LogOut, UserRound, Home, Info, Compass, BookOpen, PenLine, ShieldCheck, HelpCircle } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
 import { useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -83,6 +83,7 @@ const Header = () => {
     { name: "Home", link: "/" },
     { name: "About", link: "/about" },
     { name: "Explore Stories", link: "/explore" },
+    { name: "How to Use", link: "/how-to-use" },
   ];
 
   const userItems = [
@@ -228,11 +229,11 @@ const Header = () => {
               <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#d8c69e]/10 text-[#d8c69e]"><UserRound size={28} aria-hidden="true" /></span>
               <p className="mt-3 break-words font-semibold">{accountName}</p>
               <p className="mt-1 break-all text-xs text-[#c3cbd4]/75">{accountEmail}</p>
-              <p className="mt-2 text-xs font-medium text-[#d8c69e]">{userDetail?.plan === "creator" ? "Creator" : "Free"}</p>
+              <p className="mt-2 text-xs font-medium text-[#d8c69e]">{userDetail?.plan === "creator" ? "Creator" : "Free trial"}</p>
             </div>}
             <nav aria-label="Mobile navigation" className="space-y-1">
-              {[...navItems, { name: "Plans", link: "/pricing" }].map(item => {
-                const Icon = ({ "/": Home, "/about": Info, "/explore": Compass, "/create-story": PenLine, "/dashboard": BookOpen, "/admin": ShieldCheck, "/pricing": Sparkles } as Record<string, typeof Home>)[item.link];
+              {[...navItems, { name: "Plans", link: "/pricing" }, ...(isAuthenticated ? [{ name: "How to Use", link: "/how-to-use" }] : [])].map(item => {
+                const Icon = ({ "/": Home, "/about": Info, "/explore": Compass, "/create-story": PenLine, "/dashboard": BookOpen, "/admin": ShieldCheck, "/pricing": Sparkles, "/how-to-use": HelpCircle } as Record<string, typeof Home>)[item.link];
                 return <Link key={item.link} href={item.link} onClick={closeMobileMenu} aria-current={pathname === item.link ? "page" : undefined}
                   className={`flex min-h-11 items-center gap-3 rounded-md px-3 py-3 text-sm font-semibold ${pathname === item.link ? "bg-[#d8c69e]/15 text-[#f1eadb]" : "text-[#c3cbd4] hover:bg-white/5"}`}>
                   <Icon size={19} className="shrink-0" aria-hidden="true" />{item.name}

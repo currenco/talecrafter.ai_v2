@@ -3,10 +3,10 @@
 ## Product Rules
 
 - Both plans can sign in with Google or GitHub and read published stories.
-- Free creation requires a linked GitHub identity, allows Classic only, and uses the user's encrypted Pollinations token. Limits reset each UTC calendar month: 3 projects, 24 successful images and 6 image-to-story ideas.
-- Creator is USD 9 per automatically renewing month: 15 projects, 120 successful images and 60 ideas per paid invoice period. Branching continuations consume images, not another project. Covers count as images. Unused allowances do not roll over. Cancel renewal from `/pricing`.
+- Free trial creation requires a linked GitHub identity, allows Classic only, and uses the user's encrypted Pollinations token. There are no TaleCrafter per-user monthly generation quotas; provider balance, permissions and availability still apply.
+- Creator is USD 9 per automatically renewing month with no per-user project, image or idea quotas. Active paid access is required for Creator features. Cancel renewal from `/pricing`.
 - Creator generation uses the server-only `POLLINATIONS_PLATFORM_KEY`, never the user's token or the public application/referral key. Gemini remains the text provider.
-- Failed project attempts release their project reservation. Successfully persisted partial images retain usage. Failed image uploads release personal image reservations, but global provider-attempt usage is retained because a timeout may still cost Pollen.
+- No new personal usage reservations are written or consulted. Historical user counters are ignored. The shared platform image-attempt cap remains enforced, including failed requests because a timeout may still cost Pollen. Capacity exhaustion returns `503 PLATFORM_BUDGET_REACHED`, not a personal quota error. Do not advertise unlimited generation.
 - PDF and creator-pack APIs require a current paid period. Public responses exclude character descriptions and scene-generation prompts. This is feature access control, not DRM against printing public content.
 - Old credit accounts, ledger and payment records remain archival database structures. No balance grants, spending, adjustments, purchases or conversions are active. Never delete financial records as part of rollout.
 
@@ -24,7 +24,7 @@ For this release:
 
 - Render: set `NODE_ENV=production`, `CREATOR_CHECKOUT_ENABLED=false`, `CLIENT_ORIGIN=https://www.talecrafterai.com` and the matching `CORS_ORIGIN`. Keep existing production database/Auth, Gemini, Cloudinary and Pollinations credentials, including the existing token encryption key.
 - Frontend: set `API_BASE_URL=https://talecrafter-ai-v2.onrender.com/api/v1`, and keep production `NEON_AUTH_BASE_URL` and `NEON_AUTH_COOKIE_SECRET`. Rebuild after changing these settings.
-- Remove obsolete `RATE_LIMIT_DIAGNOSTICS`. Request-rate middleware and its dependency are removed; authentication, plan allowances, provider budgets and progressive polling remain. Public endpoints have no application-level request throttling until it is reintroduced.
+- Remove obsolete `RATE_LIMIT_DIAGNOSTICS`. Request-rate middleware and its dependency are removed; authentication, paid feature access, provider budgets and progressive polling remain. Public endpoints have no application-level request throttling until it is reintroduced.
 - Payment and platform-funded-image credentials may remain unset while checkout is disabled. Do not leave malformed placeholder values in optional variables: provided values are still validated.
 - Deploy the backend before the frontend. Verify `/api/v1/health`, authenticated `/api/v1/users/me`, legacy story reading, Free Classic generation and `/pricing`. Check `/api/v1/payments/availability` returns `checkoutEnabled: false`.
 

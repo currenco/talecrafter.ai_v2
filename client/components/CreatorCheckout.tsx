@@ -113,7 +113,7 @@ export default function CreatorCheckout() {
   if (!isAuthLoaded) return <p role="status">Loading account...</p>;
   if (!isSignedIn) return !loaded ? <p role="status">Loading plans...</p> : enabled ?
     <Link className={button + " block text-center"} href="/sign-in?redirect=/pricing">Sign in to choose Creator</Link> :
-    <div className="space-y-3 text-sm"><p>{message || "Creator is coming soon. Payments are not open yet."}</p><Link href="/create-story" className={button + " block text-center"}>Start with Free</Link></div>;
+    <div className="space-y-3 text-sm"><p>{message || "Creator is coming soon. Payments are not open yet."}</p><Link href="/create-story" className={button + " block text-center"}>Start with Free trial</Link></div>;
   return (
     <div className="space-y-3 text-sm">
       {enabled && <Script src="https://checkout.razorpay.com/v1/checkout.js" onReady={() => setReady(true)} onError={() => setMessage("Checkout could not load. Refresh to retry.")} />}
@@ -129,7 +129,7 @@ export default function CreatorCheckout() {
           <div className="border-t border-white/15 pt-4">
             <label className="flex items-start gap-2 text-xs leading-5">
               <input type="checkbox" className="mt-1 shrink-0 accent-emerald-300" checked={consent} disabled={busy} onChange={e => setConsent(e.target.checked)} />
-              I agree to $9 USD/month, automatic renewal and the plan allowances. Cancel before the next billing date.
+              I agree to $9 USD/month, automatic renewal. Cancel before the next billing date.
             </label>
             <button className={button + " mt-3 bg-emerald-200 text-emerald-950 hover:bg-emerald-100"} onClick={() => void subscribe()} disabled={!loaded || !ready || !consent || busy}>
               {busy ? "Processing..." : "Subscribe for $9 / month"}
@@ -137,7 +137,7 @@ export default function CreatorCheckout() {
             {!ready && <p role="status" className="mt-2 text-xs">Loading secure checkout...</p>}
           </div>
         </>
-      ) : <div className="space-y-3"><p>{loaded ? "Creator is coming soon. Payments are not open yet." : "Loading subscription..."}</p>{loaded && <Link href="/create-story" className={button + " block text-center"}>Start with Free</Link>}</div>}
+      ) : <div className="space-y-3"><p>{loaded ? "Creator is coming soon. Payments are not open yet." : "Loading subscription..."}</p>{loaded && <Link href="/create-story" className={button + " block text-center"}>Start with Free trial</Link>}</div>}
       {userDetail?.subscriptionStatus && <button className={button} disabled={busy} onClick={() => void update("refresh")}>Refresh status</button>}
       {userDetail?.subscriptionStatus && userDetail.plan !== "creator" && !["cancelled", "expired", "completed"].includes(userDetail.subscriptionStatus) &&
         <button className={button} disabled={busy || userDetail.cancelAtPeriodEnd} onClick={() => void update("cancel")}>Cancel subscription</button>}

@@ -182,9 +182,9 @@ const faqs = [
       "Stories can be read in a book-style flip view or a scrolling story view. Page narration is available inside the reader, and completed stories can be exported as PDFs.",
   },
   {
-    question: "What is the difference between Free and Creator?",
+    question: "What is the difference between Free trial and Creator?",
     answer:
-      "Both plans support Google and GitHub sign-in. The Free plan requires GitHub for Classic story creation and uses your own Pollinations balance for images. Creator includes Classic and branching stories, PDF export, a complete character bible and scene-by-scene prompts, with platform-funded images and no GitHub requirement. Monthly usage limits apply; see View plan limits for the allowances. Creator checkout is available once billing setup is enabled.",
+      "Both plans support Google and GitHub sign-in. The Free trial plan requires GitHub for Classic story creation and uses your own Pollinations balance for images. Creator includes Classic and branching stories, PDF export, a complete character bible and scene-by-scene prompts, with platform-funded images and no GitHub requirement. Creator has no per-user monthly generation quotas. Generation depends on provider availability and shared platform capacity. The Free trial has no TaleCrafter monthly generation quotas; Pollinations limits and balance still apply. Creator checkout is available once billing setup is enabled.",
   },
 ];
 
