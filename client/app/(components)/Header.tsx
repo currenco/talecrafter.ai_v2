@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import styles from "./header.module.css";
 import { usePathname } from "next/navigation";
 import { Sparkles, LogOut, UserRound, Home, Info, Compass, BookOpen, PenLine, ShieldCheck, HelpCircle } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
@@ -211,37 +212,37 @@ const Header = () => {
         placement="center"
         scrollBehavior="inside"
         disableAnimation={Boolean(reduceMotion)}
-        motionProps={{ variants: { enter: { x: 0, opacity: 1, transition: { duration: 0.2 } }, exit: { x: "100%", opacity: 1, transition: { duration: 0.2 } } } }}
+        motionProps={{ variants: { enter: { x: 0, opacity: 1, transition: { duration: 0.24, ease: "easeOut" } }, exit: { x: "100%", opacity: 1, transition: { duration: 0.2, ease: "easeIn" } } } }}
         classNames={{
-          wrapper: "!items-stretch !justify-end",
-          backdrop: "bg-black/60",
-          base: "!m-0 !h-[100dvh] !max-h-[100dvh] !w-[min(340px,90vw)] !max-w-none !rounded-none border-l border-[#d8c69e]/20 bg-[#111d2b] text-[#f1eadb]",
+          wrapper: "!left-auto !w-[min(300px,calc(100vw-48px))] !items-stretch !justify-end",
+          backdrop: `${styles.backdrop} ${isMobileMenuOpen ? styles.backdropOpen : ""}`,
+          base: "!m-0 !h-[100dvh] !max-h-[100dvh] !w-full !max-w-none !rounded-none border-l border-[#d8c69e]/20 bg-[#111d2b] text-[#f1eadb]",
           closeButton: "right-3 top-4 text-[#c3cbd4] hover:bg-white/10",
         }}
       >
         <ModalContent>
-          <ModalHeader className="items-center gap-2 border-b border-[#d8c69e]/15 py-5 pr-12">
+          <ModalHeader className="items-center gap-2 border-b border-[#d8c69e]/15 py-4 pl-4 pr-12">
             <Image src="/talecrafter-symbol.png" alt="" width={30} height={30} className="shrink-0 object-contain" />
             <span className="text-lg font-semibold">TaleCrafterAI</span>
           </ModalHeader>
-          <ModalBody className="gap-5 px-5 py-5">
-            {isAuthenticated && <div className="border-b border-[#d8c69e]/15 pb-5 text-center">
-              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#d8c69e]/10 text-[#d8c69e]"><UserRound size={28} aria-hidden="true" /></span>
-              <p className="mt-3 break-words font-semibold">{accountName}</p>
+          <ModalBody className="gap-4 px-4 py-4">
+            {isAuthenticated && <div className="border-b border-[#d8c69e]/15 pb-4 text-center">
+              <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-[#d8c69e]/10 text-[#d8c69e]"><UserRound size={24} aria-hidden="true" /></span>
+              <p className="mt-2 break-words text-sm font-semibold">{accountName}</p>
               <p className="mt-1 break-all text-xs text-[#c3cbd4]/75">{accountEmail}</p>
-              <p className="mt-2 text-xs font-medium text-[#d8c69e]">{userDetail?.plan === "creator" ? "Creator" : "Free trial"}</p>
+              <p className="mt-1 text-xs font-medium text-[#d8c69e]">{userDetail?.plan === "creator" ? "Creator" : "Free trial"}</p>
             </div>}
             <nav aria-label="Mobile navigation" className="space-y-1">
               {[...navItems, { name: "Plans", link: "/pricing" }, ...(isAuthenticated ? [{ name: "How to Use", link: "/how-to-use" }] : [])].map(item => {
                 const Icon = ({ "/": Home, "/about": Info, "/explore": Compass, "/create-story": PenLine, "/dashboard": BookOpen, "/admin": ShieldCheck, "/pricing": Sparkles, "/how-to-use": HelpCircle } as Record<string, typeof Home>)[item.link];
                 return <Link key={item.link} href={item.link} onClick={closeMobileMenu} aria-current={pathname === item.link ? "page" : undefined}
-                  className={`flex min-h-11 items-center gap-3 rounded-md px-3 py-3 text-sm font-semibold ${pathname === item.link ? "bg-[#d8c69e]/15 text-[#f1eadb]" : "text-[#c3cbd4] hover:bg-white/5"}`}>
+                  className={`flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold ${pathname === item.link ? "bg-[#d8c69e]/15 text-[#f1eadb]" : "text-[#c3cbd4] hover:bg-white/5"}`}>
                   <Icon size={19} className="shrink-0" aria-hidden="true" />{item.name}
                 </Link>;
               })}
             </nav>
           </ModalBody>
-          <ModalFooter className="flex-col border-t border-[#d8c69e]/15 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4">
+          <ModalFooter className="flex-col border-t border-[#d8c69e]/15 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
             {isAuthenticated ? <button type="button" onClick={signOut} className="flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-3 text-sm font-semibold text-red-200 hover:bg-red-500/10">
               <LogOut size={19} aria-hidden="true" />Log out
             </button> : <>
@@ -253,13 +254,13 @@ const Header = () => {
       </Modal>
 
       <Modal
-        backdrop="blur"
+        backdrop="opaque"
         isOpen={isAccountOpen}
         onOpenChange={onAccountOpenChange}
         placement="center"
         size="sm"
         classNames={{
-          backdrop: "bg-black/65",
+          backdrop: `${styles.backdrop} ${isAccountOpen ? styles.backdropOpen : ""}`,
           base: "border border-[#d8c69e]/20 bg-[#111d2b] text-[#f1eadb]",
           closeButton: "text-[#c3cbd4] hover:bg-white/10",
         }}
