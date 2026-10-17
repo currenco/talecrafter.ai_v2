@@ -3,14 +3,38 @@ import { randomUUID } from 'node:crypto';
 import test, { mock } from 'node:test';
 import { subscriptionDb } from './helpers/subscription-db.js';
 
-test('generation reservations enforce plans, replay safely, and release failed usage once', async () => {
+test('generation checks permissions without user quotas and preserves the platform budget', async () => {
   const { pg, db } = await subscriptionDb();
   const jobs = await import('../src/services/generationJob.service.js');
   const access = await import('../src/services/entitlement.service.js');
+  const users = await import('../src/services/user.service.js');
+  mock.module('../src/services/user.service.js', {
+    namedExports: {
+      ...users,
+      syncUserFromAuth: async () => ({ id: profileId }),
+    },
+  });
+  mock.module('../src/services/generation.service.js', {
+    namedExports: {
+      generateNarrativeText: async () => 'An idea',
+    },
+  });
+  const { generateGemini } =
+    await import('../src/controllers/ai.controller.js');
   const { UserProfiles, CreatorSubscriptions } =
     await import('../src/db/schema.js');
   const profileId = randomUUID();
   const authUserId = randomUUID();
+  const generateIdea = () =>
+    new Promise((resolve, reject) => {
+      generateGemini(
+        { auth: { userId: authUserId }, validated: { body: {} } },
+        {
+          status: () => ({ json: resolve }),
+        },
+        reject
+      );
+    });
   const options = {
     profileId,
     kind: 'classic',
@@ -97,8 +121,8 @@ test('generation reservations enforce plans, replay safely, and release failed u
           'SELECT used FROM app.plan_usage_buckets WHERE key LIKE $1',
           ['user:' + profileId + ':%:projects']
         )
-      ).rows[0].used;
-    assert.equal(await used(), 1);
+      ).rows[0]?.used ?? 0;
+    assert.equal(await used(), 0);
     const concurrent = await Promise.allSettled(
       [1, 2, 3].map(() =>
         jobs.reserveGenerationForProfile({
@@ -108,21 +132,57 @@ test('generation reservations enforce plans, replay safely, and release failed u
       )
     );
     assert.equal(concurrent.filter(r => r.status === 'fulfilled').length, 1);
-    assert.equal(await used(), 2);
+    assert.equal(await used(), 0);
     await jobs.reserveGenerationForProfile({
       ...options,
       idempotencyKey: 'third-story',
     });
-    await assert.rejects(
-      jobs.reserveGenerationForProfile({
-        ...options,
-        idempotencyKey: 'fourth-story',
-      }),
-      e => e.statusCode === 429
+    await jobs.reserveGenerationForProfile({
+      ...options,
+      idempotencyKey: 'fourth-story',
+    });
+    const freeAccess = await access.getEntitlement(profileId);
+    assert.equal(freeAccess.period, null);
+    assert.equal(freeAccess.projectLimit, undefined);
+    assert.equal(freeAccess.imageLimit, undefined);
+    for (let i = 0; i < 25; i++) {
+      assert.equal(await access.reserveImage(profileId), null);
+    }
+    for (let i = 0; i < 7; i++) {
+      await generateIdea();
+    }
+    assert.equal(
+      (await pg.query('SELECT * FROM app.plan_usage_buckets')).rows.length,
+      0
     );
-    assert.equal(await used(), 3);
-    // Creator needs no GitHub and has an independent paid-period allowance.
+    // Existing exhausted counters from the old Free plan no longer block access.
+    for (const [kind, limit] of [
+      ['projects', 3],
+      ['images', 24],
+      ['ideas', 6],
+    ]) {
+      await pg.query(
+        'INSERT INTO app.plan_usage_buckets (key, used) VALUES ($1, $2)',
+        [
+          `user:${profileId}:${new Date().toISOString().slice(0, 7)}:${kind}`,
+          limit,
+        ]
+      );
+    }
+    await jobs.reserveGenerationForProfile({
+      ...options,
+      idempotencyKey: 'old-quota-story',
+    });
+    assert.equal(await access.reserveImage(profileId), null);
+    await generateIdea();
+    await pg.exec('DELETE FROM app.plan_usage_buckets');
+    // Creator needs no GitHub but still requires an active paid period.
     await pg.exec('DELETE FROM neon_auth.account');
+    await assert.rejects(
+      access.reserveImage(profileId),
+      e => e.statusCode === 403
+    );
+    await assert.rejects(generateIdea(), e => e.statusCode === 403);
     await db.insert(CreatorSubscriptions).values({
       userId: profileId,
       providerPlanId: 'plan_test',
@@ -136,11 +196,10 @@ test('generation reservations enforce plans, replay safely, and release failed u
       'creator'
     );
     process.env.POLLINATIONS_PLATFORM_MONTHLY_ATTEMPT_LIMIT = '1';
-    const image = await access.reserveImage(profileId);
-    await access.releaseUsage(image);
+    await access.reserveImage(profileId);
     await assert.rejects(
       access.reserveImage(profileId),
-      e => e.statusCode === 429
+      e => e.statusCode === 503 && e.error[0].code === 'PLATFORM_BUDGET_REACHED'
     );
     assert.equal(
       (
@@ -155,8 +214,37 @@ test('generation reservations enforce plans, replay safely, and release failed u
         await pg.query(
           "SELECT used FROM app.plan_usage_buckets WHERE key LIKE '%:images'"
         )
-      ).rows[0].used,
+      ).rows.length,
       0
+    );
+    // Creator can exceed all former quotas, even with exhausted historical counters.
+    process.env.POLLINATIONS_PLATFORM_MONTHLY_ATTEMPT_LIMIT = '1000';
+    const creatorAccess = await access.getEntitlement(profileId);
+    assert.equal(creatorAccess.projectLimit, undefined);
+    assert.equal(creatorAccess.imageLimit, undefined);
+    for (const [kind, limit] of [
+      ['projects', 15],
+      ['images', 120],
+      ['ideas', 60],
+    ]) {
+      await pg.query(
+        'INSERT INTO app.plan_usage_buckets (key, used) VALUES ($1, $2)',
+        [`user:${profileId}:${creatorAccess.period}:${kind}`, limit]
+      );
+    }
+    for (let i = 0; i < 16; i++)
+      await jobs.reserveGenerationForProfile({
+        ...options,
+        idempotencyKey: `creator-story-${i}`,
+      });
+    for (let i = 0; i < 61; i++) await generateIdea();
+    for (let i = 0; i < 121; i++) await access.reserveImage(profileId);
+    const counters = await pg.query(
+      "SELECT used FROM app.plan_usage_buckets WHERE key LIKE 'user:%' ORDER BY used"
+    );
+    assert.deepEqual(
+      counters.rows.map(row => row.used),
+      [15, 60, 120]
     );
     // Many simultaneous reservations cannot overspend a bounded bucket.
     const reservations = await Promise.allSettled(

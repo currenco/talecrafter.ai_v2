@@ -3,8 +3,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import ApiError from '../utils/ApiError.js';
 import {
-  CREATOR_PLAN,
-  freePeriod,
+  monthlyPeriod,
   generationPermission,
   hasCreatorAccess,
 } from '../utils/plans.js';
@@ -31,12 +30,10 @@ export const getEntitlement = async profileId => {
     canCreate: creator || row.githubConnected,
     canBranch: creator,
     canExport: creator,
-    period: creator ? new Date(row.periodStart).toISOString() : freePeriod(),
+    period: creator ? new Date(row.periodStart).toISOString() : null,
     paidThrough: row.paidThrough,
     subscriptionStatus: row.status ?? null,
     cancelAtPeriodEnd: row.cancelAtPeriodEnd ?? false,
-    projectLimit: creator ? CREATOR_PLAN.projects : 3,
-    imageLimit: creator ? CREATOR_PLAN.images : 24,
   };
 };
 
@@ -51,7 +48,7 @@ export const assertGenerationAccess = async (profileId, kind = 'classic') => {
     throw new ApiError(
       403,
       reason === 'GITHUB_REQUIRED'
-        ? 'Connect GitHub to create on the Free plan'
+        ? 'Connect GitHub to create on the Free trial plan'
         : 'Creator subscription required for branching stories',
       [{ code: reason }]
     );
@@ -64,48 +61,26 @@ export const reserveUsage = async ({ id = randomUUID(), bucket, limit }) => {
     SELECT app.reserve_plan_usage(${id}::uuid, ${bucket}, ${limit}::integer) AS allowed
   `);
   if (!result.rows[0]?.allowed) {
-    throw new ApiError(429, 'Monthly generation allowance reached', [
-      { code: 'PLAN_LIMIT_REACHED' },
-    ]);
+    throw new ApiError(
+      503,
+      'Platform image generation capacity is temporarily unavailable',
+      [{ code: 'PLATFORM_BUDGET_REACHED' }]
+    );
   }
   return id;
-};
-
-export const releaseUsage = id =>
-  db.execute(sql`SELECT app.release_plan_usage(${id}::uuid)`);
-
-export const reserveProject = async (profileId, id, kind) => {
-  const access = await assertGenerationAccess(profileId, kind);
-  return reserveUsage({
-    id,
-    bucket: `user:${profileId}:${access.period}:projects`,
-    limit: access.projectLimit,
-  });
 };
 
 export const reserveImage = async profileId => {
   const access = await assertGenerationAccess(profileId);
-  const id = await reserveUsage({
-    bucket: `user:${profileId}:${access.period}:images`,
-    limit: access.imageLimit,
-  });
-  if (access.plan === 'creator') {
-    try {
-      const limit = Number(
-        process.env.POLLINATIONS_PLATFORM_MONTHLY_ATTEMPT_LIMIT
-      );
-      if (!Number.isInteger(limit) || limit < 1) {
-        throw new ApiError(503, 'Platform generation budget is not configured');
-      }
-      // Attempts are never refunded: a timed-out provider request may still cost money.
-      await reserveUsage({
-        bucket: `platform:${freePeriod()}:image-attempts`,
-        limit,
-      });
-    } catch (error) {
-      await releaseUsage(id);
-      throw error;
-    }
+  if (access.plan !== 'creator') return null;
+  const limit = Number(process.env.POLLINATIONS_PLATFORM_MONTHLY_ATTEMPT_LIMIT);
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new ApiError(503, 'Platform generation budget is not configured');
   }
-  return id;
+  // Attempts are never refunded: a timed-out provider request may still cost money.
+  await reserveUsage({
+    bucket: `platform:${monthlyPeriod()}:image-attempts`,
+    limit,
+  });
+  return null;
 };

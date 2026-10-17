@@ -20,13 +20,13 @@ Current access rules, from `server/src/utils/plans.js`, `server/src/services/ent
 | Create classic stories | Requires linked GitHub account | Does not require GitHub linkage |
 | Image credentials | Connected, funded user Pollinations account | Server-owned platform key |
 | Interactive creation/continuation/completion | Denied | Allowed while entitlement is valid |
-| Projects | 3 per UTC calendar month | 15 per paid billing period |
-| Generated images | 24 per UTC calendar month | 120 per paid billing period |
-| Direct Gemini/idea requests | 6 per UTC calendar month | 60 per paid billing period |
+| Projects | No monthly per-user quota | No monthly per-user quota |
+| Generated images | User provider balance and restrictions | Shared platform budget and provider restrictions |
+| Direct Gemini/idea requests | No monthly per-user quota | No monthly per-user quota |
 | Character/scene pack and PDF action | Creator upsell | Available |
 | Configured subscription price | No subscription | USD 9 monthly (`900` minor units) |
 
-These are repository-configured rules, not confirmation that paid checkout is live. `CREATOR_CHECKOUT_ENABLED` defaults to false. A classic story normally needs five page images plus a cover. Resuming a failed classic draft reserves a project allowance again; failed job reservations are released, while previously persisted successful images remain counted. The direct Gemini quota applies to all accepted modes, even though the UI describes it as an image-to-story idea allowance.
+These are repository-configured rules, not confirmation that paid checkout is live. `CREATOR_CHECKOUT_ENABLED` defaults to false. A classic story normally needs five page images plus a cover. Per-user usage reservations are no longer created or consulted, including on resume. Creator image requests still consume the shared platform attempt budget, even if the provider request fails. Neither plan should be marketed as unlimited generation.
 
 ## 2. Technology Stack
 
@@ -208,7 +208,7 @@ GitHub-linked access is verified from `neon_auth.account`, not from a browser-su
 | `generation_jobs` | Unique owner/idempotency key, request hash, provider/model, status/result/errors/timing |
 | `pollinations_connections`, `pollinations_oauth_states` | Encrypted token/verifier, expiry/revocation, hashed single-use state |
 | `creator_subscriptions`, `subscription_invoices`, `subscription_holds` | One subscription record per profile; unique provider subscription/payment/invoice identifiers; paid periods and refund/dispute holds |
-| `plan_usage_buckets`, `plan_usage_reservations` | Locked allowance counters and uniquely identified reservations |
+| `plan_usage_buckets`, `plan_usage_reservations` | Shared platform budget counters; historical user reservations are unused |
 | Historical tables | `credit_accounts`, `credit_ledger`, `payments`, `payment_events`, `legacy_users` |
 | `seed_records` | Repeatable development seed bookkeeping |
 
@@ -344,8 +344,8 @@ Existing docs are useful decision records but not all describe the current state
 ## 10. Error Handling and Edge Cases
 
 - `asyncHandler` forwards asynchronous controller failures; `ApiError` carries operational status/detail. Production hides unexpected errors behind a generic 500 message, while operational messages remain visible. Structured logs include request ID, method, URL, and status.
-- Missing auth is 401; denied plans/admin access is 403; unavailable owned resources commonly return 404; mismatched/reused failed generation keys are 409; running duplicate work is 425; missing/expired Pollinations connection is 428; allowance/provider throttling is 429.
-- Storage maps provider wallet errors (401/402), busy responses (429), unsupported MIME (415), oversize (413), and request timeout (504). Failed image uploads release user allowance; Creator platform attempts remain consumed.
+- Missing auth is 401; denied plans/admin access is 403; unavailable owned resources commonly return 404; mismatched/reused failed generation keys are 409; running duplicate work is 425; missing/expired Pollinations connection is 428; provider throttling is 429; exhausted shared platform generation capacity is 503.
+- Storage maps provider wallet errors (401/402), busy responses (429), unsupported MIME (415), oversize (413), and request timeout (504). No personal image counters remain; Creator platform attempts remain consumed on failure.
 - Batch upload failures discard successful siblings; database failure after upload triggers compensation. Cleanup is best-effort and can itself fail; there is no cross-provider/database transaction.
 - Classic generation failure retains recoverable content/images. Interactive starter or continuation failure cleans its newly uploaded batch and marks the job failed.
 - Gemini story parsing tolerates code fences, surrounding text, smart quotes, and trailing commas, then performs one repair attempt. Interactive parsers use direct JSON parsing and weaker normalization; malformed continuation JSON can become a generic server error.
@@ -528,7 +528,7 @@ Use these outlines to explain the actual code and its limits.
 8. **Why not authorize by email?** Email can change and is profile data; JWT subject maps to a unique auth ID and internal UUID. Explain the upsert in `syncUserFromAuth`.
 9. **How are simultaneous token requests handled?** Shared promises coalesce requests; token generation guards prevent a stale response repopulating the cache; recognized API 401 triggers one forced refresh.
 10. **What does idempotency guarantee here?** Unique owner/key plus canonical SHA-256 request hash prevents duplicate same-key jobs and rejects changed payloads. It does not serialize different keys or make external side effects transactional. Mention the classic draft/hash edge case.
-11. **Trace classic creation after an image fails.** Text and individual images are already stored; job becomes failed; project allowance is released; saved images persist. Resume generates missing images. Contrast this with a process crash leaving a running job unrecovered.
+11. **Trace classic creation after an image fails.** Text and individual images are already stored; the job becomes failed; saved images persist. Resume generates missing images. Platform attempts remain consumed; no personal project quota applies. Contrast this with a process crash leaving a running job unrecovered.
 12. **Why structured JSON and a repair prompt?** Provider schema constrains shape; local normalization still validates; one repair attempt avoids proceeding with incomplete pages. Interactive continuation parsing is less defensive.
 13. **How is an interactive narrative represented?** Parent-linked nodes with pages/choices and one active-node index. Walk parents, reverse the chain, flatten pages. It models the selected path; arbitrary branch revisiting is not exposed.
 14. **How do quotas resist concurrent overspend?** SQL function locks the bucket row, checks unique reservation, checks cap, inserts reservation and increments. Release locks/deletes once. Explain why a JavaScript read-then-increment would race.

@@ -4,20 +4,17 @@ import CreatorCheckout from "./CreatorCheckout";
 
 const plans = [
   {
-    name: "Free",
+    name: "Free trial",
     price: "$0",
-    description: "Explore stories. Bring your own key to create a classic story.",
+    description: "Try Classic story creation with GitHub and your own Pollinations key.",
     features: [
       "Read all public stories",
       "Sign in with Google or GitHub",
       "Classic story creation",
       "GitHub account required to create",
       "Images use your connected Pollinations balance",
-      "Up to 3 story projects per calendar month",
-      "24 generated images per calendar month",
-      "6 image-to-story ideas per calendar month",
     ],
-    note: "A funded Pollinations account is required for image generation. Provider limits apply.",
+    note: "No TaleCrafter subscription required. Images need a valid Pollinations key with available balance; free provider credits are not guaranteed. If your key expires or its balance runs out, generation stops. Choose Creator for platform-funded images.",
   },
   {
     name: "Creator",
@@ -31,9 +28,6 @@ const plans = [
       "Complete character bible",
       "Scene-by-scene story and prompts",
       "PDF export",
-      "Up to 15 story projects per billing month",
-      "120 generated images per billing month",
-      "60 image-to-story ideas per billing month",
     ],
   },
 ];
@@ -48,7 +42,7 @@ export default function PricingPlans() {
             <p className="mt-3 min-h-12 text-sm leading-6 text-[#c3cbd4]">{plan.description}</p>
             <p className="mt-6 flex flex-wrap items-baseline gap-2">
               <span className="text-5xl font-semibold">{plan.price}</span>
-              <span className="text-sm text-[#c3cbd4]">{plan.name === "Creator" ? "USD / month" : "forever"}</span>
+              <span className="text-sm text-[#c3cbd4]">{plan.name === "Creator" ? "USD / month" : "to try"}</span>
             </p>
             <ul className="my-7 space-y-3 border-t border-white/15 pt-6">
               {plan.features.map((feature) => (
@@ -60,7 +54,7 @@ export default function PricingPlans() {
             </ul>
             {plan.note && <p className="mb-6 text-xs leading-5 text-[#c3cbd4]">{plan.note}</p>}
             <div className="mt-auto">
-              {plan.name === "Free" ? (
+              {plan.name === "Free trial" ? (
                 <Link href="/explore" className="flex min-h-12 items-center justify-center gap-2 rounded-md border border-white/30 px-4 py-3 text-sm font-semibold hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
                   Explore public stories <ArrowRight size={16} aria-hidden="true" />
                 </Link>

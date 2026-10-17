@@ -33,7 +33,7 @@ const { default: robots } = await import('../app/robots.ts');
 
 test('only explicitly public pages opt into indexing with production canonical URLs', () => {
   assert.equal(rootMetadata.robots.index, false);
-  for (const path of ['/', '/about', '/pricing', '/explore']) {
+  for (const path of ['/', '/about', '/pricing', '/explore', '/how-to-use']) {
     const metadata = publicPageMetadata(path);
     assert.equal(metadata.robots.index, true);
     assert.match(metadata.alternates.canonical, /^https:\/\/www\.talecrafterai\.com/);

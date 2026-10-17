@@ -57,7 +57,7 @@ Remaining tasks:
 - Rehearse recovery for an ambiguous subscription creation (`creating` row), interrupted jobs/reservations and provider downtime before enabling checkout.
 - Enable `CREATOR_CHECKOUT_ENABLED=true` only after migrations, test payments, funding and renewal configuration pass.
 
-The headline plan cards avoid numeric quotas. Expandable plan details and the required checkout consent disclose the actual monthly allowances. This must not be marketed as unlimited generation.
+Neither plan has per-user monthly project, image or idea quotas. The shared platform image budget and provider restrictions remain; pricing discloses availability constraints. This must not be marketed as unlimited generation.
 
 ## 2. Product UI, Brand, And Documentation
 
@@ -102,7 +102,7 @@ Verification requirements:
 
 - Character and style consistency across multiple scenes.
 - Resumable generation after individual scene failure.
-- No duplicate provider charge or allowance consumption on retries.
+- No duplicate provider charge or platform budget consumption on retries.
 - Final duration and scene ordering match the story timeline.
 - Mobile playback and downloadable output work reliably.
 
@@ -177,7 +177,7 @@ Required checks:
 - Story generation, retry, draft, publish, and refund tests.
 - Razorpay live-mode checkout and webhook idempotency tests using final pricing.
 - Authorization tests for every owner and administrator mutation.
-- Reintroduce API rate limiting with verified proxy attribution and separate polling budgets. Request throttling is currently removed by product-owner request; plan allowances and provider spending caps remain enforced.
+- Reintroduce API rate limiting with verified proxy attribution and separate polling budgets. Request throttling and per-user generation quotas are currently removed by product-owner request; paid feature access and provider spending caps remain enforced.
 - Malformed-request and provider-timeout tests.
 - Secret, environment-variable, dependency, and dead-code audits.
 - Backup and restore rehearsal.

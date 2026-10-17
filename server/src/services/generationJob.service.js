@@ -5,10 +5,7 @@ import { GenerationJobs } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
 import { getUserByProfileId, syncUserFromAuth } from './user.service.js';
 
-import {
-  assertGenerationAccess,
-  reserveProject,
-} from './entitlement.service.js';
+import { assertGenerationAccess } from './entitlement.service.js';
 
 const IDEMPOTENCY_KEY_PATTERN = /^[a-zA-Z0-9._:-]{8,255}$/;
 
@@ -106,15 +103,6 @@ export const reserveGenerationForProfile = async ({
     if (racedJob) return resolveExistingJob({ job: racedJob, requestHash });
     throw new ApiError(409, 'Unable to reserve generation');
   }
-  try {
-    if (['classic', 'classic_resume', 'interactive_starter'].includes(kind)) {
-      await reserveProject(profileId, jobId, kind);
-    }
-  } catch (error) {
-    await failGenerationJob({ jobId, error, startedAt: Date.now() });
-    throw error;
-  }
-
   return {
     cached: false,
     job: insertedJob,
@@ -175,11 +163,9 @@ export const failGenerationJob = async ({ jobId, error, startedAt }) => {
   const durationMs = Math.max(0, Date.now() - Number(startedAt));
 
   await db.execute(sql`
-    WITH failed AS (
       UPDATE app.generation_jobs SET status = 'failed', error_code = ${errorCode},
         error_message = ${errorMessage}, duration_ms = ${durationMs},
         completed_at = now(), updated_at = now()
-      WHERE id = ${jobId} AND status = 'running' RETURNING id
-    ) SELECT app.release_plan_usage(id) FROM failed
+      WHERE id = ${jobId} AND status = 'running'
   `);
 };

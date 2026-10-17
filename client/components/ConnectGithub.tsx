@@ -23,7 +23,7 @@ export default function ConnectGithub() {
   };
   return (
     <div className="my-6 text-sm text-[#f1eadb]">
-      <p className="mb-3">Connect GitHub to create on Free. Your existing account and stories stay with you.</p>
+      <p className="mb-3">Connect GitHub to create on Free trial. Your existing account and stories stay with you.</p>
       <button type="button" onClick={connect} disabled={pending} className="inline-flex min-h-11 items-center gap-2 rounded-md border border-white/30 px-4 disabled:opacity-50">
         <FaGithub size={18} aria-hidden="true" />{pending ? "Connecting..." : "Connect GitHub"}
       </button>

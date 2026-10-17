@@ -8,7 +8,7 @@ import {
   isPollinationsImageUrl,
   normalizeGeneratedSource,
 } from './image.service.js';
-import { reserveImage, releaseUsage } from './entitlement.service.js';
+import { reserveImage } from './entitlement.service.js';
 import { getPollinationsAccessTokenForProfile } from './pollinations.service.js';
 
 const normalizePathPart = value =>
@@ -47,31 +47,23 @@ const uploadOne = async ({
   const storage = getObjectStorage();
   const id = randomUUID();
   const generated = isPollinationsImageUrl(sourceUrl);
-  let reservation;
-  let uploaded;
-  try {
-    if (generated) {
-      sourceUrl = normalizeGeneratedSource(sourceUrl);
-      // Always choose credentials on the server, including resumed and direct image calls.
-      sourceHeaders = {
-        Authorization: `Bearer ${await getPollinationsAccessTokenForProfile(ownerId)}`,
-      };
-      reservation = await reserveImage(ownerId);
-    }
-    uploaded = await storage.uploadFromUrl(sourceUrl, {
-      objectKey: buildAssetObjectKey({
-        ownerId,
-        publicStoryId,
-        assetId: id,
-        purpose,
-      }),
-      sourceHeaders,
-    });
-  } catch (error) {
-    if (reservation) await releaseUsage(reservation);
-    throw error;
+  if (generated) {
+    sourceUrl = normalizeGeneratedSource(sourceUrl);
+    // Always choose credentials on the server, including resumed and direct image calls.
+    sourceHeaders = {
+      Authorization: `Bearer ${await getPollinationsAccessTokenForProfile(ownerId)}`,
+    };
+    await reserveImage(ownerId);
   }
-
+  const uploaded = await storage.uploadFromUrl(sourceUrl, {
+    objectKey: buildAssetObjectKey({
+      ownerId,
+      publicStoryId,
+      assetId: id,
+      purpose,
+    }),
+    sourceHeaders,
+  });
   return {
     id,
     provider: uploaded.provider,
@@ -82,19 +74,12 @@ const uploadOne = async ({
     byteSize: uploaded.byteSize,
     status: 'ready',
     url: uploaded.url,
-    usageReservation: reservation,
   };
 };
 
 export const discardUploadedAssets = async uploads => {
   const items = Array.isArray(uploads) ? uploads.filter(Boolean) : [];
   if (!items.length) return;
-  await Promise.all(
-    items
-      .filter(item => item.usageReservation)
-      .map(item => releaseUsage(item.usageReservation))
-  );
-
   const ids = items.map(item => item.id).filter(Boolean);
   if (ids.length) {
     await db

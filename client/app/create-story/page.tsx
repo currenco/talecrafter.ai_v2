@@ -178,7 +178,7 @@ const CreateStory = () => {
     }
 
     if (!userDetail.canCreate) {
-      notifyError("Connect GitHub to create on Free, or choose Creator.");
+      notifyError("Connect GitHub to create on Free trial, or choose Creator.");
       return;
     }
     if (mode === "interactive" && !userDetail.canBranch) {
@@ -313,7 +313,7 @@ const CreateStory = () => {
                 Your plan:
               </span>
               <span className="text-sm font-bold text-[#d8c69e]">
-                {userDetail?.plan === "creator" ? "Creator" : "Free"}
+                {userDetail?.plan === "creator" ? "Creator" : "Free trial"}
               </span>
             </div>
           </div>

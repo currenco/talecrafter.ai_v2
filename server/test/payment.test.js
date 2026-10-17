@@ -34,14 +34,15 @@ import {
   CREATOR_PLAN,
   hasCreatorAccess,
   generationPermission,
-  freePeriod,
+  monthlyPeriod,
 } from '../src/utils/plans.js';
 
-test('Creator is a USD 9 monthly plan with bounded usage', () => {
+test('Creator is a USD 9 monthly plan without per-user quotas', () => {
   assert.equal(CREATOR_PLAN.amount, 900);
   assert.equal(CREATOR_PLAN.currency, 'USD');
-  assert.equal(CREATOR_PLAN.projects, 15);
-  assert.equal(CREATOR_PLAN.images, 120);
+  assert.equal(CREATOR_PLAN.projects, undefined);
+  assert.equal(CREATOR_PLAN.images, undefined);
+  assert.equal(CREATOR_PLAN.ideas, undefined);
 });
 test('subscription signatures bind payment to server-owned subscription in correct order', () => {
   const secret = 'test-secret';
@@ -146,7 +147,7 @@ test('access expires by paid period, not cached active status', () => {
     false
   );
   assert.equal(hasCreatorAccess({ status: 'active' }, now), false);
-  assert.equal(freePeriod(now), '2026-10');
+  assert.equal(monthlyPeriod(now), '2026-10');
 });
 test('only Free creation requires linked GitHub; branching is Creator-only', () => {
   assert.equal(

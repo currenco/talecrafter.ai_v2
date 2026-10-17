@@ -25,7 +25,7 @@ export default function SocialAuthOptions() {
       </div>
 
       <p className="mt-3 text-xs leading-5 text-[#c3cbd4]/80 text-center">
-        Free creation requires a linked GitHub account; Creator supports either sign-in method.
+        Free trial creation requires a linked GitHub account; Creator supports either sign-in method.
       </p>
     </div>
   );

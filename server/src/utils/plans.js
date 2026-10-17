@@ -2,8 +2,6 @@ export const CREATOR_PLAN = Object.freeze({
   id: 'creator',
   amount: 900,
   currency: 'USD',
-  projects: 15,
-  images: 120,
 });
 
 export const hasCreatorAccess = (subscription, now = new Date()) =>
@@ -22,4 +20,5 @@ export const generationPermission = ({ creator, githubConnected, kind }) => {
   return null;
 };
 
-export const freePeriod = (now = new Date()) => now.toISOString().slice(0, 7);
+export const monthlyPeriod = (now = new Date()) =>
+  now.toISOString().slice(0, 7);
