@@ -27,6 +27,10 @@ export default function AuthShell({
         >
           {alternateLabel}
         </Link>
+        <nav aria-label="Account policies" className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-[#c3cbd4]/75">
+          <Link href="/privacy-policy" className="py-2 hover:text-[#f1eadb] hover:underline">Privacy Policy</Link>
+          <Link href="/terms-and-conditions" className="py-2 hover:text-[#f1eadb] hover:underline">Terms &amp; Conditions</Link>
+        </nav>
       </section>
     </main>
   )

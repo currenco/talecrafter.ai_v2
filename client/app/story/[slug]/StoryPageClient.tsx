@@ -16,6 +16,7 @@ import type { StoryChapter } from "@/types/story";
 import { getCleanChapterText } from "@/lib/story-text";
 
 import CreatorStoryPack from "@/components/CreatorStoryPack";
+import StoryGridSkeleton from "@/components/StoryGridSkeleton";
 import { UserDetailContext } from "@/app/_context/UserDetailContext";
 import { getAccessToken } from "@/lib/neon-auth/client";
 
@@ -107,7 +108,9 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
   const [relatedStories, setRelatedStories] = useState<StoryRecord[]>([]);
   const [relatedPage, setRelatedPage] = useState(1);
   const [relatedTotalPages, setRelatedTotalPages] = useState(0);
-  const [relatedLoading, setRelatedLoading] = useState(false);
+  const [relatedLoading, setRelatedLoading] = useState(true);
+  const [relatedError, setRelatedError] = useState(false);
+  const relatedRequest = useRef(0);
 
   const title = getOutputTitle(story);
   const summary = useMemo(() => getStorySummary(story), [story]);
@@ -119,9 +122,14 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
   }, [summary]);
 
   const getRelatedStories = useCallback(async (page: number) => {
-    if (!story?.storyId) return;
+    if (!story?.storyId) {
+      setRelatedLoading(false);
+      return;
+    }
 
+    const request = ++relatedRequest.current;
     setRelatedLoading(true);
+    setRelatedError(false);
     try {
       const safePage = Math.max(1, page);
       const offset = (safePage - 1) * RELATED_PAGE_SIZE;
@@ -136,6 +144,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
         `/stories/${story.storyId}/related?${params.toString()}`
       );
 
+      if (request !== relatedRequest.current) return;
       const totalCount = Number(result?.totalCount ?? 0);
       const pages = Math.ceil(totalCount / RELATED_PAGE_SIZE);
       setRelatedStories(result?.stories ?? []);
@@ -144,10 +153,12 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
       if (pages > 0 && safePage > pages) {
         setRelatedPage(pages);
       }
+    } catch {
+      if (request === relatedRequest.current) setRelatedError(true);
     } finally {
-      setRelatedLoading(false);
+      if (request === relatedRequest.current) setRelatedLoading(false);
     }
-  }, [story.storyId, story.storyType]);
+  }, [story]);
 
   useEffect(() => {
     setRelatedPage(1);
@@ -155,7 +166,15 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
 
   useEffect(() => {
     getRelatedStories(relatedPage);
+    return () => { relatedRequest.current += 1; };
   }, [getRelatedStories, relatedPage]);
+
+  const changeRelatedPage = (page: number) => {
+    if (relatedLoading || page === relatedPage) return;
+    setRelatedLoading(true);
+    setRelatedError(false);
+    setRelatedPage(page);
+  };
 
   const getVisiblePageNumbers = () => {
     if (relatedTotalPages <= 1) return [];
@@ -503,11 +522,16 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
             </Link>
           </div>
 
-          <div className="mt-2 text-sm text-[#c3cbd4]/70">
-            Page {relatedTotalPages === 0 ? 0 : relatedPage} of {relatedTotalPages}
+          <div className="mt-2 min-h-5 text-sm text-[#c3cbd4]/70">
+            {relatedTotalPages > 0 && <>Page {relatedPage} of {relatedTotalPages}</>}
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <div aria-busy={relatedLoading}>
+          <StoryGridSkeleton isLoading={relatedLoading} count={RELATED_PAGE_SIZE} variant="related" />
+          {!relatedLoading && relatedError ? <div role="alert" className="mt-5 text-sm text-[#c3cbd4]">
+            <p>We couldn&apos;t load more stories.</p>
+            <button type="button" onClick={() => getRelatedStories(relatedPage)} className="tc-btn-ghost mt-3 px-4 py-2 text-sm">Try again</button>
+          </div> : !relatedLoading && <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
             {relatedStories.map((item) => {
               const href = item?.slug ? `/story/${item.slug}` : `/view-story/${item.storyId}`;
               return (
@@ -515,7 +539,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                   key={item.storyId}
                   href={isAuthLoaded && isSignedIn ? href : `/sign-in?redirect=${encodeURIComponent(href)}`}
                   prefetch={false}
-                  className="rounded-xl border border-[#d8c69e]/20 bg-[#111d2b]/70 p-3 transition hover:border-[#d8c69e]/40"
+                  className="rounded-lg border border-[#d8c69e]/20 bg-[#111d2b]/70 p-3 transition hover:border-[#d8c69e]/40"
                 >
                   <div className="relative h-40 w-full overflow-hidden rounded-lg bg-slate-900">
                     {item?.coverImage ? (
@@ -537,17 +561,14 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
               );
             })}
 
-            {relatedLoading && (
-              <div className="col-span-full flex justify-center py-5">
-                <span className="h-8 w-8 animate-spin rounded-full border-4 border-[#d8c69e] border-t-transparent" />
-              </div>
-            )}
+            {relatedStories.length === 0 && <p className="col-span-full text-sm text-[#c3cbd4]/70">No related stories yet.</p>}
+          </div>}
           </div>
 
           {relatedTotalPages > 1 && (
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
               <button
-                onClick={() => setRelatedPage((prev) => Math.max(1, prev - 1))}
+                onClick={() => changeRelatedPage(Math.max(1, relatedPage - 1))}
                 disabled={relatedPage === 1 || relatedLoading}
                 className="tc-btn-ghost px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -556,7 +577,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
               {getVisiblePageNumbers().map((pageNo) => (
                 <button
                   key={`related-page-${pageNo}`}
-                  onClick={() => setRelatedPage(pageNo)}
+                  onClick={() => changeRelatedPage(pageNo)}
                   disabled={relatedLoading}
                   className={`rounded-lg px-3 py-2 text-xs font-semibold ${
                     pageNo === relatedPage
@@ -568,7 +589,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                 </button>
               ))}
               <button
-                onClick={() => setRelatedPage((prev) => Math.min(relatedTotalPages, prev + 1))}
+                onClick={() => changeRelatedPage(Math.min(relatedTotalPages, relatedPage + 1))}
                 disabled={
                   relatedPage === relatedTotalPages ||
                   relatedTotalPages === 0 ||

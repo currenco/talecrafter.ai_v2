@@ -30,6 +30,20 @@ const { storyMetadata, storyStructuredData } = await import('../lib/seo/story.ts
 const { serializeJsonLd } = await import('../lib/seo/structured-data.ts');
 const { sitemapIndex, sitemapXml, staticSitemapXml, storySitemapXml, sitemapUnavailable } = await import('../lib/seo/sitemap.ts');
 const { default: robots } = await import('../app/robots.ts');
+const { privacyPolicy, termsAndConditions } = await import('../lib/legal/policies.ts');
+const { pageMetadata } = await import('../lib/seo/metadata.ts');
+
+test('draft legal documents have unique anchors, no invented contact, and stay out of indexing', () => {
+  for (const document of [privacyPolicy, termsAndConditions]) {
+    const metadata = pageMetadata({ ...document, index: false });
+    assert.equal(metadata.robots.index, false);
+    assert.equal(metadata.alternates.canonical, `https://www.talecrafterai.com${document.path}`);
+    assert.ok(!staticSitemapXml().includes(document.path));
+    assert.equal(new Set(document.sections.map(section => section.id)).size, document.sections.length);
+    assert.ok(document.sections.every(section => section.paragraphs.length > 0));
+    assert.doesNotMatch(JSON.stringify(document), /mailto:|contact@|\bLtd\b|\bLLC\b/);
+  }
+});
 
 test('only explicitly public pages opt into indexing with production canonical URLs', () => {
   assert.equal(rootMetadata.robots.index, false);

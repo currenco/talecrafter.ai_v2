@@ -61,10 +61,14 @@ const Footer = () => {
           </nav>
         </div>
 
-        <div className="mt-14 border-t border-[#d8c69e]/15 pt-8 md:mt-16">
+        <div className="mt-14 flex flex-wrap items-center justify-between gap-4 border-t border-[#d8c69e]/15 pt-8 md:mt-16">
           <p className="text-sm text-[#c3cbd4]/50">
             &copy; {year} TaleCrafter AI. All rights reserved.
           </p>
+          <nav aria-label="Legal links" className="flex flex-wrap gap-x-5 gap-y-2">
+            <Link href="/privacy-policy" className={`${footerLinkClass} py-2`}>Privacy Policy</Link>
+            <Link href="/terms-and-conditions" className={`${footerLinkClass} py-2`}>Terms &amp; Conditions</Link>
+          </nav>
         </div>
       </div>
     </footer>

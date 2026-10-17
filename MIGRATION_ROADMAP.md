@@ -61,6 +61,16 @@ Neither plan has per-user monthly project, image or idea quotas. The shared plat
 
 ## 2. Product UI, Brand, And Documentation
 
+### Legal Pages: Required Before Final Publication
+
+- Review `/privacy-policy` and `/terms-and-conditions` with qualified legal counsel for an India-based individual serving international customers. Copy lives in `client/lib/legal/policies.ts` and is currently labeled draft, noindex, and excluded from the sitemap.
+- Supply the individual operator's legal name and a working privacy/support/complaints contact. No company identity, legal email, postal address, or exclusive court has been invented.
+- Confirm refund terms and implement a workable refund/contact process; cancellation already stops renewal but does not automatically refund payments.
+- Review Google Analytics consent requirements for the markets served and implement consent/preferences before claiming these controls exist. Analytics currently loads automatically after hydration.
+- Confirm Gemini paid-service configuration, permitted audience/regions, and age controls against current provider terms. A story's age-group setting is not age verification; policy text alone does not enforce eligibility.
+- Establish retention periods, identity verification, account deletion/data-request handling, and any applicable international transfer safeguards.
+- Once approved, set an effective date, remove draft notices and provisional clauses, update signup/checkout acceptance as appropriate, and enable indexing/sitemap entries. A noindex directive does not hide these publicly linked drafts.
+
 Status: not started
 
 Tasks:
