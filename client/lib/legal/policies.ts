@@ -5,68 +5,60 @@ export type LegalDocument = {
   sections: { id: string; title: string; paragraphs: string[]; links?: { label: string; href: string }[] }[];
 };
 
-export const legalDraftNotice = "Draft for review. These documents are not yet finalized or in effect. The operator's legal name, contact details, and remaining policy decisions must be confirmed before publication as final policies.";
-export const legalReviewDate = "2026-10-17";
+export const legalContactEmail = "contact@talecrafterai.com";
+export const legalEffectiveDate = "2026-10-17";
+const contactLink = { label: legalContactEmail, href: `mailto:${legalContactEmail}` };
 
 export const privacyPolicy: LegalDocument = {
   title: "Privacy Policy",
   path: "/privacy-policy",
   description: "How TaleCrafter AI handles account information, story content, AI requests, payments, and analytics.",
   sections: [
-    { id: "operator", title: "Who operates TaleCrafter AI", paragraphs: [
-      "TaleCrafter AI is a product operated by an individual based in India, not by an incorporated company. This draft describes information handling on talecrafterai.com and its connected application services.",
-      "The operator's legal identity and a working privacy contact will be added before this policy is finalized. No contact address has been published in this draft.",
-    ] },
+    { id: "about", title: "About this policy", paragraphs: [
+      "This Privacy Policy explains how TaleCrafter AI ('we', 'us', and 'our') handles information when you visit talecrafterai.com, create an account, generate stories, or purchase a subscription.",
+      "For privacy questions, personal-data requests, or complaints, contact us using the email address below.",
+    ], links: [contactLink] },
     { id: "information", title: "Information the service handles", paragraphs: [
-      "Account information includes your authentication identifier, email address, display name, profile image when available, linked sign-in providers, and account role. Authentication is handled through Neon Auth, including Google or GitHub when you use those options. We do not ask for your Google or GitHub password.",
+      "Account information includes your authentication identifier, email address, display name, profile image when available, linked sign-in providers, and account role. When you choose social sign-in, we receive the information needed to authenticate you and maintain your account, not your social account password.",
       "Creative information includes the prompts and images you submit, generated text and illustrations, characters, scene prompts, branching choices, drafts, and published stories. Requests and generation results may be stored so you can return to your work and recover interrupted generation.",
-      "If you connect Pollinations, the service stores connection details, permissions, expiry information, and an encrypted access token. It may retrieve account and balance information to check generation availability. Disconnecting disables use of the connection in TaleCrafter; it does not delete your Pollinations account.",
-      "Subscription information includes payment and subscription identifiers, plan, currency, amount, payment status, billing periods, cancellation status, and relevant webhook records. Payment details entered in Razorpay Checkout are handled by Razorpay and its payment partners; TaleCrafter's application does not collect your full card number or CVV.",
+      "If you connect an image-generation account, we store connection details, permissions, expiry information, and an encrypted access token. We may retrieve account and balance information to check generation availability. Disconnecting disables use of the connection in TaleCrafter; it does not delete your external account.",
+      "Subscription information includes payment and subscription identifiers, plan, currency, amount, payment status, billing periods, cancellation status, and payment confirmation records. Payment details entered at checkout are handled by our payment processor and its payment partners; TaleCrafter's application does not collect your full card number or CVV.",
       "Technical information can include IP addresses, browser and device details, visited pages, request identifiers, error messages, and service logs. Hosting and analytics providers may collect this information when your browser or device connects to them.",
     ] },
     { id: "purposes", title: "Why information is used", paragraphs: [
       "Information is used to sign you in, link accounts, generate and store stories, display your library, publish and share stories, provide paid features, verify payments, manage subscription renewal, diagnose failures, protect the service, and understand site usage.",
-      "Where applicable, processing grounds may include providing the service you request, consent for optional processing, legitimate interests in security and service operation, and legal obligations such as maintaining financial records. The final policy must reflect the operator's confirmed practices and the laws applicable to the people served.",
+      "We use account, creative, and subscription information to provide the service you request. Security and diagnostic information supports our legitimate interests in protecting and operating the service, where that legal basis applies. We also process records to meet legal obligations and rely on consent where applicable law requires it. This policy does not treat continued browsing as consent to optional tracking.",
+      "To deliver these functions, information is processed by providers of authentication, hosting, storage, AI generation, payments, and analytics. AI requests can include your prompts, submitted images, and generated results. Provider processing may include safety review and, depending on the service configuration, model improvement. Do not submit confidential material. Information may also be disclosed when legally required or necessary to investigate abuse, protect rights, or respond to a security incident.",
     ] },
     { id: "public-content", title: "Published stories and media are public", paragraphs: [
       "Completed published stories can be read without signing in through a direct link. They may appear in Explore, related-story recommendations, search-engine results, and shared links. Their titles, text, cover art, illustrations, and displayed creator information may therefore be public.",
       "Drafts are not listed as published stories, but do not treat the service as confidential storage. Uploaded or generated media can use public delivery URLs. Anyone who obtains such a URL may be able to access the media. Browser restrictions do not prevent screenshots or saving content that has been delivered to a device.",
       "Do not submit secrets, payment details, sensitive personal information, or private information about other people. Removing a story from TaleCrafter cannot immediately remove copies held by search engines, recipients, or other third parties.",
     ] },
-    { id: "providers", title: "Service providers and AI processing", paragraphs: [
-      "Neon provides authentication and database services. Cloudinary stores and delivers media. Vercel and Render host application services. Google and GitHub process sign-in information when selected. These services receive information needed for their roles.",
-      "Google Gemini processes generation requests, which can include your text prompts and submitted images. Pollinations processes illustration requests and associated credentials or reference material. Using your own Pollinations key does not prevent those requests from leaving TaleCrafter.",
-      "AI providers have their own retention, safety-review, and data-use terms. Gemini's treatment of inputs and outputs can differ between paid and unpaid services. TaleCrafter does not promise that every provider request is excluded from training or human review; do not submit confidential material.",
-      "Razorpay processes checkout and recurring payments. Google Analytics measures site usage. Information may also be disclosed when legally required or necessary to investigate abuse, protect rights, or respond to a security incident.",
-    ], links: [
-      { label: "Google Gemini API terms", href: "https://ai.google.dev/gemini-api/terms" },
-      { label: "Pollinations privacy policy", href: "https://enter.pollinations.ai/privacy" },
-      { label: "Razorpay privacy policy", href: "https://razorpay.com/privacy-policy/" },
-    ] },
     { id: "cookies", title: "Cookies and analytics", paragraphs: [
       "The app uses authentication cookies and browser storage to keep sessions working and support application features. Disabling necessary storage may prevent sign-in or other functions from working.",
-      "Google Analytics is currently configured to load after the page becomes interactive. It can use cookies or similar identifiers to measure visits, page activity, and device information. There is not yet an in-app analytics consent or preference control. This draft does not represent continued browsing as consent to optional analytics.",
-      "You can manage cookies through your browser and review Google's analytics controls. These are not a substitute for consent controls that the operator may need to implement for the locations served.",
+      "We use Google Analytics to understand visits, page activity, and device information. It can use cookies or similar identifiers and sends usage information to Google. Analytics currently loads automatically after the page becomes interactive; the app does not yet provide an analytics preference control.",
+      "You can manage cookies through your browser and review Google's controls using the links below. Browser controls may affect site functionality and do not replace any consent required by applicable law.",
     ], links: [
       { label: "How Google uses cookies", href: "https://policies.google.com/technologies/cookies" },
       { label: "Google's use of information from partner sites", href: "https://policies.google.com/technologies/partner-sites" },
     ] },
     { id: "retention", title: "Storage, retention, and international processing", paragraphs: [
-      "Account and story records are stored to provide the service. Financial, security, and operational records may need to be retained separately for legal obligations, resolving disputes, and preventing abuse. This draft does not promise a fixed deletion deadline or immediate removal from backups.",
-      "A category-specific retention schedule and deletion process must be finalized before this policy is released. Historical payment records are not automatically erased when a subscription is cancelled.",
-      "Because the service uses international infrastructure and AI providers, information may be processed outside India or your country of residence. Provider locations and any required transfer protections must be reviewed for the regions in which the service is offered.",
+      "We retain account and story records to maintain your account and library. Retention also depends on the type of information, the purpose for which it is used, legal recordkeeping requirements, security needs, and unresolved disputes. Financial records may be retained separately; cancelling a subscription does not automatically erase payment history.",
+      "You may request deletion by contacting us. Some information may need to be retained to meet legal obligations or protect legitimate rights. Backup copies and independently cached public content may not be removed immediately. We do not promise immediate removal from third-party systems outside our control.",
+      "Information may be processed outside your country of residence because the service uses international infrastructure. Data-protection laws can differ between countries. Contact us for questions about processing locations and applicable transfer arrangements.",
     ] },
     { id: "choices", title: "Your choices and privacy requests", paragraphs: [
-      "You can manage available story deletion controls in your library, disconnect a Pollinations connection, and cancel Creator renewal from Plans. Cancelling a subscription, disconnecting an AI provider, and deleting account data are different actions.",
+      "You can use available story deletion controls in your library, disconnect your image-generation account, and cancel Creator renewal from Plans. Cancelling a subscription, disconnecting an external account, and deleting account data are different actions.",
       "Depending on applicable law, you may have rights to access, correct, delete, or obtain a copy of personal information, object to or restrict certain processing, withdraw consent, or raise a complaint. Some requests require identity verification or are subject to lawful retention exceptions.",
-      "A working contact and request-handling process for these rights is still required before this policy can be finalized. This draft does not claim that a self-service account-deletion or personal-data export workflow already exists.",
-    ] },
+      "Send privacy requests to the email address below using the email associated with your account where possible. Describe the request without sending passwords, API keys, or payment-card details. We may ask for information reasonably needed to verify your identity and will handle requests in accordance with applicable law. You may also complain to the relevant data-protection authority where that right applies.",
+    ], links: [contactLink] },
     { id: "security", title: "Security and younger users", paragraphs: [
-      "The app uses access checks and encrypts stored Pollinations access tokens. These measures do not make public content private and do not guarantee that every security incident can be prevented.",
-      "Story genres and age-group settings describe generated content; they are not verification of a user's age. The service's eligibility policy and any age controls must be reviewed against its AI providers' requirements before final release. Do not submit personal information about children.",
+      "The app uses access checks and encrypts stored image-generation access tokens. These measures do not make public content private and do not guarantee that every security incident can be prevented.",
+      "Accounts and generation features are intended for adults aged 18 or older. Story genres and age-group settings describe generated content, not the account holder's age. Do not submit personal information about children. Contact us if you believe a child has provided personal information so we can investigate and take appropriate action.",
     ] },
     { id: "changes", title: "Policy updates", paragraphs: [
-      "The final policy will include an effective date, the operator's identity, and a working contact. Material changes should be communicated appropriately, and consent obtained where required. This draft is not a substitute for an implemented privacy program or legal review.",
+      "We may update this policy as the service or applicable requirements change. The effective date appears at the top of this page. We will provide additional notice of material changes and seek consent where required by applicable law. Questions about this policy can be sent to our contact address.",
     ] },
   ],
 };
@@ -76,12 +68,12 @@ export const termsAndConditions: LegalDocument = {
   path: "/terms-and-conditions",
   description: "TaleCrafter AI terms covering accounts, generated content, subscriptions, cancellation, and acceptable use.",
   sections: [
-    { id: "service", title: "The service and its operator", paragraphs: [
-      "TaleCrafter AI is an illustrated-story creation service operated by an individual based in India. It supports Classic stories, branching Plot Twist stories, story libraries, character and scene material, and PDF exports where your plan allows them.",
-      "These are draft terms for review, not an effective agreement. The operator's legal name, contact details, and effective date must be confirmed before final terms are offered for acceptance.",
+    { id: "service", title: "About these terms", paragraphs: [
+      "These Terms & Conditions govern your use of TaleCrafter AI ('we', 'us', and 'our'), an illustrated-story creation service at talecrafterai.com. Features include Classic stories, branching Plot Twist stories, story libraries, character and scene material, and PDF exports where your plan allows them.",
+      "By creating an account, subscribing, or using generation features, you agree to these terms. If you do not agree, do not use those features. The Privacy Policy explains how information is handled.",
     ] },
     { id: "accounts", title: "Eligibility and accounts", paragraphs: [
-      "The proposed account and generation service is for adults aged 18 or older who can enter a binding agreement. This eligibility rule requires review and appropriate implementation before final publication. Content age-group settings do not establish eligibility to use the service.",
+      "You must be at least 18 years old and able to enter a binding agreement to create an account or use generation features. Content age-group settings describe a story's intended audience; they do not establish eligibility to use the service.",
       "Keep your account and connected credentials secure, provide accurate information, and use only accounts and images you are authorized to use. You are responsible for activity you authorize through your account. Do not share passwords, payment details, or API keys in public stories or support messages.",
     ] },
     { id: "plans", title: "Free trial and Creator access", paragraphs: [
@@ -90,13 +82,13 @@ export const termsAndConditions: LegalDocument = {
       "Neither plan has per-user monthly project, image, or image-to-story quotas. This is not a promise of unlimited or uninterrupted output: generation depends on provider restrictions, availability, and, for Creator images, shared platform capacity. Complete short-film generation is not included in the current subscription.",
     ] },
     { id: "billing", title: "Subscriptions, renewal, and delivery", paragraphs: [
-      "The price, currency, and recurring billing interval are shown on Plans and at checkout. Creator renews automatically each month until cancelled, subject to successful payment and the payment mandate. Razorpay handles payment authorization and recurring collection. Your bank or payment provider may apply its own conversion or other charges.",
+      "The price, currency, and recurring billing interval are shown on Plans and at checkout. Creator renews automatically each month until cancelled, subject to successful payment and the payment mandate. Our payment processor handles payment authorization and recurring collection. Your bank or payment provider may apply its own conversion or other charges.",
       "Creator access starts when a qualifying payment is verified, not merely when a checkout modal closes or a mandate is authorized. Confirmation can be delayed. Review or refresh the subscription status before trying another payment.",
       "This is a digitally delivered service, not a shipment of physical goods. Generation time varies. Review output before relying on it and check saved drafts before restarting interrupted work. The service does not guarantee a particular number of completed stories or a specific generation time.",
     ] },
     { id: "cancellation", title: "Cancellation and refunds", paragraphs: [
       "Use Cancel automatic renewal on Plans before the next billing date and check the confirmation. For an active paid period, cancelling renewal normally preserves Creator access until that period ends. Signing out, removing a story, or disconnecting Pollinations does not cancel a subscription.",
-      "Cancellation does not itself trigger a refund. A commercial refund policy, request channel, and handling process still need to be finalized; this draft does not create a blanket no-refund rule or promise a particular refund deadline. Rights and remedies that apply under consumer law are not waived.",
+      "Cancellation does not itself trigger a refund. For a refund request, duplicate charge, or payment problem, email our contact address with your account email and payment reference. Do not send card details or passwords. Requests are reviewed based on the circumstances and applicable law; submitting a request does not guarantee approval. Your statutory cancellation and refund rights are not waived.",
       "Failed renewals, expiry, refunds, or disputes can change paid access. Existing stories are not automatically deleted solely because a subscription ends. Free trial creation requirements apply when you no longer have active Creator access.",
     ] },
     { id: "content", title: "Your inputs and generated content", paragraphs: [
@@ -115,18 +107,16 @@ export const termsAndConditions: LegalDocument = {
     ] },
     { id: "responsibility", title: "Responsibility and consumer rights", paragraphs: [
       "Generated stories are creative outputs, not professional medical, legal, financial, or other expert advice. Review content before relying on it, sharing it, or presenting it to another audience.",
-      "To the extent permitted by law, no guarantee is made that AI output will be error-free or that every service request will succeed. Nothing in these terms excludes rights, warranties, remedies, or liability that cannot lawfully be excluded. No monetary liability cap or mandatory arbitration requirement is established by this draft.",
+      "To the extent permitted by law, no guarantee is made that AI output will be error-free or that every service request will succeed. Nothing in these terms excludes rights, warranties, remedies, or liability that cannot lawfully be excluded.",
     ] },
-    { id: "privacy", title: "Privacy and third-party services", paragraphs: [
-      "The Privacy Policy describes account data, public stories, provider processing, analytics, and payment records. Using external services can also be subject to their own terms. Reading a policy is not a substitute for any separate consent required for optional tracking or another activity.",
+    { id: "privacy", title: "Privacy", paragraphs: [
+      "The Privacy Policy describes account data, public stories, processing of generation requests, analytics, and payment records. Reading or accepting these terms is not a substitute for any separate consent required for optional tracking or another activity.",
     ], links: [
       { label: "Privacy Policy", href: "/privacy-policy" },
-      { label: "Google Gemini API terms", href: "https://ai.google.dev/gemini-api/terms" },
-      { label: "Pollinations terms", href: "https://enter.pollinations.ai/terms" },
     ] },
-    { id: "contact", title: "Contact, disputes, and final publication", paragraphs: [
-      "The operator's legal identity and a working support, privacy, and complaints contact must be added before these terms are finalized. No email address or postal address has been supplied in this draft.",
-      "Governing-law and dispute-resolution provisions require review for an India-based individual serving international customers. This draft does not select an exclusive court or remove mandatory protections that apply where a customer lives.",
-    ] },
+    { id: "contact", title: "Contact and updates", paragraphs: [
+      "For support, subscription questions, complaints, or questions about these terms, contact us at the email address below. Include enough information to identify the issue, but never send passwords, API keys, or full payment-card details.",
+      "We may update these terms as the service changes. We will provide appropriate notice of material changes affecting paid access and obtain agreement where required. No update removes mandatory consumer protections or remedies that apply to you.",
+    ], links: [contactLink] },
   ],
 };

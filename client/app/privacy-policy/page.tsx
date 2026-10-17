@@ -1,8 +1,8 @@
 import LegalPage from "@/components/legal/LegalPage";
 import { privacyPolicy } from "@/lib/legal/policies";
-import { pageMetadata } from "@/lib/seo/metadata";
+import { publicPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata = pageMetadata({ ...privacyPolicy, index: false });
+export const metadata = publicPageMetadata(privacyPolicy.path);
 
 export default function PrivacyPolicyPage() {
   return <LegalPage document={privacyPolicy} />;

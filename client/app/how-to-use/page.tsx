@@ -4,6 +4,7 @@ import { ArrowRight, BookOpen, HelpCircle, Sparkles } from "lucide-react";
 import { publicPageMetadata } from "@/lib/seo/metadata";
 import { classicSteps, guideFaqs, plotTwistSteps, subscriptionSteps } from "@/lib/guides/how-to-use";
 import GuideContents from "./GuideContents";
+import { legalContactEmail } from "@/lib/legal/policies";
 
 export const metadata = publicPageMetadata("/how-to-use");
 
@@ -116,7 +117,7 @@ export default function HowToUsePage() {
                 <p className="mt-3 text-sm leading-6">{item.answer}</p>
               </details>)}
             </div>
-            <p className="mt-5 flex items-start gap-2 text-sm leading-6"><HelpCircle size={18} className="mt-1 shrink-0 text-[#d8c69e]" aria-hidden="true" /><span>Still stuck? Contact <a className={`${linkClass} break-all`} href="mailto:contact@talecrafterai.tech">contact@talecrafterai.tech</a> with the error message and the steps that led to it.</span></p>
+            <p className="mt-5 flex items-start gap-2 text-sm leading-6"><HelpCircle size={18} className="mt-1 shrink-0 text-[#d8c69e]" aria-hidden="true" /><span>Still stuck? Contact <a className={`${linkClass} break-all`} href={`mailto:${legalContactEmail}`}>{legalContactEmail}</a> with the error message and the steps that led to it.</span></p>
           </section>
         </div>
       </div>

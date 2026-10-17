@@ -167,24 +167,49 @@ const upcomingProductionPipeline = [
 
 const faqs = [
   {
+    question: "Do I need to be a writer to create a story?",
+    answer:
+      "No. Start with a simple idea: a character, a place, or something you want to happen. Choose a genre and illustration style, and TaleCrafter turns your idea into an illustrated story. You can also upload an image to get a starting idea.",
+  },
+  {
+    question: "Can I try TaleCrafter before subscribing?",
+    answer:
+      "Yes. You can preview public stories without a subscription. To create Classic stories on the Free trial, link a GitHub account and connect your own Pollinations key. Images use your Pollinations balance, so creation depends on a valid key and available balance. The trial is not a promise of free images forever.",
+  },
+  {
+    question: "Do I need GitHub or an image-generation key?",
+    answer:
+      "You can sign in with Google or GitHub on either plan. Free trial creation requires a linked GitHub account and your own Pollinations key. With Creator, you can create using Google or GitHub without connecting a separate image-generation key.",
+  },
+  {
+    question: "What do I get with Creator?",
+    answer:
+      "Creator includes Classic and Plot Twist stories, image generation through TaleCrafter, PDF export, a complete character bible, and scene-by-scene story prompts. Visit Plans for the current monthly price and subscription details.",
+  },
+  {
     question: "What is the difference between Classic and Plot Twist?",
     answer:
-      "Classic mode creates a complete storybook in one flow. Plot Twist mode pauses at key moments so you can choose what happens next and build the story branch by branch.",
+      "Choose Classic to create a complete storybook from your idea in one flow. Choose Plot Twist to make decisions at key moments and shape what happens next. Classic is available on both plans; Plot Twist requires Creator.",
   },
   {
-    question: "Can I create a story from an image?",
+    question: "What happens if my story stops generating?",
     answer:
-      "Yes. Upload an image and TaleCrafter can use its scene, mood, and subject as the starting point for your story idea.",
+      "Check My Stories for a saved draft before starting again. For a Classic draft, use Resume after resolving the error; for a Plot Twist draft, use Continue. Free trial users should also check their connected key and balance. If the problem persists, contact us with the error message and story details.",
   },
   {
-    question: "How can I read a finished story?",
+    question: "Can I download or share my finished story?",
     answer:
-      "Stories can be read in a book-style flip view or a scrolling story view. Page narration is available inside the reader, and completed stories can be exported as PDFs.",
+      "Yes. Read your finished story in the flipbook reader and use Share Story to send its public link. With an active Creator plan, you can also export a PDF to read offline.",
   },
   {
-    question: "What is the difference between Free trial and Creator?",
+    question: "Are my published stories private?",
     answer:
-      "Both plans support Google and GitHub sign-in. The Free trial plan requires GitHub for Classic story creation and uses your own Pollinations balance for images. Creator includes Classic and branching stories, PDF export, a complete character bible and scene-by-scene prompts, with platform-funded images and no GitHub requirement. Creator has no per-user monthly generation quotas. Generation depends on provider availability and shared platform capacity. The Free trial has no TaleCrafter monthly generation quotas; Pollinations limits and balance still apply. Creator checkout is available once billing setup is enabled.",
+      "No. Published stories are public: other people can read them, share their links, and discover them through search engines. Avoid including personal or confidential information in content you publish.",
+  },
+  {
+    question: "Will my subscription renew, and can I cancel?",
+    answer:
+      "Creator renews automatically each month while your subscription is active and payment succeeds. You can cancel renewal from Plans before your next billing date. Your Creator access continues until the end of your paid period; cancellation does not automatically refund previous payments.",
   },
 ];
 
@@ -746,21 +771,21 @@ const Hero = () => {
         </div>
       </section>
 
-      <section className="border-t border-[#d8c69e]/10 bg-[#0b1522] px-6 py-20 text-[#c3cbd4] sm:px-8 lg:px-12 lg:py-28">
+      <section className="border-t border-[#d8c69e]/10 bg-[#0b1522] px-5 py-14 text-[#c3cbd4] sm:px-8 lg:px-12 lg:py-20">
         <div className="mx-auto max-w-4xl">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-[#d8c69e] sm:text-[11px]">
               Frequently asked questions
             </p>
-            <h2 className={`mt-4 ${SECTION_HEADING_CLASS}`}>
-              Everything you need to know.
+            <h2 className={`mt-3 ${SECTION_HEADING_CLASS}`}>
+              Questions before you start?
             </h2>
-            <p className="mt-5 text-lg leading-8 text-[#c3cbd4]/70">
-              Quick answers about creating, reading, and sharing your stories.
+            <p className="mt-3 text-lg leading-8 text-[#c3cbd4]/70">
+              Answers about your first story, choosing a plan, and managing your subscription.
             </p>
           </div>
 
-          <div className="mt-12 overflow-hidden rounded-[1.75rem] border border-[#d8c69e]/15 bg-[#111d2b]/65 px-6 shadow-[0_24px_70px_rgba(0,0,0,0.18)] sm:px-8">
+          <div className="mt-8 overflow-hidden rounded-[1.75rem] border border-[#d8c69e]/15 bg-[#111d2b]/65 px-4 shadow-[0_24px_70px_rgba(0,0,0,0.18)] sm:px-6">
             {faqs.map((item, index) => {
               const isOpen = openFaq === index;
               const answerId = `faq-answer-${index}`;
@@ -772,7 +797,7 @@ const Hero = () => {
                 >
                   <button
                     type="button"
-                    className="flex w-full items-center justify-between gap-6 py-7 text-left"
+                    className="flex w-full items-center justify-between gap-4 py-5 text-left"
                     aria-expanded={isOpen}
                     aria-controls={answerId}
                     onClick={() => setOpenFaq(isOpen ? null : index)}
@@ -803,7 +828,7 @@ const Hero = () => {
                         }}
                         className="overflow-hidden"
                       >
-                        <div className="max-w-3xl pb-7 pr-12">
+                        <div className="max-w-3xl pb-5 sm:pr-12">
                           <p className="leading-7 text-[#c3cbd4]/70">{item.answer}</p>
                         </div>
                       </MotionDiv>

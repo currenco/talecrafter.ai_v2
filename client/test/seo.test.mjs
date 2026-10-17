@@ -30,19 +30,23 @@ const { storyMetadata, storyStructuredData } = await import('../lib/seo/story.ts
 const { serializeJsonLd } = await import('../lib/seo/structured-data.ts');
 const { sitemapIndex, sitemapXml, staticSitemapXml, storySitemapXml, sitemapUnavailable } = await import('../lib/seo/sitemap.ts');
 const { default: robots } = await import('../app/robots.ts');
-const { privacyPolicy, termsAndConditions } = await import('../lib/legal/policies.ts');
-const { pageMetadata } = await import('../lib/seo/metadata.ts');
+const { privacyPolicy, termsAndConditions, legalContactEmail, legalEffectiveDate } = await import('../lib/legal/policies.ts');
 
-test('draft legal documents have unique anchors, no invented contact, and stay out of indexing', () => {
+test('legal pages include the confirmed contact and public metadata without draft or vendor-list sections', () => {
+  assert.equal(legalContactEmail, 'contact@talecrafterai.com');
+  assert.equal(legalEffectiveDate, '2026-10-17');
   for (const document of [privacyPolicy, termsAndConditions]) {
-    const metadata = pageMetadata({ ...document, index: false });
-    assert.equal(metadata.robots.index, false);
+    const metadata = publicPageMetadata(document.path);
+    assert.equal(metadata.robots.index, true);
     assert.equal(metadata.alternates.canonical, `https://www.talecrafterai.com${document.path}`);
-    assert.ok(!staticSitemapXml().includes(document.path));
+    assert.ok(staticSitemapXml().includes(document.path));
     assert.equal(new Set(document.sections.map(section => section.id)).size, document.sections.length);
     assert.ok(document.sections.every(section => section.paragraphs.length > 0));
-    assert.doesNotMatch(JSON.stringify(document), /mailto:|contact@|\bLtd\b|\bLLC\b/);
+    assert.ok(document.sections.some(section => section.links?.some(link => link.href === `mailto:${legalContactEmail}`)));
+    assert.doesNotMatch(JSON.stringify(document), /Draft for review|this draft|proposed|before final|Service providers and AI processing|Neon|Cloudinary|Vercel|Render|Gemini|Razorpay|India|individual operator|\bLtd\b|\bLLC\b/i);
   }
+  assert.match(JSON.stringify(privacyPolicy), /Google Analytics/);
+  assert.match(JSON.stringify(privacyPolicy), /AI requests can include your prompts/);
 });
 
 test('only explicitly public pages opt into indexing with production canonical URLs', () => {

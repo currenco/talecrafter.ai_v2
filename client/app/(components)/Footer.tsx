@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { legalContactEmail } from "@/lib/legal/policies";
 
 const Footer = () => {
   const year = new Date().getFullYear();
@@ -9,11 +10,6 @@ const Footer = () => {
     { label: "How to Use", href: "/how-to-use" },
     { label: "Create Story", href: "/create-story" },
     { label: "Explore Stories", href: "/explore" },
-  ];
-
-  const genres = [
-    "Mythology", "Sci-fi", "Educational", "History", "Fantasy",
-    "Crime", "Motivational", "Horror", "Romantic",
   ];
 
   const footerLinkClass =
@@ -47,28 +43,20 @@ const Footer = () => {
             </ul>
           </nav>
 
-          <nav aria-label="Story genres">
-            <h2 className="text-base font-bold text-[#f1eadb]">Genres</h2>
-            <ul className="mt-6 grid grid-cols-2 gap-x-4 gap-y-4">
-              {genres.map((genre) => (
-                <li key={genre}>
-                  <Link href={`/explore?${new URLSearchParams({ genre })}`} className={footerLinkClass}>
-                    {genre}
-                  </Link>
-                </li>
-              ))}
+          <nav aria-label="Contact and legal links">
+            <h2 className="text-base font-bold text-[#f1eadb]">Contact &amp; Legal</h2>
+            <ul className="mt-6 space-y-4">
+              <li><a href={`mailto:${legalContactEmail}`} className={footerLinkClass}>Contact us</a></li>
+              <li><Link href="/privacy-policy" className={footerLinkClass}>Privacy Policy</Link></li>
+              <li><Link href="/terms-and-conditions" className={footerLinkClass}>Terms &amp; Conditions</Link></li>
             </ul>
           </nav>
         </div>
 
-        <div className="mt-14 flex flex-wrap items-center justify-between gap-4 border-t border-[#d8c69e]/15 pt-8 md:mt-16">
+        <div className="mt-14 border-t border-[#d8c69e]/15 pt-8 text-center md:mt-16">
           <p className="text-sm text-[#c3cbd4]/50">
             &copy; {year} TaleCrafter AI. All rights reserved.
           </p>
-          <nav aria-label="Legal links" className="flex flex-wrap gap-x-5 gap-y-2">
-            <Link href="/privacy-policy" className={`${footerLinkClass} py-2`}>Privacy Policy</Link>
-            <Link href="/terms-and-conditions" className={`${footerLinkClass} py-2`}>Terms &amp; Conditions</Link>
-          </nav>
         </div>
       </div>
     </footer>
