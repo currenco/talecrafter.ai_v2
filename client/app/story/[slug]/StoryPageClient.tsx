@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { LockKeyhole } from "lucide-react";
@@ -24,6 +24,21 @@ type StoryPageClientProps = {
 };
 
 const SHOW_STORY_LAYOUT_SWITCH = false;
+const BookTextContext = createContext<StoryChapter[]>([]);
+
+function ReadableBookFallback() {
+  const chapters = useContext(BookTextContext);
+  return (
+    <div className="h-[620px] w-full max-w-[380px] overflow-y-auto rounded-lg bg-white p-5 text-slate-800" aria-label="Story text">
+      {chapters.map((chapter, index) => (
+        <section key={index} className="mb-6">
+          <h2 className="text-lg font-semibold">{chapter.title || `Chapter ${index + 1}`}</h2>
+          <p className="mt-3 whitespace-pre-line text-base leading-7">{getCleanChapterText(chapter)}</p>
+        </section>
+      ))}
+    </div>
+  );
+}
 
 type FlipBookHandle = {
   pageFlip: () => {
@@ -34,11 +49,7 @@ type FlipBookHandle = {
 
 const HTMLFlipBook = dynamic(() => import("react-pageflip"), {
   ssr: false,
-  loading: () => (
-    <div className="flex h-[420px] w-full max-w-[380px] items-center justify-center rounded-lg bg-blue-50 text-sm text-slate-600">
-      Loading book...
-    </div>
-  ),
+  loading: ReadableBookFallback,
 });
 
 function SafeStoryModeImage({ src, alt }: { src: string; alt: string }) {
@@ -84,7 +95,7 @@ const getStorySummary = (story: StoryRecord) => {
 };
 
 export default function StoryPageClient({ initialStory }: StoryPageClientProps) {
-  const { userDetail } = useContext(UserDetailContext);
+  const { userDetail, isSignedIn, isAuthLoaded } = useContext(UserDetailContext);
   const RELATED_PAGE_SIZE = 10;
   const bookRef = useRef<FlipBookHandle | null>(null);
   const [story] = useState<StoryRecord>(initialStory);
@@ -341,6 +352,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
         {contentMode === "flipbook" && (
           <>
             <div className="mt-8 flex flex-col items-center">
+              <BookTextContext.Provider value={chapters}>
               {/* @ts-expect-error -- react-pageflip's published props require internal defaults. */}
               <HTMLFlipBook
                 className="max-w-[84vw] md:max-w-[62vw] lg:max-w-[48vw]"
@@ -368,6 +380,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                   </div>
                 ))}
               </HTMLFlipBook>
+              </BookTextContext.Provider>
             </div>
 
             <div className="mt-7 flex w-full items-center justify-between">
@@ -500,8 +513,8 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
               return (
                 <Link
                   key={item.storyId}
-                  href={href}
-                  prefetch={true}
+                  href={isAuthLoaded && isSignedIn ? href : `/sign-in?redirect=${encodeURIComponent(href)}`}
+                  prefetch={false}
                   className="rounded-xl border border-[#d8c69e]/20 bg-[#111d2b]/70 p-3 transition hover:border-[#d8c69e]/40"
                 >
                   <div className="relative h-40 w-full overflow-hidden rounded-lg bg-slate-900">

@@ -1,5 +1,6 @@
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
+import { listSitemapStories } from '../services/seo.service.js';
 import {
   createClassicStory,
   deleteCurrentUserStory,
@@ -53,6 +54,12 @@ export const getPublicStories = asyncHandler(async (req, res) => {
 export const getPublicGenres = asyncHandler(async (_req, res) => {
   const genres = await listPublicGenres();
   return res.json(new ApiResponse(200, genres, 'Genres fetched'));
+});
+
+export const getSitemapStories = asyncHandler(async (req, res) => {
+  const entries = await listSitemapStories(req.validated.query.page);
+  res.set('Cache-Control', 'public, max-age=300');
+  return res.json(new ApiResponse(200, entries, 'Sitemap entries fetched'));
 });
 
 export const getCurrentUserStories = asyncHandler(async (req, res) => {

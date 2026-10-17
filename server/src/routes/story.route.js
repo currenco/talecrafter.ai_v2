@@ -5,6 +5,7 @@ import {
   getCurrentUserStories,
   getPublicStories,
   getPublicGenres,
+  getSitemapStories,
   getRelatedStoryList,
   getStoryIdDetail,
   getStorySlugDetail,
@@ -20,12 +21,14 @@ import {
   relatedStoriesQuerySchema,
   storyIdParamSchema,
   publicStoriesQuerySchema,
+  sitemapQuerySchema,
 } from '../validations/story.validation.js';
 
 const router = Router();
 
 router.get('/', validate(publicStoriesQuerySchema), getPublicStories);
 router.get('/genres', getPublicGenres);
+router.get('/sitemap', validate(sitemapQuerySchema), getSitemapStories);
 router.post('/', requireAuth, validate(createStorySchema), createStory);
 router.get(
   '/me',

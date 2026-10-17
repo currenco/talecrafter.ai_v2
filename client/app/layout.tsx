@@ -6,6 +6,9 @@ import localFont from "next/font/local";
 import Script from "next/script";
 import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
+import { rootMetadata } from "@/lib/seo/metadata";
+import { siteStructuredData } from "@/lib/seo/structured-data";
+import JsonLd from "@/components/seo/JsonLd";
 
 const appFont = localFont({
   src: "./fonts/nunito-variable.woff2",
@@ -16,6 +19,7 @@ const appFont = localFont({
 });
 
 export const metadata: Metadata = {
+  ...rootMetadata,
   icons: {
     icon: "/talecrafter-favicon-large.png",
     shortcut: "/talecrafter-favicon-large.png",
@@ -37,6 +41,7 @@ export default function RootLayout({
       className={cn("dark", appFont.variable)}
     >
       <body className="font-sans">
+        <JsonLd data={siteStructuredData} />
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-R65QVFM3XK"
           strategy="afterInteractive"

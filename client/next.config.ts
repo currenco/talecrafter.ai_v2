@@ -7,8 +7,20 @@ const apiBaseUrl = (
 const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
   compress: true,
+  async redirects() {
+    return [{
+      source: "/:path*",
+      has: [{ type: "host", value: "talecrafterai.com" }],
+      destination: "https://www.talecrafterai.com/:path*",
+      permanent: true,
+    }];
+  },
   async headers() {
     return [
+      ...(process.env.VERCEL_ENV === "preview" ? [{
+        source: "/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      }] : []),
       {
         source: "/frames/:path*",
         headers: [

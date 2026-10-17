@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import { subscriptionDb } from './helpers/subscription-db.js';
 import { publicStoriesQuerySchema } from '../src/validations/story.validation.js';
+import { sitemapQuerySchema } from '../src/validations/story.validation.js';
 
 test('public genre filters apply before pagination and exclude drafts', async () => {
   const { pg, db } = await subscriptionDb();
@@ -10,6 +11,7 @@ test('public genre filters apply before pagination and exclude drafts', async ()
     await import('../src/db/schema.js');
   const { listPublicStories, listPublicGenres } =
     await import('../src/services/story.service.js');
+  const { listSitemapStories } = await import('../src/services/seo.service.js');
   try {
     const ownerId = randomUUID();
     await db.insert(UserProfiles).values({
@@ -102,6 +104,23 @@ test('public genre filters apply before pagination and exclude drafts', async ()
       (await listPublicStories({ preview: false, limit: 50 })).length,
       14
     );
+    const sitemap = await listSitemapStories();
+    assert.equal(sitemap.totalCount, 14);
+    assert.equal(sitemap.items.length, 14);
+    assert.equal(sitemap.pageSize, 1000);
+    assert.ok(sitemap.items.every(item => item.slug !== 'genre-3'));
+    assert.deepEqual(Object.keys(sitemap.items[0]).sort(), [
+      'slug',
+      'updatedAt',
+    ]);
+    assert.deepEqual((await listSitemapStories(1)).items, []);
+    assert.equal(sitemapQuerySchema.parse({ query: {} }).query.page, 0);
+    for (const page of ['-1', '1.5', 'invalid', '100001']) {
+      assert.equal(
+        sitemapQuerySchema.safeParse({ query: { page } }).success,
+        false
+      );
+    }
   } finally {
     await pg.close();
   }

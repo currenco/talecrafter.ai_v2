@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { nonEmptyString, paginationQuerySchema } from './common.validation.js';
 
+export const sitemapQuerySchema = z.object({
+  query: z.object({
+    page: z.coerce.number().int().min(0).max(100000).default(0),
+  }),
+});
+
 const createStoryBodySchema = z.object({
   storySubject: nonEmptyString('Story subject'),
   storyType: nonEmptyString('Story type'),
