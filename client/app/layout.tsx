@@ -3,6 +3,7 @@ import Provider from "./Provider";
 import Header from "./(components)/Header";
 import Footer from "./(components)/Footer";
 import localFont from "next/font/local";
+import Script from "next/script";
 import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
 
@@ -36,6 +37,18 @@ export default function RootLayout({
       className={cn("dark", appFont.variable)}
     >
       <body className="font-sans">
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-R65QVFM3XK"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-R65QVFM3XK');
+          `}
+        </Script>
         <Provider>
           <Header />
           {children}
