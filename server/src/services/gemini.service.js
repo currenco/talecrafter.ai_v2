@@ -2,6 +2,8 @@ import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import ApiError from '../utils/ApiError.js';
 
 const DEFAULT_MODEL = 'gemini-2.5-flash';
+export const STORY_PAGE_COUNT = 7;
+export const INTERACTIVE_STARTER_PAGE_COUNT = 5;
 
 const jsonGenerationConfig = {
   temperature: 1,
@@ -28,8 +30,8 @@ const storyResponseSchema = {
     },
     chapters: {
       type: SchemaType.ARRAY,
-      minItems: 5,
-      maxItems: 5,
+      minItems: STORY_PAGE_COUNT,
+      maxItems: STORY_PAGE_COUNT,
       items: {
         type: SchemaType.OBJECT,
         properties: {
@@ -57,6 +59,21 @@ export const storyGenerationConfig = {
   temperature: 0.7,
   responseSchema: storyResponseSchema,
 };
+
+export const getStoryGenerationConfig = (pageCount = STORY_PAGE_COUNT) => ({
+  ...storyGenerationConfig,
+  responseSchema: {
+    ...storyResponseSchema,
+    properties: {
+      ...storyResponseSchema.properties,
+      chapters: {
+        ...storyResponseSchema.properties.chapters,
+        minItems: pageCount,
+        maxItems: pageCount,
+      },
+    },
+  },
+});
 
 const storyShapePrompt = [
   'Create a story in strict JSON with this shape:',
@@ -125,12 +142,12 @@ const storyHistory = [
 export const getGeminiModelName = () =>
   process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
 
-const createStoryChatSession = ({ apiKey, modelName }) => {
+const createStoryChatSession = ({ apiKey, modelName, pageCount }) => {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: modelName });
 
   return model.startChat({
-    generationConfig: storyGenerationConfig,
+    generationConfig: getStoryGenerationConfig(pageCount),
     history: storyHistory,
   });
 };
@@ -141,6 +158,7 @@ export const generateGeminiText = async ({
   imageBase64,
   mimeType,
   timeoutMs,
+  pageCount = STORY_PAGE_COUNT,
 }) => {
   const safePrompt = String(prompt ?? '').trim();
 
@@ -176,7 +194,7 @@ export const generateGeminiText = async ({
   }
 
   if (mode === 'story-generation') {
-    const storyChat = createStoryChatSession({ apiKey, modelName });
+    const storyChat = createStoryChatSession({ apiKey, modelName, pageCount });
     const result = await storyChat.sendMessage(safePrompt);
     return result.response.text();
   }
@@ -201,8 +219,6 @@ const DEFAULT_CREATE_STORY_PROMPT = [
   'Image style: {imageStyle}.',
   'Return only strict JSON with title, coverImagePrompt, characterDescriptions, and chapters.',
 ].join('\n');
-
-export const STORY_PAGE_COUNT = 5;
 
 export const buildStoryPrompt = ({
   ageGroup,
@@ -254,11 +270,11 @@ export const tryParseGeminiJson = raw => {
   return null;
 };
 
-export const normalizeStoryDraft = story => {
+export const normalizeStoryDraft = (story, pageCount = STORY_PAGE_COUNT) => {
   const title = String(story?.title ?? '').trim();
   const characterDescriptions = story?.characterDescriptions;
   const chapters = Array.isArray(story?.chapters)
-    ? story.chapters.slice(0, STORY_PAGE_COUNT)
+    ? story.chapters.slice(0, pageCount)
     : [];
 
   if (!title) throw new ApiError(502, 'Generated story has no title');
@@ -270,10 +286,10 @@ export const normalizeStoryDraft = story => {
   ) {
     throw new ApiError(502, 'Generated story has no character descriptions');
   }
-  if (chapters.length !== STORY_PAGE_COUNT) {
+  if (chapters.length !== pageCount) {
     throw new ApiError(
       502,
-      `Generated story must contain exactly ${STORY_PAGE_COUNT} pages`
+      `Generated story must contain exactly ${pageCount} pages`
     );
   }
 
@@ -304,23 +320,29 @@ export const normalizeStoryDraft = story => {
   };
 };
 
-const buildJsonRepairPrompt = ({ brokenJson, validationMessage }) => `
+const buildJsonRepairPrompt = ({
+  brokenJson,
+  validationMessage,
+  pageCount,
+  interactive,
+}) => `
 The previous story response was invalid: ${validationMessage}.
-Repair or complete it as a five-page story while preserving its original idea.
+Repair or complete it as a ${pageCount}-page story while preserving its original idea.
 It must contain a title, coverImagePrompt, a non-empty characterDescriptions object,
-and exactly ${STORY_PAGE_COUNT} chapters. Every chapter must contain chapterNumber,
+and exactly ${pageCount} chapters. Every chapter must contain chapterNumber,
 title, textPrompt, imagePrompt, and animationDirection. Animation directions describe scene-specific subject, camera and background motion while preserving the chosen art style and character appearance. Return ONLY valid JSON with no markdown or explanation.
+${interactive ? `End page ${pageCount} at a meaningful decision point.` : `Make page ${pageCount} a complete and satisfying conclusion.`}
 
 Previous response:
 ${String(brokenJson ?? '').slice(0, 24000)}
 `;
 
-const parseStoryDraft = raw => {
+const parseStoryDraft = (raw, pageCount) => {
   const parsed = tryParseGeminiJson(raw);
   if (!parsed) {
     throw new ApiError(502, 'Gemini response is not valid story JSON');
   }
-  const story = normalizeStoryDraft(parsed);
+  const story = normalizeStoryDraft(parsed, pageCount);
   if (
     story.chapters.some(
       chapter =>
@@ -341,13 +363,16 @@ export const generateStoryJson = async ({
   interactive = false,
   generateText = generateGeminiText,
 }) => {
+  const pageCount = interactive
+    ? INTERACTIVE_STARTER_PAGE_COUNT
+    : STORY_PAGE_COUNT;
   const basePrompt = buildStoryPrompt(formData);
   const prompt = [
     basePrompt,
-    `Return exactly ${STORY_PAGE_COUNT} chapters. Never return more than ${STORY_PAGE_COUNT} chapters.`,
+    `Return exactly ${pageCount} chapters. Never return more than ${pageCount} chapters.`,
     interactive
-      ? 'This is an interactive story starter. End page 5 at a meaningful decision point.'
-      : 'Make page 5 a complete and satisfying conclusion.',
+      ? `This is an interactive story starter. End page ${pageCount} at a meaningful decision point.`
+      : `Make page ${pageCount} a complete and satisfying conclusion.`,
     'Every chapter must contain a non-empty title, textPrompt, and imagePrompt.',
     'Include a non-empty characterDescriptions object and keep those visual details consistent in every imagePrompt.',
     'For every chapter include animationDirection: readable scene-specific suggestions for subject movement, camera movement, subtle background motion, and continuity. Animate only elements present in that scene. Preserve the selected image style and character appearance; do not add events or characters. This is animation guidance, not generated video.',
@@ -356,25 +381,29 @@ export const generateStoryJson = async ({
   const outputText = await generateText({
     prompt,
     mode: 'story-generation',
+    pageCount,
   });
 
   try {
-    return parseStoryDraft(outputText);
+    return parseStoryDraft(outputText, pageCount);
   } catch (initialError) {
     const repairedText = await generateText({
       prompt: buildJsonRepairPrompt({
         brokenJson: cleanJsonText(outputText),
         validationMessage: initialError.message,
+        pageCount,
+        interactive,
       }),
       mode: 'story-generation',
+      pageCount,
     });
 
     try {
-      return parseStoryDraft(repairedText);
+      return parseStoryDraft(repairedText, pageCount);
     } catch {
       throw new ApiError(
         502,
-        'Gemini could not produce a valid five-page story after retry'
+        `Gemini could not produce a valid ${pageCount}-page story after retry`
       );
     }
   }

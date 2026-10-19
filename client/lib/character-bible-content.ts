@@ -13,29 +13,30 @@ function readable(value: unknown): string {
 }
 
 export function characterBibleSections(pack: CharacterBiblePack) {
-  const sections: { text: string; heading?: boolean }[] = [];
-  const add = (text: string, heading = false) => { if (text.trim()) sections.push({ text: text.trim(), heading }); };
-  add(pack.title || "Story", true);
-  add("Character Bible", true);
+  const sections: { text: string; heading?: boolean; role?: "title" | "section" | "label"; pageBreak?: boolean }[] = [];
+  const add = (text: string, heading = false, role?: "title" | "section" | "label", pageBreak = false) => { if (text.trim()) sections.push({ text: text.trim(), heading, role, pageBreak }); };
+  add(pack.title || "Story", true, "title");
+  add("Character Bible", true, "section");
+  add("Story settings", true, "label");
   const settings = pack.settings ?? {};
   for (const [label, value] of [["Story idea", settings.subject], ["Genre", settings.genre], ["Age group", settings.ageGroup], ["Art style", settings.artStyle], ["Story format", settings.format]]) {
     if (value) add(`${label}: ${value}`);
   }
-  add("Characters", true);
+  add("Character profiles", true, "section", true);
   for (const [name, description] of Object.entries(pack.characters ?? {})) {
-    add(name.replace(/^character(\d+)$/i, "Character $1"), true);
+    add(name.replace(/^character(\d+)$/i, "Character $1"), true, "label");
     add(readable(description));
   }
-  add("Scenes", true);
   for (const [index, scene] of (pack.scenes ?? []).entries()) {
-    add(`Scene ${index + 1}${scene.title ? `: ${scene.title}` : ""}`, true);
+    add(`Scene ${index + 1}${scene.title ? `: ${scene.title}` : ""}`, true, "section", true);
+    if (readable(scene.textPrompt).trim()) add("Narration", true, "label");
     add(readable(scene.textPrompt));
     if (scene.imagePrompt) {
-      add("Image prompt", true);
+      add("Image prompt", true, "label");
       add(scene.imagePrompt.replace(/([\p{L}\p{N}])-(?=[\p{L}\p{N}])/gu, "$1 "));
     }
     if (scene.animationDirection?.trim()) {
-      add("Animation direction", true);
+      add("How to animate this scene", true, "label");
       add(scene.animationDirection);
     }
   }

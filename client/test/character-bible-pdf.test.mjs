@@ -29,7 +29,7 @@ test('bible PDF contains native text, not page images, and paginates long storie
   });
   const bytes = pdf.output();
   assert.ok(pdf.getNumberOfPages() > 1);
-  for (const text of ['Art style: Watercolor', 'Mira wears a red coat.', 'Animation direction', 'Slow push toward Mira']) assert.ok(bytes.includes(text));
+  for (const text of ['Art style: Watercolor', 'Mira wears a red coat.', 'How to animate this scene', 'Slow push toward Mira', 'Narration']) assert.ok(bytes.includes(text));
   assert.doesNotMatch(bytes, /\/Subtype\s*\/Image/);
   assert.match(bytes, /\) Tj/);
 });

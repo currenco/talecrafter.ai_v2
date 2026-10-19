@@ -15,6 +15,13 @@ const { apiErrorMessage, userErrorMessage } = await loadModule('../lib/user-mess
 const { retryPolicy } = await loadModule('../lib/interactive-recovery.ts');
 const { characterBibleSections } = await loadModule('../lib/character-bible-content.ts');
 
+test('Explore only offers genre filtering and does not fetch art-style options', () => {
+  const source = readFileSync(new URL('../app/explore/ExploreClient.tsx', import.meta.url), 'utf8');
+  assert.match(source, /id="explore-genre"/);
+  assert.doesNotMatch(source, /explore-art-style|\/stories\/art-styles|setArtStyles|query\.set\("artStyle"/);
+  assert.doesNotMatch(source, /searchParams\.get\("artStyle"/);
+});
+
 test('character bible exports selected settings, descriptions and readable scene prompts', () => {
   const sections = characterBibleSections({
     title: 'Garden', settings: { subject: 'Find a garden', genre: 'Fantasy', ageGroup: '8-12', artStyle: 'Watercolor', format: 'Classic' },
@@ -24,7 +31,11 @@ test('character bible exports selected settings, descriptions and readable scene
   const text = sections.map(section => section.text).join('\n');
   for (const expected of ['Art style: Watercolor', 'Age group: 8-12', 'Genre: Fantasy', 'Story format: Classic', 'Story idea: Find a garden', 'best Friend: Leo', 'Mira arrives.', 'watercolor red coat in a garden']) assert.ok(text.includes(expected));
   assert.doesNotMatch(text, /\{"|watercolor-red/);
-  assert.match(text, /Animation direction\nSlow push toward Mira/);
+  assert.match(text, /How to animate this scene\nSlow push toward Mira/);
+  assert.equal(sections.find(section => section.text === 'Garden').role, 'title');
+  assert.equal(sections.find(section => section.text === 'Character profiles').pageBreak, true);
+  assert.equal(sections.find(section => section.text === 'Scene 1: Gate').pageBreak, true);
+  assert.match(text, /Narration\nMira arrives/);
 });
 
 test('uncertain outcomes retain keys and only terminal failures allow new attempts', () => {
@@ -38,6 +49,14 @@ test('recovery performs one status read without timer-based polling', () => {
   const recovery = source.slice(source.indexOf('const reconcileGeneration'), source.indexOf('const retryGeneration'));
   assert.equal((recovery.match(/await apiFetch/g) ?? []).length, 1);
   assert.doesNotMatch(recovery, /setTimeout|setInterval|attempts|while\s*\(/);
+});
+
+test('opening an interactive draft does not display the generation overlay', () => {
+  const source = readFileSync(new URL('../app/interactive-story/[id]/page.tsx', import.meta.url), 'utf8');
+  assert.match(source, /\[loading, setLoading\] = useState\(true\)/);
+  assert.match(source, /aria-label="Opening your story"/);
+  assert.match(source, /CustomLoader isLoading=\{generatingNext\}/);
+  assert.doesNotMatch(source, /isLoading=\{loading \|\| generatingNext\}/);
 });
 
 test('plan and story destinations survive encoded auth links and legacy redirects', () => {

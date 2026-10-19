@@ -22,13 +22,11 @@ type ExploreCache = {
   scrollY: number;
 };
 
-const ExploreMore = ({ genre, artStyle, onFilterChange, userId }: { genre: string; artStyle: string; onFilterChange: (filter: "genre" | "artStyle", value: string) => void; userId?: string }) => {
-  const cacheKey = `${CACHE_KEY}:${JSON.stringify([userId ?? "guest", genre.toLowerCase(), artStyle.toLowerCase()])}`;
+const ExploreMore = ({ genre, onFilterChange, userId }: { genre: string; onFilterChange: (value: string) => void; userId?: string }) => {
+  const cacheKey = `${CACHE_KEY}:${JSON.stringify([userId ?? "guest", genre.toLowerCase()])}`;
   const [genres, setGenres] = useState<string[]>([]);
-  const [artStyles, setArtStyles] = useState<string[]>([]);
   const returnQuery = new URLSearchParams();
   if (genre) returnQuery.set("genre", genre);
-  if (artStyle) returnQuery.set("artStyle", artStyle);
   const returnPath = returnQuery.size ? `/explore?${returnQuery}` : "/explore";
   const [error, setError] = useState("");
   const activeRef = useRef(true);
@@ -52,9 +50,6 @@ const ExploreMore = ({ genre, artStyle, onFilterChange, userId }: { genre: strin
     if (userId) void apiFetch<string[]>("/stories/genres")
       .then(result => { if (activeRef.current) setGenres(result); })
       .catch(() => { /* The selected genre remains usable if options cannot load. */ });
-    if (userId) void apiFetch<string[]>("/stories/art-styles")
-      .then(result => { if (activeRef.current) setArtStyles(result); })
-      .catch(() => { /* Keep the selected style usable if options cannot load. */ });
     return () => { activeRef.current = false; };
   }, [userId]);
 
@@ -89,7 +84,6 @@ const ExploreMore = ({ genre, artStyle, onFilterChange, userId }: { genre: strin
     try {
       const query = new URLSearchParams({ limit: String(userId ? PAGE_SIZE : 8), offset: String(newOffset) });
       if (genre) query.set("genre", genre);
-      if (artStyle) query.set("artStyle", artStyle);
       const token = userId ? await getAccessToken() : undefined;
       const result = await apiFetch<StoryItem[]>(`/stories?${query}`, { token });
       if (!activeRef.current) return;
@@ -122,7 +116,7 @@ const ExploreMore = ({ genre, artStyle, onFilterChange, userId }: { genre: strin
       loadingRef.current = false;
       if (activeRef.current) setLoading(false);
     }
-  }, [genre, artStyle, userId]);
+  }, [genre, userId]);
 
   useEffect(() => {
     loadingRef.current = loading;
@@ -231,11 +225,11 @@ const ExploreMore = ({ genre, artStyle, onFilterChange, userId }: { genre: strin
 
   return (
       <div>
-        {userId && <div className="mt-6 grid max-w-2xl grid-cols-1 gap-3 text-sm text-[#f1eadb] sm:grid-cols-2">
+        {userId && <div className="mt-6 max-w-sm text-sm text-[#f1eadb]">
           <div className="flex min-w-0 flex-col gap-2">
           <label htmlFor="explore-genre" className="font-medium">Genre</label>
           <div className="relative">
-          <select id="explore-genre" value={genre} onChange={event => onFilterChange("genre", event.target.value)}
+          <select id="explore-genre" value={genre} onChange={event => onFilterChange(event.target.value)}
             className="min-h-11 w-full min-w-0 appearance-none rounded-md border border-white/25 bg-[#162331] py-2 pl-3 pr-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300">
             <option value="">All genres</option>
             {genre && !genres.includes(genre) && <option value={genre}>{genre}</option>}
@@ -243,18 +237,6 @@ const ExploreMore = ({ genre, artStyle, onFilterChange, userId }: { genre: strin
           </select>
           <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2" />
           </div>
-          </div>
-          <div className="flex min-w-0 flex-col gap-2">
-            <label htmlFor="explore-art-style" className="font-medium">Art style</label>
-            <div className="relative">
-            <select id="explore-art-style" value={artStyle} onChange={event => onFilterChange("artStyle", event.target.value)}
-              className="min-h-11 w-full min-w-0 appearance-none rounded-md border border-white/25 bg-[#162331] py-2 pl-3 pr-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300">
-              <option value="">All art styles</option>
-              {artStyle && !artStyles.includes(artStyle) && <option value={artStyle}>{artStyle}</option>}
-              {artStyles.map(value => <option key={value} value={value}>{value}</option>)}
-            </select>
-            <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2" />
-            </div>
           </div>
         </div>}
 
@@ -306,7 +288,7 @@ const ExploreMore = ({ genre, artStyle, onFilterChange, userId }: { genre: strin
         {!error && !isInitialStoriesLoading && storyList.length === 0 && (
           <div className="mt-10 w-full text-center">
             <p className="text-[#c3cbd4]/70">
-              {genre || artStyle ? "No stories match these filters. Try another genre or art style." : "No stories found yet."}
+              {genre ? "No stories in this genre yet. Try another genre." : "No stories found yet."}
             </p>
           </div>
         )}
@@ -320,18 +302,18 @@ function ExploreQuery() {
   const router = useRouter();
   const pathname = usePathname();
   const genre = searchParams.get("genre")?.trim() ?? "";
-  const artStyle = searchParams.get("artStyle")?.trim() ?? "";
-  const changeFilter = (filter: "genre" | "artStyle", value: string) => {
+  const changeFilter = (value: string) => {
     const query = new URLSearchParams(searchParams.toString());
-    if (value) query.set(filter, value);
-    else query.delete(filter);
+    if (value) query.set("genre", value);
+    else query.delete("genre");
+    query.delete("artStyle");
     query.delete("offset");
     query.delete("page");
     router.push(query.size ? `${pathname}?${query}` : pathname, { scroll: false });
   };
   if (!isAuthLoaded) return <CustomLoader isLoading count={8} />;
   const userId = isSignedIn ? authUser?.id : undefined;
-  return <ExploreMore key={JSON.stringify([userId ?? "guest", genre, artStyle])} genre={genre} artStyle={artStyle} onFilterChange={changeFilter} userId={userId} />;
+  return <ExploreMore key={JSON.stringify([userId ?? "guest", genre])} genre={genre} onFilterChange={changeFilter} userId={userId} />;
 }
 
 export default function ExploreClient() {

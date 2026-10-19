@@ -217,127 +217,26 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
   };
 
   const onDownloadPdf = async () => {
-    if (!story) return;
-    let exportRoot: HTMLElement | null = null;
-
+    if (!story || downloadingPdf) return;
+    if (!userDetail?.canExport) { toast.info("PDF export is included with Creator."); return; }
+    setDownloadingPdf(true);
     try {
-      if (!userDetail?.canExport) { toast.info("PDF export is included with Creator."); return; }
       await apiFetch(`/stories/${encodeURIComponent(story.storyId ?? "")}/creator-pack`, { token: await getAccessToken() });
-      setDownloadingPdf(true);
-      const { default: html2canvas } = await import("html2canvas");
-      const { jsPDF: JsPDF } = await import("jspdf");
-      const sanitizedTitle = title.replace(/[^\w\s-]/g, "").trim() || "story";
-      const pdfRoot = document.getElementById("story-pdf-export");
-      if (!pdfRoot) {
-        toast.error("Your story is still loading. Wait until its pages appear, then try Download PDF again.");
-        return;
-      }
-
-      exportRoot = pdfRoot.cloneNode(true) as HTMLElement;
-      exportRoot.id = "story-pdf-export-runtime";
-      exportRoot.style.position = "fixed";
-      exportRoot.style.left = "-10000px";
-      exportRoot.style.top = "0";
-      exportRoot.style.zIndex = "9999";
-      exportRoot.style.opacity = "1";
-      exportRoot.style.pointerEvents = "none";
-      exportRoot.style.maxHeight = "100vh";
-      exportRoot.style.overflow = "auto";
-      document.body.appendChild(exportRoot);
-
-      const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-      const toDataUrlWithRetry = async (url: string, retries = 5, waitMs = 1500) => {
-        let lastError: unknown = null;
-        for (let attempt = 0; attempt < retries; attempt++) {
-          try {
-            const response = await fetch(url, { cache: "no-store" });
-            if (!response.ok) throw new Error(`Image fetch failed: ${response.status}`);
-            const contentType = response.headers.get("content-type") || "";
-            if (!contentType.includes("image")) {
-              throw new Error("Fetched resource is not an image");
-            }
-            const blob = await response.blob();
-            return await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(String(reader.result || ""));
-              reader.onerror = () => reject(new Error("Unable to encode image"));
-              reader.readAsDataURL(blob);
-            });
-          } catch (error) {
-            lastError = error;
-            if (attempt < retries - 1) await delay(waitMs);
-          }
-        }
-        throw lastError ?? new Error("Image fetch failed");
-      };
-
-      const exportImages = Array.from(exportRoot.querySelectorAll("img"));
-      let failedImages = 0;
-      await Promise.all(
-        exportImages.map(async (img) => {
-          const image = img as HTMLImageElement;
-          const currentSrc = image.currentSrc || image.src;
-          if (!currentSrc) {
-            failedImages += 1;
-            return;
-          }
-          if (currentSrc.startsWith("data:")) {
-            return;
-          }
-          try {
-            const dataUrl = await toDataUrlWithRetry(currentSrc);
-            image.src = dataUrl;
-          } catch {
-            failedImages += 1;
-          }
-        })
-      );
-
-      if (failedImages > 0) {
-        toast.error(
-          `We couldn't load ${failedImages === 1 ? "one illustration" : `${failedImages} illustrations`} for your PDF. Please try Download PDF again in a moment.`
-        );
-        return;
-      }
-
-      const sections = Array.from(exportRoot.querySelectorAll("section"));
-      if (!sections.length) {
-        toast.error("This story has no pages ready to export yet. Open it again from My Stories.");
-        return;
-      }
-
-      const pdf = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-      const pdfWidth = 210;
-      const pdfHeight = 297;
-
-      for (let i = 0; i < sections.length; i++) {
-        const section = sections[i] as HTMLElement;
-        const canvas = await html2canvas(section, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: false,
-          backgroundColor: "#0b1522",
-          width: 794,
-          windowWidth: 794,
-          scrollX: 0,
-          scrollY: 0,
-        });
-
-        const imageData = canvas.toDataURL("image/jpeg", 0.98);
-        if (i > 0) pdf.addPage();
-        pdf.addImage(imageData, "JPEG", 0, 0, pdfWidth, pdfHeight);
-      }
-
-      pdf.save(`${sanitizedTitle}.pdf`);
+      const { downloadStoryPdf } = await import("@/lib/story-pdf");
+      await downloadStoryPdf({
+        title,
+        cover: story.coverImage,
+        scenes: chapters.map(chapter => ({
+          title: chapter.title,
+          text: getCleanChapterText(chapter),
+          image: getChapterImageUrl(chapter),
+        })),
+      });
       toast.success("PDF download started");
     } catch {
-      toast.error("Unable to generate PDF. Please try again.");
-    } finally {
-      if (exportRoot) exportRoot.remove();
-      setDownloadingPdf(false);
-    }
+      toast.error("We couldn't prepare your PDF. Check your connection and try again.");
+    } finally { setDownloadingPdf(false); }
   };
-
   const stopNarration = () => {
     if (typeof window === "undefined") return;
     window.speechSynthesis.cancel();
@@ -604,165 +503,6 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
           )}
         </div>
 
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            transform: "translateX(-200vw)",
-            width: "794px",
-            height: "100vh",
-            overflow: "auto",
-            background: "#0b1522",
-            color: "#c3cbd4",
-            pointerEvents: "none",
-            zIndex: -1,
-          }}
-          aria-hidden="true"
-        >
-          <div id="story-pdf-export" style={{ width: "794px", background: "#0b1522" }}>
-            <section
-              style={{
-                minHeight: "1123px",
-                padding: "34px",
-                boxSizing: "border-box",
-                pageBreakAfter: "always",
-                background: "#0b1522",
-              }}
-            >
-              <div
-                style={{
-                  minHeight: "100%",
-                  border: "1px solid #665f50",
-                  borderRadius: "20px",
-                  background: "linear-gradient(180deg, #172535 0%, #0b1522 100%)",
-                  padding: "28px",
-                  boxSizing: "border-box",
-                }}
-              >
-                <p
-                  style={{
-                    margin: "0 0 10px 0",
-                    fontSize: "20px",
-                    lineHeight: 1.2,
-                    letterSpacing: "0.08em",
-                    color: "#d8c69e",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  TaleCrafter AI
-                </p>
-                <h1
-                  style={{
-                    margin: "0 0 16px 0",
-                    fontSize: "42px",
-                    lineHeight: 1.15,
-                    fontWeight: 800,
-                    color: "#f1eadb",
-                  }}
-                >
-                  {title}
-                </h1>
-                {story?.coverImage && (
-                  <Image
-                    src={story.coverImage}
-                    alt="cover"
-                    width={794}
-                    height={600}
-                    unoptimized
-                    style={{
-                      maxWidth: "100%",
-                      width: "auto",
-                      height: "auto",
-                      objectFit: "contain",
-                      background: "#111d2b",
-                      borderRadius: "14px",
-                      display: "block",
-                      margin: "0 auto",
-                    }}
-                  />
-                )}
-              </div>
-            </section>
-
-            {chapters.map((chapter, index) => (
-              <section
-                key={`pdf-page-${index}`}
-                style={{
-                  minHeight: "1123px",
-                  padding: "34px",
-                  boxSizing: "border-box",
-                  pageBreakAfter: "always",
-                  background: "#0b1522",
-                }}
-              >
-                <article
-                  style={{
-                    minHeight: "100%",
-                    border: "1px solid #665f50",
-                    borderRadius: "20px",
-                    background: "linear-gradient(180deg, #172535 0%, #0b1522 100%)",
-                    padding: "28px",
-                    boxSizing: "border-box",
-                  }}
-                >
-                  <p
-                    style={{
-                      margin: "0 0 8px 0",
-                      fontSize: "24px",
-                      letterSpacing: "0.03em",
-                      textTransform: "uppercase",
-                      color: "#d8c69e",
-                      fontWeight: 600,
-                    }}
-                  >
-                    Chapter {index + 1}
-                  </p>
-                  <h2
-                    style={{
-                      margin: "0 0 16px 0",
-                      fontSize: "44px",
-                      lineHeight: 1.1,
-                      color: "#f1eadb",
-                      fontWeight: 800,
-                    }}
-                  >
-                    {chapter?.title ?? "Untitled Chapter"}
-                  </h2>
-                  <Image
-                    src={getChapterImageUrl(chapter)}
-                    alt={chapter?.title ?? "chapter image"}
-                    width={794}
-                    height={600}
-                    unoptimized
-                    style={{
-                      maxWidth: "100%",
-                      width: "auto",
-                      height: "auto",
-                      objectFit: "contain",
-                      background: "#111d2b",
-                      borderRadius: "16px",
-                      marginBottom: "18px",
-                      display: "block",
-                      margin: "0 auto 18px auto",
-                    }}
-                  />
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: "17px",
-                      lineHeight: 1.8,
-                      color: "#c3cbd4",
-                      whiteSpace: "pre-wrap",
-                    }}
-                  >
-                    {getCleanChapterText(chapter)}
-                  </p>
-                </article>
-              </section>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

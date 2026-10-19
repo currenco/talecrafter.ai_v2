@@ -10,7 +10,6 @@ import {
   listCurrentUserStories,
   listPublicStories,
   listPublicGenres,
-  listPublicArtStyles,
   listRelatedStories,
   resumeClassicStory,
 } from '../services/story.service.js';
@@ -63,11 +62,6 @@ export const getPublicStories = asyncHandler(async (req, res) => {
 export const getPublicGenres = asyncHandler(async (_req, res) => {
   const genres = await listPublicGenres();
   return res.json(new ApiResponse(200, genres, 'Genres fetched'));
-});
-
-export const getPublicArtStyles = asyncHandler(async (_req, res) => {
-  const styles = await listPublicArtStyles();
-  return res.json(new ApiResponse(200, styles, 'Art styles fetched'));
 });
 
 export const getSitemapStories = asyncHandler(async (req, res) => {

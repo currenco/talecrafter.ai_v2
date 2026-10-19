@@ -31,7 +31,6 @@ export const publicStoriesQuerySchema = z.object({
   params: z.object({}).optional(),
   query: paginationQuerySchema.extend({
     genre: z.string().trim().max(100).optional(),
-    artStyle: z.string().trim().max(80).optional(),
   }),
 });
 

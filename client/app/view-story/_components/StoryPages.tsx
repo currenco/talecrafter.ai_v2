@@ -94,7 +94,7 @@ const StoryPages = ({
           <Image
             src={chapterImageSrc}
             alt={storyChapter?.title ?? "story chapter illustration"}
-            className={`rounded-lg bg-slate-100 object-contain transition-opacity duration-300 ${
+            className={`rounded-lg bg-transparent object-contain transition-opacity duration-300 ${
               imageLoaded ? "opacity-100" : "opacity-0"
             }`}
             fill

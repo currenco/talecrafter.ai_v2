@@ -154,21 +154,10 @@ export const listPublicGenres = async () => {
   return rows.map(row => row.genre);
 };
 
-export const listPublicArtStyles = async () => {
-  const artStyle = sql`trim(${Stories.imageStyle})`;
-  const rows = await db
-    .selectDistinct({ artStyle })
-    .from(Stories)
-    .where(and(eq(Stories.status, 'published'), sql`${artStyle} <> ''`))
-    .orderBy(artStyle);
-  return rows.map(row => row.artStyle);
-};
-
 export const listPublicStories = async ({
   limit,
   offset,
   genre,
-  artStyle,
   preview = false,
 }) => {
   const start = normalizeOffset(offset);
@@ -182,9 +171,6 @@ export const listPublicStories = async ({
         eq(Stories.status, 'published'),
         genre
           ? sql`lower(trim(${Stories.storyType})) = lower(${genre})`
-          : undefined,
-        artStyle
-          ? sql`lower(trim(${Stories.imageStyle})) = lower(${artStyle})`
           : undefined
       )
     )

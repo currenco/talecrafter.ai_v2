@@ -95,7 +95,7 @@ const SafeStoryImage = ({ src, alt }: { src?: string; alt: string }) => {
   }
 
   return (
-    <div className="relative mt-3 min-h-[260px] w-full overflow-hidden rounded-lg bg-slate-100">
+    <div className="relative mt-3 min-h-[260px] w-full overflow-hidden rounded-lg bg-transparent">
       <Image
         src={src}
         alt={alt}
@@ -121,7 +121,7 @@ const InteractiveStoryPage = () => {
 
   const [story, setStory] = useState<StoryRow | null>(null);
   const [nodes, setNodes] = useState<StoryNode[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [flipPage, setFlipPage] = useState(0);
   const [maxFlipPage, setMaxFlipPage] = useState(0);
   const [isLandscapeSpread, setIsLandscapeSpread] = useState(false);
@@ -551,6 +551,18 @@ const InteractiveStoryPage = () => {
     };
   }, [treeGraph]);
 
+  if (loading || !story) {
+    return (
+      <div role="status" aria-label="Opening your story" aria-busy="true" className="min-h-screen bg-[#0b1522] px-5 py-8 md:px-16 lg:px-28 xl:px-40">
+        <div aria-hidden="true" className="motion-safe:animate-pulse">
+          <div className="mx-auto h-10 w-2/3 rounded bg-white/10" />
+          <div className="mx-auto mt-4 h-4 w-1/3 rounded bg-white/10" />
+          <div className="mx-auto mt-8 aspect-[340/620] w-full max-w-[340px] rounded-lg bg-white/10" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#0b1522] px-5 py-8 md:px-16 lg:px-28 xl:px-40">
       <div className="tc-hero-grid absolute inset-0 opacity-35" />
@@ -757,7 +769,7 @@ const InteractiveStoryPage = () => {
         </div>
       </div>
 
-      <CustomLoader isLoading={loading || generatingNext} message={loaderMessage} />
+      <CustomLoader isLoading={generatingNext} message={loaderMessage} />
     </div>
   );
 };

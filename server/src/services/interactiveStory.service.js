@@ -10,6 +10,7 @@ import {
   UserProfiles,
 } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
+import { INTERACTIVE_STARTER_PAGE_COUNT as STARTER_PAGE_COUNT } from './gemini.service.js';
 import {
   createPaginatedResult,
   normalizePagination,
@@ -43,7 +44,6 @@ import {
   parsePages,
 } from './plottwist.service.js';
 
-const STARTER_PAGE_COUNT = 5;
 const MAX_DEPTH = 7;
 const CONTINUATION_FALLBACK_CHOICES = [
   'Take the hopeful next step',
@@ -275,7 +275,10 @@ export const createInteractiveStarter = async ({
     const chapters = Array.isArray(story?.chapters) ? story.chapters : [];
 
     if (chapters.length !== STARTER_PAGE_COUNT) {
-      throw new ApiError(502, 'Starter story must have exactly 5 pages');
+      throw new ApiError(
+        502,
+        `Starter story must have exactly ${STARTER_PAGE_COUNT} pages`
+      );
     }
 
     const coverPromptSource = String(

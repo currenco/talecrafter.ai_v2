@@ -5,7 +5,7 @@ export async function generateMetadata({ searchParams }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const query = await searchParams;
-  const filtered = ["genre", "artStyle", "offset", "page"].some(key => Boolean(query[key]));
+  const filtered = ["genre", "offset", "page"].some(key => Boolean(query[key]));
   return {
     ...publicPageMetadata("/explore"),
     robots: { index: !filtered, follow: true },

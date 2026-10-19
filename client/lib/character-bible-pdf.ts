@@ -16,10 +16,11 @@ async function printCharacterBible(pack: CharacterBiblePack) {
   if (!doc || !win) { frame.remove(); throw new Error("Could not open PDF preview"); }
   doc.title = `${pack.title || "Story"} - Character Bible`;
   const style = doc.createElement("style");
-  style.textContent = "@page{size:A4;margin:20mm}body{font:11pt/1.6 Arial,sans-serif;color:#17212b}p{white-space:pre-wrap;overflow-wrap:anywhere;margin:0 0 10pt}h2{font-size:15pt;break-after:avoid;margin:14pt 0 8pt}";
+  style.textContent = "@page{size:A4;margin:20mm}body{font:11pt/1.65 Arial,sans-serif;color:#17212b}p{white-space:pre-wrap;overflow-wrap:anywhere;margin:0 0 12pt}h1,h2,h3{overflow-wrap:anywhere;break-after:avoid}h1{font: bold 30pt/1.2 Georgia,serif;margin:0 0 18pt}h2{font-size:21pt;line-height:1.3;margin:0 0 18pt;border-bottom:2pt solid #28756d;padding-bottom:12pt}h3{font-size:12pt;color:#28756d;margin:18pt 0 8pt}.new-page{break-before:page}";
   doc.head.appendChild(style);
   for (const section of characterBibleSections(pack)) {
-    const element = doc.createElement(section.heading ? "h2" : "p");
+    const element = doc.createElement(section.role === "title" ? "h1" : section.role === "section" ? "h2" : section.heading ? "h3" : "p");
+    if (section.pageBreak) element.className = "new-page";
     element.textContent = section.text;
     doc.body.appendChild(element);
   }
@@ -51,19 +52,27 @@ export async function createCharacterBiblePdf(pack: CharacterBiblePack) {
   pdf.setProperties({ title: `${pack.title || "Story"} - Character Bible`, creator: "TaleCrafter AI" });
   let y = 22;
   for (const section of sections) {
-    const size = section.heading ? 15 : 11;
-    const lineHeight = section.heading ? 7 : 5.8;
+    if (section.pageBreak && y > 22) { pdf.addPage(); y = 22; }
+    const size = section.role === "title" ? 30 : section.role === "section" ? 21 : section.heading ? 12 : 11;
+    const lineHeight = section.role === "title" ? 12 : section.role === "section" ? 9 : 6.2;
     pdf.setFont("helvetica", section.heading ? "bold" : "normal");
     pdf.setFontSize(size);
     pdf.setTextColor(23, 33, 43);
+    if (section.role === "label") pdf.setTextColor(40, 117, 109);
     const lines: string[] = pdf.splitTextToSize(section.text, 170);
-    if (section.heading && y + lineHeight * 2 > 272) { pdf.addPage(); y = 22; }
+    if (section.heading && y + lineHeight * lines.length + 16 > 272) { pdf.addPage(); y = 22; }
     for (const line of lines) {
       if (y + lineHeight > 277) { pdf.addPage(); y = 22; }
       pdf.text(line, 20, y);
       y += lineHeight;
     }
-    y += section.heading ? 3 : 5;
+    if (section.role === "section") {
+      pdf.setDrawColor(40, 117, 109);
+      pdf.setLineWidth(0.5);
+      pdf.line(20, y, 190, y);
+      y += 6;
+    }
+    y += section.heading ? 3 : 6;
   }
   const pages = pdf.getNumberOfPages();
   for (let page = 1; page <= pages; page++) {
@@ -71,6 +80,9 @@ export async function createCharacterBiblePdf(pack: CharacterBiblePack) {
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(9);
     pdf.setTextColor(82, 96, 109);
+    pdf.setDrawColor(220, 225, 228);
+    pdf.setLineWidth(0.2);
+    pdf.line(20, 281, 190, 281);
     pdf.text(`TaleCrafter AI | Character Bible | ${page} / ${pages}`, 20, 287);
   }
   return pdf;
