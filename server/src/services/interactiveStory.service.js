@@ -231,6 +231,7 @@ const buildCompletedStoryOutput = ({ pages, finalTitle }) => {
       textPrompt: page.text,
       imagePrompt: page.imagePrompt,
       imageUrl: page.imageUrl,
+      animationDirection: page.animationDirection,
     })),
   };
   return classicOutput;
@@ -325,6 +326,7 @@ export const createInteractiveStarter = async ({
       pageNumber: index + 1,
       title: String(chapter?.title ?? `Chapter ${index + 1}`),
       text: String(chapter?.textPrompt ?? ''),
+      animationDirection: String(chapter?.animationDirection ?? ''),
       imagePrompt: starterSources[index].prompt,
       imageUrl: uploads[index].url,
     }));
@@ -541,7 +543,7 @@ export const completeInteractiveStory = async ({
     const finalPrompt = buildContinuationPrompt({
       title: story.title,
       selectedChoice,
-      context: `${makePageContext(linearPages, 6)}\nKeep these character descriptions consistent: ${JSON.stringify(characters)}`,
+      context: `${makePageContext(linearPages, 6)}\nArt style: ${story.imageStyle}. Keep these character descriptions consistent: ${JSON.stringify(characters)}`,
       minPages: 2,
       maxPages: 3,
       finalResolution: true,
@@ -704,7 +706,7 @@ export const continueInteractiveStory = async ({
     const continuationPrompt = buildContinuationPrompt({
       title: story.title,
       selectedChoice: safeChoice,
-      context: `${makePageContext(linearPages, 6)}\nKeep these character descriptions consistent: ${JSON.stringify(characters)}`,
+      context: `${makePageContext(linearPages, 6)}\nArt style: ${story.imageStyle}. Keep these character descriptions consistent: ${JSON.stringify(characters)}`,
       minPages: 2,
       maxPages: 3,
     });

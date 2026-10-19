@@ -459,6 +459,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                   {!userDetail?.canExport && <LockKeyhole size={18} className="shrink-0" aria-hidden="true" />}
                   {downloadingPdf ? "Generating PDF..." : userDetail?.canExport ? "Download PDF" : "PDF export - Creator Only"}
                 </button>
+                <CreatorStoryPack storyId={story.storyId} />
                 {SHOW_STORY_LAYOUT_SWITCH && <div className="tc-toggle-wrap">
                   <button
                     onClick={() => {
@@ -763,7 +764,6 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
           </div>
         </div>
       </div>
-      <CreatorStoryPack storyId={story.storyId} />
     </div>
   );
 }

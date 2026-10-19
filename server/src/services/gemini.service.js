@@ -37,8 +37,15 @@ const storyResponseSchema = {
           title: { type: SchemaType.STRING },
           textPrompt: { type: SchemaType.STRING },
           imagePrompt: { type: SchemaType.STRING },
+          animationDirection: { type: SchemaType.STRING },
         },
-        required: ['chapterNumber', 'title', 'textPrompt', 'imagePrompt'],
+        required: [
+          'chapterNumber',
+          'title',
+          'textPrompt',
+          'imagePrompt',
+          'animationDirection',
+        ],
       },
     },
   },
@@ -133,6 +140,7 @@ export const generateGeminiText = async ({
   mode = 'text',
   imageBase64,
   mimeType,
+  timeoutMs,
 }) => {
   const safePrompt = String(prompt ?? '').trim();
 
@@ -178,7 +186,10 @@ export const generateGeminiText = async ({
     model: modelName,
     generationConfig: jsonGenerationConfig,
   });
-  const result = await model.generateContent(safePrompt);
+  const result = await model.generateContent(
+    safePrompt,
+    timeoutMs ? { timeout: timeoutMs } : undefined
+  );
 
   return result.response.text();
 };
@@ -298,7 +309,7 @@ The previous story response was invalid: ${validationMessage}.
 Repair or complete it as a five-page story while preserving its original idea.
 It must contain a title, coverImagePrompt, a non-empty characterDescriptions object,
 and exactly ${STORY_PAGE_COUNT} chapters. Every chapter must contain chapterNumber,
-title, textPrompt, and imagePrompt. Return ONLY valid JSON with no markdown or explanation.
+title, textPrompt, imagePrompt, and animationDirection. Animation directions describe scene-specific subject, camera and background motion while preserving the chosen art style and character appearance. Return ONLY valid JSON with no markdown or explanation.
 
 Previous response:
 ${String(brokenJson ?? '').slice(0, 24000)}
@@ -309,7 +320,20 @@ const parseStoryDraft = raw => {
   if (!parsed) {
     throw new ApiError(502, 'Gemini response is not valid story JSON');
   }
-  return normalizeStoryDraft(parsed);
+  const story = normalizeStoryDraft(parsed);
+  if (
+    story.chapters.some(
+      chapter =>
+        typeof chapter.animationDirection !== 'string' ||
+        !chapter.animationDirection.trim()
+    )
+  ) {
+    throw new ApiError(
+      502,
+      'Generated story is missing scene animation directions'
+    );
+  }
+  return story;
 };
 
 export const generateStoryJson = async ({
@@ -326,6 +350,7 @@ export const generateStoryJson = async ({
       : 'Make page 5 a complete and satisfying conclusion.',
     'Every chapter must contain a non-empty title, textPrompt, and imagePrompt.',
     'Include a non-empty characterDescriptions object and keep those visual details consistent in every imagePrompt.',
+    'For every chapter include animationDirection: readable scene-specific suggestions for subject movement, camera movement, subtle background motion, and continuity. Animate only elements present in that scene. Preserve the selected image style and character appearance; do not add events or characters. This is animation guidance, not generated video.',
     'Return consistent JSON only. No markdown wrappers.',
   ].join('\n\n');
   const outputText = await generateText({

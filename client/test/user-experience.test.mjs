@@ -13,6 +13,19 @@ async function loadModule(path) {
 const { safeReturnPath, returnPathFromSearch, authHref } = await loadModule('../lib/auth-navigation.ts');
 const { apiErrorMessage, userErrorMessage } = await loadModule('../lib/user-messages.ts');
 const { retryPolicy } = await loadModule('../lib/interactive-recovery.ts');
+const { characterBibleSections } = await loadModule('../lib/character-bible-content.ts');
+
+test('character bible exports selected settings, descriptions and readable scene prompts', () => {
+  const sections = characterBibleSections({
+    title: 'Garden', settings: { subject: 'Find a garden', genre: 'Fantasy', ageGroup: '8-12', artStyle: 'Watercolor', format: 'Classic' },
+    characters: { Mira: { appearance: 'Red coat', bestFriend: 'Leo' } },
+    scenes: [{ title: 'Gate', textPrompt: ['Mira arrives.', 'Leo follows.'], imagePrompt: 'watercolor-red-coat-in-a-garden', animationDirection: 'Slow push toward Mira; keep her red coat and watercolor texture.' }],
+  });
+  const text = sections.map(section => section.text).join('\n');
+  for (const expected of ['Art style: Watercolor', 'Age group: 8-12', 'Genre: Fantasy', 'Story format: Classic', 'Story idea: Find a garden', 'best Friend: Leo', 'Mira arrives.', 'watercolor red coat in a garden']) assert.ok(text.includes(expected));
+  assert.doesNotMatch(text, /\{"|watercolor-red/);
+  assert.match(text, /Animation direction\nSlow push toward Mira/);
+});
 
 test('uncertain outcomes retain keys and only terminal failures allow new attempts', () => {
   for (const status of ['unknown', 'not_found']) assert.deepEqual(retryPolicy(status), { allowed: true, newKey: false });

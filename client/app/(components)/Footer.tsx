@@ -25,8 +25,8 @@ const Footer = () => {
               <span>TaleCrafter AI</span>
             </Link>
             <p className="mt-6 text-sm leading-7 text-[#c3cbd4]/50">
-              AI storybook creator for building illustrated stories, interactive paths,
-              narration-ready pages, and polished reading experiences.
+              Narration-led illustrated stories to read, listen to, and share.
+              Create Classic stories or shape your own Plot Twist path.
             </p>
           </div>
 

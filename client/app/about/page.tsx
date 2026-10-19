@@ -141,9 +141,10 @@ const About = () => {
             TaleCrafter AI
           </h1>
           <p className="mt-6 max-w-3xl text-lg leading-8 text-[#c3cbd4]/85 sm:text-xl">
-            A creative workspace for turning a simple idea into an illustrated,
-            narrated storybook, with classic narratives and Plot Twist paths
-            that readers can shape as they go.
+            Create narration-led illustrated stories from a simple idea.
+            TaleCrafter writes flowing prose, not screenplay-style scripts,
+            with Classic narratives and Plot Twist paths you can shape as you go.
+            Read the pages or listen with browser-based read-aloud.
           </p>
           <div className="mt-9 flex flex-wrap gap-4">
             <Link

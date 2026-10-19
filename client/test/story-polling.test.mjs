@@ -9,6 +9,11 @@ const source = ts.transpileModule(
   readFileSync(new URL('../lib/story-generation.ts', import.meta.url), 'utf8'),
   { compilerOptions: { module: ts.ModuleKind.CommonJS } },
 ).outputText;
+const messageExports = {};
+runInNewContext(ts.transpileModule(
+  readFileSync(new URL('../lib/user-messages.ts', import.meta.url), 'utf8'),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS } },
+).outputText, { exports: messageExports });
 
 class ApiClientError extends Error {
   constructor(message, statusCode, retryAfterMs) {
@@ -40,7 +45,7 @@ const fixture = (responses, hidden = false) => {
         callback();
       },
     },
-    require: () => ({
+    require: name => name === '@/lib/user-messages' ? messageExports : ({
       ApiClientError,
       apiFetch: async () => {
         calls += 1;
@@ -85,6 +90,6 @@ test('honors rate-limit cooldown and preserves terminal failures', async () => {
   await f.run();
   assert.deepEqual(f.delays, [45000]);
   const failed = fixture([{ status: 'draft', generationStatus: 'failed', errorMessage: 'Provider failed' }]);
-  await assert.rejects(failed.run(), /Provider failed/);
+  await assert.rejects(failed.run(), /We couldn't complete this right now/);
   assert.equal(failed.calls(), 1);
 });

@@ -5,7 +5,7 @@ export const privateMetadata: Metadata = { robots: { index: false, follow: true 
 
 export const rootMetadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: { default: `${SITE_NAME} | AI Illustrated Story Generator`, template: `%s | ${SITE_NAME}` },
+  title: { default: `${SITE_NAME} | Narration-Led AI Story Generator`, template: `%s | ${SITE_NAME}` },
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
   ...privateMetadata,

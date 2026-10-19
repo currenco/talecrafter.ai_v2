@@ -19,7 +19,7 @@ const plans = [
   {
     name: "Creator",
     price: "$9",
-    description: "Your story, illustrated. Generation included in one monthly plan.",
+    description: "Narration-led stories with illustrations, character bibles, and PDF exports in one monthly plan.",
     features: [
       "Public story library",
       "Sign in and create with Google or GitHub",

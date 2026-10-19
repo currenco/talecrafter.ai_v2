@@ -32,6 +32,14 @@ export const getCreatorPack = asyncHandler(async (req, res) => {
     new ApiResponse(
       200,
       {
+        title: story.output?.title ?? story.title,
+        settings: {
+          subject: story.storySubject,
+          genre: story.storyType,
+          ageGroup: story.ageGroup,
+          artStyle: story.imageStyle,
+          format: story.kind === 'interactive' ? 'Plot Twist' : 'Classic',
+        },
         characters: story.output?.characterDescriptions ?? {},
         scenes: story.output?.chapters ?? [],
       },

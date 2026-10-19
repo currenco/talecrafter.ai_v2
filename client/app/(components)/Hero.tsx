@@ -102,9 +102,9 @@ const capabilities = [
   },
   {
     icon: Mic2,
-    title: "Narration on every page",
+    title: "Stories made to be read aloud",
     description:
-      "Listen inside the reader with playback that moves naturally from one story page to the next.",
+      "Follow the narrative on the page or use browser-based read-aloud. Available voices depend on your device and browser.",
   },
   {
     icon: Languages,
@@ -166,6 +166,10 @@ const upcomingProductionPipeline = [
 ];
 
 const faqs = [
+  {
+    question: "Does TaleCrafter create narrated stories or scripts?",
+    answer: "TaleCrafter creates narration-led stories in prose, with illustrated scenes and character descriptions. It is not a screenplay or dialogue-script editor. You can read the story or use browser-based read-aloud in the reader. Voice availability depends on your device; downloadable audio and voiceover files are not included.",
+  },
   {
     question: "Do I need to be a writer to create a story?",
     answer:

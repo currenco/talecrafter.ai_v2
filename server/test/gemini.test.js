@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { parseContinuationPayload } from '../src/services/plottwist.service.js';
 import {
   generateStoryJson,
   normalizeStoryDraft,
@@ -18,6 +19,7 @@ const buildStory = pageCount => ({
     title: `Page ${index + 1}`,
     textPrompt: `Story text for page ${index + 1}`,
     imagePrompt: `mira-page-${index + 1}`,
+    animationDirection: `Slow push toward Mira on page ${index + 1}; keep her appearance and art style consistent.`,
   })),
 });
 
@@ -109,5 +111,56 @@ test('returns a controlled error when both story attempts are invalid', async ()
         generateText: async () => 'not json',
       }),
     /could not produce a valid five-page story after retry/
+  );
+});
+
+test('new stories generate and preserve animation directions in the initial response', async () => {
+  let calls = 0;
+  const story = await generateStoryJson({
+    formData: { storySubject: 'A garden', imageStyle: 'Watercolor' },
+    generateText: async request => {
+      calls++;
+      assert.match(request.prompt, /animationDirection/);
+      return JSON.stringify(buildStory(5));
+    },
+  });
+  assert.equal(calls, 1);
+  assert.equal(
+    story.chapters[0].animationDirection,
+    buildStory(5).chapters[0].animationDirection
+  );
+});
+
+test('missing animation directions trigger the bounded story repair', async () => {
+  let calls = 0;
+  const story = await generateStoryJson({
+    formData: { storySubject: 'A garden' },
+    generateText: async () => {
+      const output = buildStory(5);
+      if (++calls === 1) delete output.chapters[0].animationDirection;
+      return JSON.stringify(output);
+    },
+  });
+  assert.equal(calls, 2);
+  assert.ok(story.chapters.every(chapter => chapter.animationDirection));
+});
+
+test('Plot Twist continuation preserves directions and rejects missing directions', () => {
+  const page = {
+    text: 'Mira opens the gate.',
+    imagePrompt: 'Mira at the gate',
+    animationDirection: 'Slow push toward the gate.',
+  };
+  const raw = JSON.stringify({ pages: [page], choices: ['Enter', 'Wait'] });
+  assert.equal(
+    parseContinuationPayload(raw).pages[0].animationDirection,
+    page.animationDirection
+  );
+  assert.throws(
+    () =>
+      parseContinuationPayload(
+        JSON.stringify({ pages: [{ ...page, animationDirection: '' }] })
+      ),
+    /missing scene animation directions/
   );
 });
