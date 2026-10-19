@@ -1,4 +1,5 @@
 "use client";
+import { userErrorMessage } from "@/lib/user-messages";
 import { useContext, useEffect, useRef, useState } from "react";
 import StorySubjectInput from "./(component)/StorySubjectInput";
 import StoryType from "./(component)/StoryType";
@@ -13,7 +14,6 @@ import UploadImage from "./(component)/UploadImage";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   apiFetch,
-  ApiClientError,
   createIdempotencyKey,
   shouldRetainIdempotencyKey,
 } from "@/lib/api-client";
@@ -121,11 +121,7 @@ const CreateStory = () => {
       );
       window.location.assign(result.authorizationUrl);
     } catch (error) {
-      notifyError(
-        error instanceof ApiClientError
-          ? error.message
-          : "Unable to connect your Pollinations key",
-      );
+      notifyError(userErrorMessage(error, "We couldn't connect your Pollinations key. Please try again."));
       setWalletPending(false);
     }
   };
@@ -159,7 +155,7 @@ const CreateStory = () => {
       !body.storyType ||
       !body.imageStyle
     ) {
-      notifyError("Please complete all story options before generating.");
+      notifyError(!body.storySubject ? "Add a story idea or generate one from an image first." : !body.storyType ? "Choose a genre for your story." : "Choose an illustration style for your story.");
       return null;
     }
 
@@ -168,12 +164,12 @@ const CreateStory = () => {
 
   const GenerateStory = async (mode: "classic" | "interactive" = "classic") => {
     if (!authUser) {
-      router.push("/sign-up?redirect_url=/create-story");
+      router.push("/sign-up?redirect=/create-story");
       return;
     }
 
     if (!userDetail) {
-      notifyError("User details not loaded yet. Please try again.");
+      notifyError("We're still checking your account. Give it a moment, then try again.");
       return;
     }
 
@@ -246,12 +242,12 @@ const CreateStory = () => {
             ),
         });
         generationRequestRef.current = null;
-        notify("Story Generated Successfully");
+        notify("Your illustrated story is ready!");
         router.push(`/story/${published.slug}`);
         return;
       }
 
-      notify("Story Generated Successfully");
+      notify("Your story is ready for its first choice.");
       const target = (result as InteractiveStoryResponse).storyId;
 
       if (!target)
@@ -261,11 +257,7 @@ const CreateStory = () => {
       if (!shouldRetainIdempotencyKey(error))
         generationRequestRef.current = null;
       console.error("Error generating story:", error);
-      notifyError(
-        error instanceof ApiClientError
-          ? error.message
-          : "Server Error! Please try in a moment.",
-      );
+      notifyError(userErrorMessage(error, "We couldn't finish your story. Check My Stories for a saved draft before starting again."));
     } finally {
       setLoading(false);
       setGenerationMessage("Writing your story draft...");
@@ -330,7 +322,7 @@ const CreateStory = () => {
                 <p className="text-sm font-semibold text-[#f1eadb]">
                   Pollinations key
                 </p>
-                <p className="truncate text-sm text-[#c3cbd4]/65">
+                <p className="text-sm leading-5 text-[#c3cbd4]/65">
                   {walletLoading
                     ? "Checking key connection..."
                     : walletStatus?.connected
@@ -338,11 +330,11 @@ const CreateStory = () => {
                         ? `Connected as ${walletStatus.username}`
                         : "Connected for image generation"
                       : walletStatus?.state === "expired"
-                        ? "Connection expired"
+                        ? "Your key has expired. Reconnect to create images."
                         : walletStatus?.state === "revoked"
-                          ? "Connection revoked"
+                          ? "Access was removed. Reconnect your key to create images."
                           : walletStatus?.state === "model_not_authorized"
-                            ? "Reconnect to authorize the current image model"
+                            ? "Reconnect your key and allow image generation."
                             : "Connect your Pollinations key to generate story images"}
                 </p>
               </div>

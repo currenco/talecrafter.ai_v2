@@ -1,4 +1,5 @@
 import { apiFetch, ApiClientError } from "@/lib/api-client";
+import { apiErrorMessage } from "@/lib/user-messages";
 
 export type StoryGenerationStatus = {
   storyId: string;
@@ -61,8 +62,7 @@ export const waitForStoryPublication = async ({
     if (status.status === "published") return status;
     if (["failed", "cancelled"].includes(status.generationStatus)) {
       throw new ApiClientError(
-        status.errorMessage ||
-          "Image generation stopped. The story remains in your drafts.",
+        `${apiErrorMessage(status.errorMessage ?? undefined, 502)} Your story is saved in My Stories. Open its draft to resume.`,
         502,
       );
     }
@@ -72,7 +72,7 @@ export const waitForStoryPublication = async ({
   }
 
   throw new ApiClientError(
-    "Image generation is still running. You can follow it from your dashboard.",
+    "Your story is taking longer than expected. Check its progress in My Stories before starting another one.",
     408,
   );
 };

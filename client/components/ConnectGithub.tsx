@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { FaGithub } from "react-icons/fa";
 import { authClient } from "@/lib/neon-auth/client";
+import { userErrorMessage } from "@/lib/user-messages";
 
 export default function ConnectGithub() {
   const [pending, setPending] = useState(false);
@@ -15,9 +16,9 @@ export default function ConnectGithub() {
         provider: "github",
         callbackURL: `${window.location.origin}/create-story`,
       });
-      if (result.error) throw new Error(result.error.message || "Unable to connect GitHub");
+      if (result.error) throw result.error;
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Unable to connect GitHub");
+      setError(userErrorMessage(error, "We couldn't connect GitHub. Try again and allow access when GitHub asks."));
       setPending(false);
     }
   };

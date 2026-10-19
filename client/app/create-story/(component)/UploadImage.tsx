@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { getAccessToken } from "@/lib/neon-auth/client";
 import { apiFetch } from "@/lib/api-client";
+import { userErrorMessage } from "@/lib/user-messages";
 
 export default function UploadImage({
   setImageSubject,
@@ -13,10 +14,14 @@ export default function UploadImage({
   const [image, setImage] = useState<File | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setImage(e.target.files[0]);
+      setResult(null);
+      setError("");
+      setImageSubject("");
     }
   };
 
@@ -24,6 +29,7 @@ export default function UploadImage({
     if (!image) return;
 
     setLoading(true);
+    setError("");
 
     try {
       const imageBase64 = await fileToBase64(image);
@@ -50,11 +56,7 @@ export default function UploadImage({
       setResult(text);
       setImageSubject(text);
     } catch (error) {
-      if (error instanceof Error) {
-        setResult(`Error identifying image: ${error.message}`);
-      } else {
-        setResult("An unknown error occurred while identifying the image.");
-      }
+      setError(userErrorMessage(error, "We couldn't create an idea from this image. Try again, choose another image, or write your own idea."));
     } finally {
       setLoading(false);
     }
@@ -81,7 +83,7 @@ export default function UploadImage({
             Or begin with an image
           </p>
           <h2 className="mt-3 font-serif text-xl font-medium leading-snug tracking-normal text-[#f1eadb] sm:text-2xl lg:text-3xl">
-            Let a picture inspire the premise
+            Start with a picture
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#c3cbd4]/65 sm:text-base">
             Upload a scene or character and TaleCrafter will turn its visual details
@@ -124,10 +126,11 @@ export default function UploadImage({
             disabled={!image || loading}
             className="mt-4 min-h-11 w-full rounded-full border border-[#e2d2ae] bg-gradient-to-br from-[#eee0c0] to-[#cbb789] px-4 py-2 text-sm font-semibold text-[#101a28] transition hover:from-[#f5e8ca] hover:to-[#d8c69e] disabled:cursor-not-allowed disabled:opacity-50 sm:mt-6 sm:px-6 sm:py-3 sm:text-base"
           >
-            {loading ? "Identifying image..." : "Generate Idea"}
+            {loading ? "Finding a story idea..." : "Generate story idea"}
           </button>
         </div>
 
+        {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
         {result && (
           <div className="mt-6 rounded-2xl border border-[#d8c69e]/15 bg-[#0b1522]/55 p-5">
             <h3 className="font-serif text-lg font-medium leading-snug text-[#f1eadb] sm:text-xl">

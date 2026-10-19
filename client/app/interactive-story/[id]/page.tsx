@@ -1,4 +1,6 @@
 "use client";
+import { userErrorMessage } from "@/lib/user-messages";
+import { retryPolicy } from "@/lib/interactive-recovery";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
@@ -12,7 +14,6 @@ import BookCoverPage from "@/app/view-story/_components/BookCoverPage";
 import {
   apiFetch,
   createIdempotencyKey,
-  shouldRetainIdempotencyKey,
 } from "@/lib/api-client";
 
 const MAX_DEPTH = 7;
@@ -125,6 +126,10 @@ const InteractiveStoryPage = () => {
   const [maxFlipPage, setMaxFlipPage] = useState(0);
   const [isLandscapeSpread, setIsLandscapeSpread] = useState(false);
   const [generatingNext, setGeneratingNext] = useState(false);
+  const [unconfirmedNode, setUnconfirmedNode] = useState<string | null>(null);
+  const [requestStatus, setRequestStatus] = useState("unknown");
+  const requestKindRef = useRef<"choice" | "complete">("choice");
+  const actionBusyRef = useRef(false);
   const [loaderMessage, setLoaderMessage] = useState("Story is generating...");
 
   const applyInteractiveState = useCallback((state: InteractiveStoryState) => {
@@ -148,8 +153,8 @@ const InteractiveStoryPage = () => {
       }
 
       applyInteractiveState(state);
-    } catch {
-      toast.error("Unable to load interactive story");
+    } catch (error) {
+      toast.error(userErrorMessage(error, "We couldn't open this story. Try opening it again from My Stories."));
       router.push("/dashboard");
     } finally {
       setLoading(false);
@@ -240,8 +245,10 @@ const InteractiveStoryPage = () => {
     return () => clearTimeout(timer);
   }, [atEnd, story?.status]);
 
-  const completeStoryWithResolution = async (selectedChoice: string) => {
-    if (!story || !activeNode || generatingNext) return;
+  const completeStoryWithResolution = async (selectedChoice: string, retry = false) => {
+    if (!story || !activeNode || actionBusyRef.current || (!retry && unconfirmedNode)) return;
+    actionBusyRef.current = true;
+    requestKindRef.current = "complete";
 
     try {
       setLoaderMessage("Compiling all choices and making final book...");
@@ -260,6 +267,7 @@ const InteractiveStoryPage = () => {
         }
       );
       completionRequestRef.current = null;
+      setUnconfirmedNode(null);
 
       if (state.completedSlug) {
         router.replace(`/story/${state.completedSlug}`);
@@ -268,27 +276,29 @@ const InteractiveStoryPage = () => {
 
       applyInteractiveState(state);
     } catch (error) {
-      if (!shouldRetainIdempotencyKey(error)) completionRequestRef.current = null;
-      toast.error("Unable to finalize story right now");
+      await reconcileGeneration(error, story.currentNodeId);
     } finally {
+      actionBusyRef.current = false;
       setGeneratingNext(false);
     }
   };
 
-  const onPickChoice = async (choice: string) => {
-    if (!story || !activeNode || generatingNext) return;
+  const onPickChoice = async (choice: string, retry = false) => {
+    if (!story || !activeNode || actionBusyRef.current || (!retry && unconfirmedNode)) return;
 
     if (activeNode.selectedChoice) {
-      toast.info("This branch is already locked");
+      toast.info("You've already chosen this path. Continue to the next part of your story.");
       return;
     }
 
     if (activeNode.depth >= MAX_DEPTH) {
-      await completeStoryWithResolution(choice);
+      await completeStoryWithResolution(choice, retry);
       return;
     }
 
     try {
+      actionBusyRef.current = true;
+      requestKindRef.current = "choice";
       setLoaderMessage("Expanding your chosen path...");
       setGeneratingNext(true);
       const token = await getAccessToken();
@@ -305,6 +315,7 @@ const InteractiveStoryPage = () => {
         }
       );
       continuationRequestRef.current = null;
+      setUnconfirmedNode(null);
 
       if (state.completedSlug) {
         router.replace(`/story/${state.completedSlug}`);
@@ -322,11 +333,52 @@ const InteractiveStoryPage = () => {
         bookSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 180);
     } catch (error) {
-      if (!shouldRetainIdempotencyKey(error)) continuationRequestRef.current = null;
-      toast.error("Failed to generate continuation");
+      await reconcileGeneration(error, story.currentNodeId);
     } finally {
+      actionBusyRef.current = false;
       setGeneratingNext(false);
     }
+  };
+
+  const reconcileGeneration = async (error: unknown, previousNodeId: string) => {
+    setLoaderMessage("Checking your saved story...");
+    const request = requestKindRef.current === "complete" ? completionRequestRef.current : continuationRequestRef.current;
+    if (!request) {
+      toast.error(userErrorMessage(error, "We couldn't start this request. Please try again."));
+      return;
+    }
+    let result: { status: string; state?: InteractiveStoryState } = { status: "unknown" };
+    try {
+      const token = await getAccessToken();
+      result = await apiFetch(`/interactive-stories/${id}/requests/${encodeURIComponent(request.key)}`, { token, cache: "no-store" });
+    } catch { /* Keep the original request key when its outcome is unknown. */ }
+    const state = result.state;
+    if (state) {
+      continuationRequestRef.current = null;
+      completionRequestRef.current = null;
+      setUnconfirmedNode(null);
+      if (state.completedSlug) {
+        router.replace(`/story/${state.completedSlug}`);
+      } else {
+        applyInteractiveState(state);
+        setFlipPage(0);
+        bookRef.current?.pageFlip?.()?.turnToPage?.(0);
+        bookSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        toast.success("Your next pages are ready.");
+      }
+    } else {
+      setRequestStatus(result.status);
+      setUnconfirmedNode(previousNodeId);
+    }
+  };
+
+  const retryGeneration = async () => {
+    if (actionBusyRef.current || !retryPolicy(requestStatus).allowed) return;
+    const ref = requestKindRef.current === "complete" ? completionRequestRef : continuationRequestRef;
+    if (!ref.current) return;
+    if (retryPolicy(requestStatus).newKey) ref.current = { ...ref.current, key: createIdempotencyKey() };
+    if (requestKindRef.current === "complete") await completeStoryWithResolution(ref.current.choice, true);
+    else await onPickChoice(ref.current.choice, true);
   };
 
   const onEndStory = async () => {
@@ -524,7 +576,7 @@ const InteractiveStoryPage = () => {
             </span>
             <button
               onClick={onEndStory}
-              disabled={generatingNext || story?.status === "completed"}
+              disabled={generatingNext || Boolean(unconfirmedNode) || story?.status === "completed"}
               className="tc-btn-ghost px-4 py-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               End Story
@@ -587,6 +639,22 @@ const InteractiveStoryPage = () => {
           </div>
         </div>
 
+        {unconfirmedNode && <div role="status" className="mt-6 rounded-lg border border-[#d8c69e]/30 p-4 text-sm text-[#f1eadb]">
+          <p>{requestStatus === "failed" || requestStatus === "cancelled"
+            ? "We couldn't generate your new pages. Your existing pages are saved. You can retry this choice."
+            : !retryPolicy(requestStatus).allowed
+            ? "Your request is being processed. Check progress in a moment; you don't need to submit this choice again."
+            : "We couldn't confirm your new pages. Your existing pages are saved. Check progress or retry this request."}</p>
+          <button disabled={generatingNext} className="tc-btn-ghost mt-3 px-4 py-2" onClick={async () => {
+            if (actionBusyRef.current) return;
+            actionBusyRef.current = true;
+            setGeneratingNext(true);
+            try { await reconcileGeneration(null, unconfirmedNode); }
+            finally { actionBusyRef.current = false; setGeneratingNext(false); }
+          }}>Check progress</button>
+          {retryPolicy(requestStatus).allowed && <button disabled={generatingNext} className="tc-btn-ghost ml-3 mt-3 px-4 py-2" onClick={() => void retryGeneration()}>Retry</button>}
+        </div>}
+
         <div ref={treeSectionRef} className="mt-8 tc-glass-panel-soft p-5">
           <h3 className="tc-title-gradient text-2xl font-bold">Story Tree</h3>
           <p className="mt-2 text-sm text-[#c3cbd4]/70">
@@ -636,6 +704,7 @@ const InteractiveStoryPage = () => {
                   node.status === "available" &&
                   node.originNodeId === activeNode?.nodeId &&
                   !generatingNext &&
+                  !unconfirmedNode &&
                   story?.status !== "completed";
 
                 return (

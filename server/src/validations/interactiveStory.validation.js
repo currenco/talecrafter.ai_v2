@@ -26,6 +26,13 @@ export const interactiveStoryIdParamSchema = z.object({
   query: z.object({}).optional(),
 });
 
+export const interactiveRequestStatusSchema = z.object({
+  params: z.object({
+    storyId: z.string().uuid(),
+    key: z.string().regex(/^[a-zA-Z0-9._:-]{8,255}$/),
+  }),
+});
+
 export const chooseInteractiveStoryPathSchema = z.object({
   body: z
     .object({

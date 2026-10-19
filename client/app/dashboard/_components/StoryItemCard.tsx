@@ -1,4 +1,5 @@
 "use client";
+import { userErrorMessage } from "@/lib/user-messages";
 import { Card, CardFooter } from "@nextui-org/card";
 import { Button } from "@nextui-org/react";
 import Link from "next/link";
@@ -8,7 +9,6 @@ import { useState } from "react";
 import { getAccessToken } from "@/lib/neon-auth/client";
 import {
   apiFetch,
-  ApiClientError,
   createIdempotencyKey,
 } from "@/lib/api-client";
 import { waitForStoryPublication } from "@/lib/story-generation";
@@ -82,8 +82,8 @@ const StoryItemCard = ({
       toast.success("Story deleted successfully");
       removeStoryFromCachedLists(story.storyId);
       onDeleteSuccess?.(story.storyId);
-    } catch {
-      toast.error("Failed to delete story");
+    } catch (error) {
+      toast.error(userErrorMessage(error, "We couldn't delete this story. Please try again."));
     }
   };
 
@@ -100,14 +100,10 @@ const StoryItemCard = ({
         storyId: story.storyId,
         token,
       });
-      toast.success("Story images completed");
+      toast.success("Your illustrated story is ready!");
       router.push(`/story/${published.slug}`);
     } catch (error) {
-      toast.error(
-        error instanceof ApiClientError
-          ? error.message
-          : "Unable to resume story generation",
-      );
+      toast.error(userErrorMessage(error, "We couldn't resume your story. Your draft is still available in My Stories."));
     } finally {
       setResuming(false);
     }
@@ -147,7 +143,7 @@ const StoryItemCard = ({
           {isDraft && (
             <p className="text-xs text-[#c3cbd4]/70">
               {isInteractive
-                ? `Draft - ${story.output?.chapters?.length ?? 0} pages`
+                ? `Draft - ${story.totalPages ?? story.output?.chapters?.length ?? 0} pages`
                 : `Draft - ${completedImages}/${totalImages} images`}
             </p>
           )}

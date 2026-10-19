@@ -1,6 +1,7 @@
 "use client";
 import { Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import { UserDetailContext } from "@/app/_context/UserDetailContext";
 import { getAccessToken } from "@/lib/neon-auth/client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -21,9 +22,14 @@ type ExploreCache = {
   scrollY: number;
 };
 
-const ExploreMore = ({ genre, onGenreChange, userId }: { genre: string; onGenreChange: (genre: string) => void; userId?: string }) => {
-  const cacheKey = `${CACHE_KEY}:${userId ?? "guest"}:${genre.toLowerCase()}`;
+const ExploreMore = ({ genre, artStyle, onFilterChange, userId }: { genre: string; artStyle: string; onFilterChange: (filter: "genre" | "artStyle", value: string) => void; userId?: string }) => {
+  const cacheKey = `${CACHE_KEY}:${JSON.stringify([userId ?? "guest", genre.toLowerCase(), artStyle.toLowerCase()])}`;
   const [genres, setGenres] = useState<string[]>([]);
+  const [artStyles, setArtStyles] = useState<string[]>([]);
+  const returnQuery = new URLSearchParams();
+  if (genre) returnQuery.set("genre", genre);
+  if (artStyle) returnQuery.set("artStyle", artStyle);
+  const returnPath = returnQuery.size ? `/explore?${returnQuery}` : "/explore";
   const [error, setError] = useState("");
   const activeRef = useRef(true);
   const [loading, setLoading] = useState<boolean>(false);
@@ -46,6 +52,9 @@ const ExploreMore = ({ genre, onGenreChange, userId }: { genre: string; onGenreC
     if (userId) void apiFetch<string[]>("/stories/genres")
       .then(result => { if (activeRef.current) setGenres(result); })
       .catch(() => { /* The selected genre remains usable if options cannot load. */ });
+    if (userId) void apiFetch<string[]>("/stories/art-styles")
+      .then(result => { if (activeRef.current) setArtStyles(result); })
+      .catch(() => { /* Keep the selected style usable if options cannot load. */ });
     return () => { activeRef.current = false; };
   }, [userId]);
 
@@ -80,6 +89,7 @@ const ExploreMore = ({ genre, onGenreChange, userId }: { genre: string; onGenreC
     try {
       const query = new URLSearchParams({ limit: String(userId ? PAGE_SIZE : 8), offset: String(newOffset) });
       if (genre) query.set("genre", genre);
+      if (artStyle) query.set("artStyle", artStyle);
       const token = userId ? await getAccessToken() : undefined;
       const result = await apiFetch<StoryItem[]>(`/stories?${query}`, { token });
       if (!activeRef.current) return;
@@ -112,7 +122,7 @@ const ExploreMore = ({ genre, onGenreChange, userId }: { genre: string; onGenreC
       loadingRef.current = false;
       if (activeRef.current) setLoading(false);
     }
-  }, [genre, userId]);
+  }, [genre, artStyle, userId]);
 
   useEffect(() => {
     loadingRef.current = loading;
@@ -221,14 +231,31 @@ const ExploreMore = ({ genre, onGenreChange, userId }: { genre: string; onGenreC
 
   return (
       <div>
-        {userId && <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-[#f1eadb]">
+        {userId && <div className="mt-6 grid max-w-2xl grid-cols-1 gap-3 text-sm text-[#f1eadb] sm:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-2">
           <label htmlFor="explore-genre" className="font-medium">Genre</label>
-          <select id="explore-genre" value={genre} onChange={event => onGenreChange(event.target.value)}
-            className="min-h-11 w-full max-w-xs rounded-md border border-white/25 bg-[#162331] px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300">
+          <div className="relative">
+          <select id="explore-genre" value={genre} onChange={event => onFilterChange("genre", event.target.value)}
+            className="min-h-11 w-full min-w-0 appearance-none rounded-md border border-white/25 bg-[#162331] py-2 pl-3 pr-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300">
             <option value="">All genres</option>
             {genre && !genres.includes(genre) && <option value={genre}>{genre}</option>}
             {genres.map(value => <option key={value} value={value}>{value}</option>)}
           </select>
+          <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+          </div>
+          </div>
+          <div className="flex min-w-0 flex-col gap-2">
+            <label htmlFor="explore-art-style" className="font-medium">Art style</label>
+            <div className="relative">
+            <select id="explore-art-style" value={artStyle} onChange={event => onFilterChange("artStyle", event.target.value)}
+              className="min-h-11 w-full min-w-0 appearance-none rounded-md border border-white/25 bg-[#162331] py-2 pl-3 pr-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300">
+              <option value="">All art styles</option>
+              {artStyle && !artStyles.includes(artStyle) && <option value={artStyle}>{artStyle}</option>}
+              {artStyles.map(value => <option key={value} value={value}>{value}</option>)}
+            </select>
+            <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+            </div>
+          </div>
         </div>}
 
         <MotionDiv
@@ -264,7 +291,7 @@ const ExploreMore = ({ genre, onGenreChange, userId }: { genre: string; onGenreC
           <div className="mt-8 border-t border-white/15 py-6 text-center text-[#f1eadb]">
             <p className="text-lg font-semibold">Keep exploring stories</p>
             <p className="mt-2 text-sm text-[#c3cbd4]">Sign in to browse the full library.</p>
-            <Link href={`/sign-in?redirect=${encodeURIComponent(genre ? `/explore?${new URLSearchParams({ genre })}` : "/explore")}`} className="mt-4 inline-flex min-h-11 items-center rounded-md bg-emerald-200 px-4 py-2 text-sm font-semibold leading-5 text-emerald-950 sm:px-5 sm:py-2.5">Sign in to explore more</Link>
+            <Link href={`/sign-in?redirect=${encodeURIComponent(returnPath)}`} className="mt-4 inline-flex min-h-11 items-center rounded-md bg-emerald-200 px-4 py-2 text-sm font-semibold leading-5 text-emerald-950 sm:px-5 sm:py-2.5">Sign in to explore more</Link>
           </div>
         )}
 
@@ -279,7 +306,7 @@ const ExploreMore = ({ genre, onGenreChange, userId }: { genre: string; onGenreC
         {!error && !isInitialStoriesLoading && storyList.length === 0 && (
           <div className="mt-10 w-full text-center">
             <p className="text-[#c3cbd4]/70">
-              {genre ? `No stories found for ${genre}.` : "No stories found yet."}
+              {genre || artStyle ? "No stories match these filters. Try another genre or art style." : "No stories found yet."}
             </p>
           </div>
         )}
@@ -293,16 +320,18 @@ function ExploreQuery() {
   const router = useRouter();
   const pathname = usePathname();
   const genre = searchParams.get("genre")?.trim() ?? "";
-  const changeGenre = (value: string) => {
+  const artStyle = searchParams.get("artStyle")?.trim() ?? "";
+  const changeFilter = (filter: "genre" | "artStyle", value: string) => {
     const query = new URLSearchParams(searchParams.toString());
-    if (value) query.set("genre", value);
-    else query.delete("genre");
+    if (value) query.set(filter, value);
+    else query.delete(filter);
     query.delete("offset");
+    query.delete("page");
     router.push(query.size ? `${pathname}?${query}` : pathname, { scroll: false });
   };
   if (!isAuthLoaded) return <CustomLoader isLoading count={8} />;
   const userId = isSignedIn ? authUser?.id : undefined;
-  return <ExploreMore key={`${userId ?? "guest"}:${genre}`} genre={genre} onGenreChange={changeGenre} userId={userId} />;
+  return <ExploreMore key={JSON.stringify([userId ?? "guest", genre, artStyle])} genre={genre} artStyle={artStyle} onFilterChange={changeFilter} userId={userId} />;
 }
 
 export default function ExploreClient() {

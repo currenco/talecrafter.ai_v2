@@ -1,4 +1,8 @@
+"use client";
+
 import Link from 'next/link'
+import { authHref } from '@/lib/auth-navigation'
+import { useAuthDestination } from '@/lib/use-auth-destination'
 
 export default function AuthShell({
   title,
@@ -13,6 +17,7 @@ export default function AuthShell({
   alternateHref: string
   alternateLabel: string
 }) {
+  const destination = useAuthDestination()
   return (
     <main className="relative flex min-h-[calc(100dvh-9rem)] items-center justify-center bg-[#0b1522] px-4 py-4 text-[#c3cbd4]">
       <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_15%,rgba(67,91,117,0.5),transparent_55%)]" />
@@ -23,7 +28,7 @@ export default function AuthShell({
         <div className="mt-4">{children}</div>
         <Link
           className="mt-4 block text-center text-sm font-medium text-[#d8c69e] hover:text-[#f1eadb]"
-          href={alternateHref}
+          href={authHref(alternateHref, destination)}
         >
           {alternateLabel}
         </Link>

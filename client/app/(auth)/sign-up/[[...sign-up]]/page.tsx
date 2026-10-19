@@ -5,9 +5,13 @@ import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/neon-auth/client";
 import AuthShell, { authButtonClass, authInputClass } from "../../AuthShell";
 import SocialAuthOptions from "../../SocialAuthOptions";
+import { authHref, returnPathFromSearch } from "@/lib/auth-navigation";
+import { useAuthDestination } from "@/lib/use-auth-destination";
+import { userErrorMessage } from "@/lib/user-messages";
 
 export default function SignUpPage() {
   const router = useRouter();
+  const destination = useAuthDestination();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,7 +26,7 @@ export default function SignUpPage() {
     try {
       const result = await authClient.signUp.email({ name, email, password });
       if (result.error) {
-        setError(result.error.message ?? "Sign up failed");
+        setError(userErrorMessage(result.error, "We couldn't create your account. Check your details and try again."));
         return;
       }
 
@@ -31,15 +35,13 @@ export default function SignUpPage() {
         type: "email-verification",
       });
       if (verification.error) {
-        setError(
-          verification.error.message ?? "Unable to send verification code",
-        );
+        router.push(`${authHref("/verify-email", returnPathFromSearch(window.location.search))}&email=${encodeURIComponent(email)}&send=failed`);
         return;
       }
 
-      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+      router.push(`${authHref("/verify-email", returnPathFromSearch(window.location.search))}&email=${encodeURIComponent(email)}`);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Sign up failed");
+      setError(userErrorMessage(caught, "We couldn't finish creating your account. Try signing in before creating another account."));
     } finally {
       setPending(false);
     }
@@ -48,7 +50,7 @@ export default function SignUpPage() {
   return (
     <AuthShell
       title="Create your account"
-      subtitle="Explore stories and start creating with Free trial."
+      subtitle={destination.startsWith("/pricing") ? "Create an account to continue with Creator. You'll review the subscription before paying." : "Save your stories and start creating. Choose Google or GitHub, or use your email."}
       alternateHref="/sign-in"
       alternateLabel="Already have an account? Sign in"
     >

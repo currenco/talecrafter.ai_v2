@@ -10,6 +10,7 @@ import {
   listCurrentUserStories,
   listPublicStories,
   listPublicGenres,
+  listPublicArtStyles,
   listRelatedStories,
   resumeClassicStory,
 } from '../services/story.service.js';
@@ -56,6 +57,11 @@ export const getPublicGenres = asyncHandler(async (_req, res) => {
   return res.json(new ApiResponse(200, genres, 'Genres fetched'));
 });
 
+export const getPublicArtStyles = asyncHandler(async (_req, res) => {
+  const styles = await listPublicArtStyles();
+  return res.json(new ApiResponse(200, styles, 'Art styles fetched'));
+});
+
 export const getSitemapStories = asyncHandler(async (req, res) => {
   const entries = await listSitemapStories(req.validated.query.page);
   res.set('Cache-Control', 'public, max-age=300');
@@ -63,6 +69,7 @@ export const getSitemapStories = asyncHandler(async (req, res) => {
 });
 
 export const getCurrentUserStories = asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
   const stories = await listCurrentUserStories({
     userId: req.auth.userId,
     ...req.validated.query,

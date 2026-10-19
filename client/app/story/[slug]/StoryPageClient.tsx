@@ -229,7 +229,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
       const sanitizedTitle = title.replace(/[^\w\s-]/g, "").trim() || "story";
       const pdfRoot = document.getElementById("story-pdf-export");
       if (!pdfRoot) {
-        toast.error("PDF content is not ready yet.");
+        toast.error("Your story is still loading. Wait until its pages appear, then try Download PDF again.");
         return;
       }
 
@@ -295,14 +295,14 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
 
       if (failedImages > 0) {
         toast.error(
-          `${failedImages} image(s) are still loading. Please wait a few seconds and try PDF download again.`
+          `We couldn't load ${failedImages === 1 ? "one illustration" : `${failedImages} illustrations`} for your PDF. Please try Download PDF again in a moment.`
         );
         return;
       }
 
       const sections = Array.from(exportRoot.querySelectorAll("section"));
       if (!sections.length) {
-        toast.error("No pages found to export.");
+        toast.error("This story has no pages ready to export yet. Open it again from My Stories.");
         return;
       }
 

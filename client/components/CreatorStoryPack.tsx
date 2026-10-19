@@ -6,6 +6,7 @@ import { UserDetailContext } from "@/app/_context/UserDetailContext";
 import { apiFetch } from "@/lib/api-client";
 import { getAccessToken } from "@/lib/neon-auth/client";
 import type { StoryChapter } from "@/types/story";
+import { userErrorMessage } from "@/lib/user-messages";
 
 export default function CreatorStoryPack({ storyId }: { storyId: string | null }) {
   const { userDetail } = useContext(UserDetailContext);
@@ -17,13 +18,13 @@ export default function CreatorStoryPack({ storyId }: { storyId: string | null }
     setError("");
     try {
       setPack(await apiFetch(`/stories/${encodeURIComponent(storyId ?? "")}/creator-pack`, { token: await getAccessToken() }));
-    } catch (error) { setError(error instanceof Error ? error.message : "Unable to load story pack."); }
+    } catch (error) { setError(userErrorMessage(error, "We couldn't load the characters and scene prompts. Please try again.")); }
     finally { setPending(false); }
   };
   return (
     <section className="mx-auto my-10 max-w-5xl border-t border-white/20 px-5 py-8 text-[#f1eadb]">
       <h2 className="text-2xl font-semibold">Character bible and scene prompts</h2>
-      {!userDetail?.canExport ? <Link className="mt-4 inline-block underline" href="/pricing">Included with Creator</Link> :
+      {!userDetail?.canExport ? <Link className="mt-4 inline-block underline" href="/pricing#creator">View Creator plan</Link> :
         <button onClick={() => void load()} disabled={pending || !storyId} className="mt-4 rounded-md border border-white/30 px-4 py-3 disabled:opacity-50">{pending ? "Loading..." : "Open story pack"}</button>}
       {error && <p role="alert" className="mt-3 text-red-300">{error}</p>}
       {pack && userDetail?.canExport && <div className="mt-6 space-y-8">

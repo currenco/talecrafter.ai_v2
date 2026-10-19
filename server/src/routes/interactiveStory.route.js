@@ -6,6 +6,7 @@ import {
   deleteInteractiveStory,
   getCurrentUserInteractiveStories,
   getInteractiveStory,
+  getInteractiveRequest,
 } from '../controllers/interactiveStory.controller.js';
 import { requireAuth } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
@@ -15,11 +16,13 @@ import {
   createInteractiveStorySchema,
   interactiveStoryIdParamSchema,
   interactiveStoryListSchema,
+  interactiveRequestStatusSchema,
 } from '../validations/interactiveStory.validation.js';
 
 const router = Router();
 
 router.use(requireAuth);
+router.get('/:storyId/requests/:key', validate(interactiveRequestStatusSchema), getInteractiveRequest);
 
 router.post(
   '/',

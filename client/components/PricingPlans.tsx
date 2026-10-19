@@ -1,6 +1,6 @@
-import Link from "next/link";
-import { ArrowRight, Check, Video } from "lucide-react";
+import { Check, Video } from "lucide-react";
 import CreatorCheckout from "./CreatorCheckout";
+import TrialPlanAction from "./TrialPlanAction";
 
 const plans = [
   {
@@ -37,7 +37,7 @@ export default function PricingPlans() {
     <div className="mx-auto max-w-4xl text-[#f1eadb] [letter-spacing:0]">
       <div className="grid items-stretch gap-6 md:grid-cols-2">
         {plans.map((plan) => (
-          <article key={plan.name} className={`flex flex-col rounded-lg border p-6 sm:p-8 ${plan.name === "Creator" ? "border-emerald-400/50 bg-emerald-400/[0.06]" : "border-white/20 bg-white/[0.04]"}`}>
+          <article id={plan.name === "Creator" ? "creator" : "free-trial"} key={plan.name} className={`scroll-mt-24 flex flex-col rounded-lg border p-6 sm:p-8 ${plan.name === "Creator" ? "border-emerald-400/50 bg-emerald-400/[0.06]" : "border-white/20 bg-white/[0.04]"}`}>
             <h3 className="text-2xl font-semibold">{plan.name}</h3>
             <p className="mt-3 min-h-12 text-sm leading-6 text-[#c3cbd4]">{plan.description}</p>
             <p className="mt-6 flex flex-wrap items-baseline gap-2">
@@ -55,9 +55,7 @@ export default function PricingPlans() {
             {plan.note && <p className="mb-6 text-xs leading-5 text-[#c3cbd4]">{plan.note}</p>}
             <div className="mt-auto">
               {plan.name === "Free trial" ? (
-                <Link href="/explore" className="flex min-h-12 items-center justify-center gap-2 rounded-md border border-white/30 px-4 py-3 text-sm font-semibold hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
-                  Explore public stories <ArrowRight size={16} aria-hidden="true" />
-                </Link>
+                <TrialPlanAction />
               ) : (
                 <CreatorCheckout />
               )}

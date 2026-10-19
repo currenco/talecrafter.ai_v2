@@ -5,6 +5,7 @@ import {
   getCurrentUserStories,
   getPublicStories,
   getPublicGenres,
+  getPublicArtStyles,
   getSitemapStories,
   getRelatedStoryList,
   getStoryIdDetail,
@@ -28,6 +29,7 @@ const router = Router();
 
 router.get('/', validate(publicStoriesQuerySchema), getPublicStories);
 router.get('/genres', getPublicGenres);
+router.get('/art-styles', getPublicArtStyles);
 router.get('/sitemap', validate(sitemapQuerySchema), getSitemapStories);
 router.post('/', requireAuth, validate(createStorySchema), createStory);
 router.get(

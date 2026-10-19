@@ -1,4 +1,5 @@
 "use client";
+import { userErrorMessage } from "@/lib/user-messages";
 
 import { getAccessToken } from "@/lib/neon-auth/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -76,6 +77,8 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState<UserType[]>([]);
   const [loadingStories, setLoadingStories] = useState(true);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [storyError, setStoryError] = useState("");
+  const [userError, setUserError] = useState("");
   const [storyTotal, setStoryTotal] = useState(0);
   const [userTotal, setUserTotal] = useState(0);
   const [storyHasMore, setStoryHasMore] = useState(false);
@@ -98,6 +101,7 @@ const AdminDashboard = () => {
 
       loadingStoriesRef.current = true;
       setLoadingStories(true);
+      setStoryError("");
       try {
         const token = await getAuthToken();
         const result = await apiFetch<AdminStoryPage>(
@@ -114,9 +118,9 @@ const AdminDashboard = () => {
         setStoryTotal(result.pagination.totalCount);
         setStoryHasMore(result.pagination.hasMore);
         setStoryTypes(result.summary.storyTypes);
-      } catch {
+      } catch (error) {
         setStoryHasMore(false);
-        toast.error("Failed to load stories");
+        setStoryError(userErrorMessage(error, "We couldn't load the story list. Please try again."));
       } finally {
         loadingStoriesRef.current = false;
         setLoadingStories(false);
@@ -131,6 +135,7 @@ const AdminDashboard = () => {
 
       loadingUsersRef.current = true;
       setLoadingUsers(true);
+      setUserError("");
       try {
         const token = await getAuthToken();
         const result = await apiFetch<AdminUserPage>(
@@ -147,9 +152,9 @@ const AdminDashboard = () => {
         setUserTotal(result.pagination.totalCount);
         setUserHasMore(result.pagination.hasMore);
         setTotalCreators(result.summary.totalCreators);
-      } catch {
+      } catch (error) {
         setUserHasMore(false);
-        toast.error("Failed to load users");
+        setUserError(userErrorMessage(error, "We couldn't load the account list. Please try again."));
       } finally {
         loadingUsersRef.current = false;
         setLoadingUsers(false);
@@ -209,8 +214,8 @@ const AdminDashboard = () => {
       setStories((prev) => prev.filter((s) => s.storyId !== storyId));
       setStoryTotal((previous) => Math.max(0, previous - 1));
       toast.success("Story deleted successfully");
-    } catch {
-      toast.error("Failed to delete story");
+    } catch (error) {
+      toast.error(userErrorMessage(error, "We couldn't delete this story. Please try again."));
     }
   };
 
@@ -226,8 +231,8 @@ const AdminDashboard = () => {
       setUserTotal((previous) => Math.max(0, previous - 1));
       void fetchUsers();
       toast.success("User deleted successfully");
-    } catch {
-      toast.error("Failed to delete user");
+    } catch (error) {
+      toast.error(userErrorMessage(error, "We couldn't delete this account. Please try again."));
     }
   };
 
@@ -384,14 +389,20 @@ const AdminDashboard = () => {
                   {loadingStories && <SkeletonRows columns={6} count={stories.length ? 3 : 6} />}
                 </tbody>
               </table>
-              {!loadingStories && filteredStories.length === 0 && (
+              {storyError && (
+                <div role="alert" className="mt-4 text-center text-sm text-[#c3cbd4]">
+                  <p>{storyError}</p>
+                  <button className="mt-3 underline underline-offset-4" onClick={() => void fetchStories(stories.length)}>Try again</button>
+                </div>
+              )}
+              {!loadingStories && !storyError && filteredStories.length === 0 && (
                 <p className="mt-4 text-center text-[#c3cbd4]/70">
                   No stories found.
                 </p>
               )}
             </div>
             <div className="mt-5 flex flex-col items-center gap-3">
-              {(!loadingStories || stories.length > 0) && <p className="text-sm text-[#c3cbd4]/60">
+              {(!loadingStories || stories.length > 0) && !storyError && <p className="text-sm text-[#c3cbd4]/60">
                 Showing {stories.length} of {storyTotal} stories
               </p>}
               <div ref={storyTriggerRef} className="h-6" aria-hidden="true" />
@@ -444,14 +455,20 @@ const AdminDashboard = () => {
                   {loadingUsers && <SkeletonRows columns={4} count={users.length ? 3 : 6} />}
                 </tbody>
               </table>
-              {!loadingUsers && filteredUsers.length === 0 && (
+              {userError && (
+                <div role="alert" className="mt-4 text-center text-sm text-[#c3cbd4]">
+                  <p>{userError}</p>
+                  <button className="mt-3 underline underline-offset-4" onClick={() => void fetchUsers(users.length)}>Try again</button>
+                </div>
+              )}
+              {!loadingUsers && !userError && filteredUsers.length === 0 && (
                 <p className="mt-4 text-center text-[#c3cbd4]/70">
                   No users found.
                 </p>
               )}
             </div>
             <div className="mt-5 flex flex-col items-center gap-3">
-              {(!loadingUsers || users.length > 0) && <p className="text-sm text-[#c3cbd4]/60">
+              {(!loadingUsers || users.length > 0) && !userError && <p className="text-sm text-[#c3cbd4]/60">
                 Showing {users.length} of {userTotal} users
               </p>}
               <div ref={userTriggerRef} className="h-6" aria-hidden="true" />

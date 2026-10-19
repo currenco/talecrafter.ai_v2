@@ -3,6 +3,7 @@ import { and, desc, eq, like, ne, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   GenerationJobs,
+  InteractiveStories,
   Stories,
   StoryVersions,
   UserProfiles,
@@ -48,6 +49,7 @@ const storySelection = {
   status: Stories.status,
   coverImage: Stories.coverImage,
   output: StoryVersions.output,
+  totalPages: InteractiveStories.totalPages,
   userName: UserProfiles.userName,
   userImage: UserProfiles.userImage,
   userEmail: UserProfiles.userEmail,
@@ -60,6 +62,7 @@ const selectStories = () =>
     .select(storySelection)
     .from(Stories)
     .innerJoin(UserProfiles, eq(UserProfiles.id, Stories.ownerId))
+    .leftJoin(InteractiveStories, eq(InteractiveStories.storyId, Stories.id))
     .innerJoin(
       StoryVersions,
       and(eq(StoryVersions.storyId, Stories.id), eq(StoryVersions.version, 1))
@@ -151,10 +154,21 @@ export const listPublicGenres = async () => {
   return rows.map(row => row.genre);
 };
 
+export const listPublicArtStyles = async () => {
+  const artStyle = sql`trim(${Stories.imageStyle})`;
+  const rows = await db
+    .selectDistinct({ artStyle })
+    .from(Stories)
+    .where(and(eq(Stories.status, 'published'), sql`${artStyle} <> ''`))
+    .orderBy(artStyle);
+  return rows.map(row => row.artStyle);
+};
+
 export const listPublicStories = async ({
   limit,
   offset,
   genre,
+  artStyle,
   preview = false,
 }) => {
   const start = normalizeOffset(offset);
@@ -168,6 +182,9 @@ export const listPublicStories = async ({
         eq(Stories.status, 'published'),
         genre
           ? sql`lower(trim(${Stories.storyType})) = lower(${genre})`
+          : undefined,
+        artStyle
+          ? sql`lower(trim(${Stories.imageStyle})) = lower(${artStyle})`
           : undefined
       )
     )

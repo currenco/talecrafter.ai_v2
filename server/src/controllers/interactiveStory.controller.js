@@ -7,6 +7,7 @@ import {
   createInteractiveStarter,
   deleteCurrentUserInteractiveStory,
   getCurrentUserInteractiveStory,
+  getInteractiveRequestStatus,
   listCurrentUserInteractiveStories,
 } from '../services/interactiveStory.service.js';
 
@@ -34,6 +35,12 @@ export const getCurrentUserInteractiveStories = asyncHandler(
       .json(new ApiResponse(200, stories, 'Interactive stories fetched'));
   }
 );
+
+export const getInteractiveRequest = asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  const result = await getInteractiveRequestStatus({ userId: req.auth.userId, storyId: req.params.storyId, key: req.params.key });
+  return res.json(new ApiResponse(200, result));
+});
 
 export const getInteractiveStory = asyncHandler(async (req, res) => {
   const story = await getCurrentUserInteractiveStory({

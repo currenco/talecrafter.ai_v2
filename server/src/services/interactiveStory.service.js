@@ -3,6 +3,7 @@ import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   InteractiveStories,
+  GenerationJobs,
   InteractiveStoryNodes,
   Stories,
   StoryVersions,
@@ -466,6 +467,17 @@ export const deleteCurrentUserInteractiveStory = async ({
   return deleted[0] ?? { storyId: story.storyId };
 };
 
+export const getInteractiveRequestStatus = async ({ userId, storyId, key }) => {
+  if (!/^[a-zA-Z0-9._:-]{8,255}$/.test(key ?? '')) throw new ApiError(400, 'Invalid request key');
+  const { user, story } = await ensureOwnedStory({ userId, storyId });
+  const [job] = await db.select({ status: GenerationJobs.status })
+    .from(GenerationJobs)
+    .where(and(eq(GenerationJobs.ownerId, user.id), eq(GenerationJobs.storyId, story.id), eq(GenerationJobs.idempotencyKey, key)))
+    .limit(1);
+  const status = job?.status ?? 'not_found';
+  return { status, ...(status === 'succeeded' ? { state: await getInteractiveState(story) } : {}) };
+};
+
 export const completeInteractiveStory = async ({
   userId,
   idempotencyKey,
@@ -498,6 +510,7 @@ export const completeInteractiveStory = async ({
   const jobId = reservation.job.id;
   const startedAt = Date.now();
   let uploads = [];
+  let committed = false;
 
   try {
     const pollinationsAccessToken = await getPollinationsAccessTokenForProfile(
@@ -604,6 +617,7 @@ export const completeInteractiveStory = async ({
       }),
     ]);
 
+    committed = true;
     const refreshedNodes = await listStoryNodes(story.id, story.storyId);
 
     return {
@@ -618,6 +632,7 @@ export const completeInteractiveStory = async ({
       nodes: refreshedNodes,
     };
   } catch (error) {
+    if (committed) throw error;
     await Promise.allSettled([discardUploadedAssets(uploads)]);
     await failGenerationJob({ jobId, error, startedAt });
     throw error;
@@ -660,6 +675,7 @@ export const continueInteractiveStory = async ({
   const jobId = reservation.job.id;
   const startedAt = Date.now();
   let uploads = [];
+  let committed = false;
 
   try {
     const pollinationsAccessToken = await getPollinationsAccessTokenForProfile(
@@ -731,6 +747,10 @@ export const continueInteractiveStory = async ({
           updatedAt: new Date(),
         })
         .where(eq(InteractiveStories.storyId, story.id)),
+      db
+        .update(Stories)
+        .set({ updatedAt: new Date() })
+        .where(eq(Stories.id, story.id)),
       buildStoryAssetsInsert({
         ownerId: story.ownerId,
         storyId: story.id,
@@ -744,13 +764,15 @@ export const continueInteractiveStory = async ({
       }),
     ]);
 
+    committed = true;
     const refreshedStory = {
       ...story,
       currentNodeId: nextNodeId,
       totalPages: linearPages.length + persisted.pages.length,
     };
-    return getInteractiveState(refreshedStory);
+    return await getInteractiveState(refreshedStory);
   } catch (error) {
+    if (committed) throw error;
     await Promise.allSettled([discardUploadedAssets(uploads)]);
     await failGenerationJob({ jobId, error, startedAt });
     throw error;

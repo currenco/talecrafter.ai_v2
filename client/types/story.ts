@@ -24,6 +24,7 @@ export type StoryItem = {
   status?: "draft" | "published" | "archived";
   coverImage?: string | null;
   output?: StoryOutput | null;
+  totalPages?: number | null;
   userName?: string | null;
   userImage?: string | null;
   userEmail: string;

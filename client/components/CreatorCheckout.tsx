@@ -6,6 +6,9 @@ import { useContext, useEffect, useState } from "react";
 import { UserDetailContext, type UserDetail } from "@/app/_context/UserDetailContext";
 import { apiFetch } from "@/lib/api-client";
 import { getAccessToken } from "@/lib/neon-auth/client";
+import { authHref } from "@/lib/auth-navigation";
+import { userErrorMessage } from "@/lib/user-messages";
+import { legalContactEmail } from "@/lib/legal/policies";
 
 type SubscriptionResult = { user: UserDetail; checkoutEnabled: boolean };
 type PaymentResult = {
@@ -36,26 +39,29 @@ export default function CreatorCheckout() {
   const [busy, setBusy] = useState(false);
   const [consent, setConsent] = useState(false);
   const [message, setMessage] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reload, setReload] = useState(0);
   useEffect(() => {
     let ignore = false;
     setLoaded(false);
+    setLoadFailed(false);
     setEnabled(false);
     setMessage("");
     setConsent(false);
     if (!isSignedIn) {
       void apiFetch<{ checkoutEnabled: boolean }>("/payments/availability")
         .then(result => { if (!ignore) { setEnabled(result.checkoutEnabled); setLoaded(true); } })
-        .catch(() => { if (!ignore) { setMessage("Unable to load plan availability. Please refresh."); setLoaded(true); } });
+        .catch(() => { if (!ignore) { setLoadFailed(true); setMessage("We couldn't check checkout availability. Please try again."); setLoaded(true); } });
       return () => { ignore = true; };
     }
     void getAccessToken().then(token => apiFetch<SubscriptionResult>("/payments/subscription", { token }))
       .then(result => {
         if (!ignore) { setEnabled(result.checkoutEnabled); setUserDetail(result.user); setLoaded(true); }
       }).catch(() => {
-        if (!ignore) { setMessage("Unable to load subscription status. Refresh to retry."); setLoaded(true); }
+        if (!ignore) { setLoadFailed(true); setMessage("We couldn't check your subscription. Please try again before making a payment."); setLoaded(true); }
       });
     return () => { ignore = true; };
-  }, [isSignedIn, authUser?.id, setUserDetail]);
+  }, [isSignedIn, authUser?.id, setUserDetail, reload]);
 
   const update = async (action: "refresh" | "cancel") => {
     if (action === "cancel" && !window.confirm("Cancel automatic renewal? Creator stays available until your paid period ends.")) return;
@@ -67,8 +73,8 @@ export default function CreatorCheckout() {
       setUserDetail(result.user);
       setEnabled(result.checkoutEnabled);
       setMessage(action === "cancel" ? "Automatic renewal cancelled. Your paid access remains until the end of the billing period." :
-        result.user.plan === "creator" ? "Creator is active." : "No active paid period yet. Payment confirmation may still be pending.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to update subscription."); }
+        result.user.plan === "creator" ? "You're on Creator. You can start creating stories." : "Creator isn't active yet. If you just paid, wait a moment and check again before paying twice.");
+    } catch (error) { setMessage(userErrorMessage(error, "We couldn't update your subscription. Check its status before trying again.")); }
     finally { setBusy(false); }
   };
   const subscribe = async () => {
@@ -96,30 +102,32 @@ export default function CreatorCheckout() {
               }),
             });
             setUserDetail(result.user);
-            setMessage(result.user.plan === "creator" ? "Creator is active. Your images are included." :
-              "Subscription authorised. Access begins when the monthly payment is confirmed. Use Refresh status to check.");
-          } catch (error) { setMessage(error instanceof Error ? error.message : "Verification pending. Refresh status before attempting another payment."); }
+            setMessage(result.user.plan === "creator" ? "Welcome to Creator! You're ready to create illustrated stories." :
+              "Your subscription is set up. We're waiting for payment confirmation. Choose Check payment status before making another payment.");
+          } catch { setMessage("We couldn't confirm your payment yet. Choose Check payment status before paying again. Contact us if you've been charged and Creator still isn't active."); }
           finally { setBusy(false); }
         },
       });
-      checkout.on("payment.failed", result => {
-        setMessage(result.error?.description ?? "Payment failed. No new access has been granted.");
+      checkout.on("payment.failed", () => {
+        setMessage("Your payment wasn't completed. Check its status before retrying if your bank shows a charge; otherwise, try another payment method.");
         setBusy(false);
       });
       checkout.open();
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to start checkout."); setBusy(false); }
+    } catch (error) { setMessage(userErrorMessage(error, "We couldn't open checkout. Please try again shortly.")); setBusy(false); }
   };
   const button = "min-h-11 w-full rounded-md border border-emerald-300/40 px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50";
-  if (!isAuthLoaded) return <p role="status">Loading account...</p>;
-  if (!isSignedIn) return !loaded ? <p role="status">Loading plans...</p> : enabled ?
-    <Link className={button + " block text-center"} href="/sign-in?redirect=/pricing">Sign in to choose Creator</Link> :
-    <div className="space-y-3 text-sm"><p>{message || "Creator is coming soon. Payments are not open yet."}</p><Link href="/create-story" className={button + " block text-center"}>Start with Free trial</Link></div>;
+  if (!isAuthLoaded || !loaded) return <div className="min-h-11 animate-pulse rounded-md bg-white/10" role="status" aria-label="Checking subscription options" />;
+  if (loadFailed) return <div className="space-y-3 text-sm"><p role="alert">{message}</p><button className={button} onClick={() => setReload(value => value + 1)}>Try again</button></div>;
+  if (!isSignedIn) return enabled ?
+    <Link className={button + " block bg-emerald-200 text-center text-emerald-950 hover:bg-emerald-100"} href={authHref("/sign-up", "/pricing#creator")}>Get Creator</Link> :
+    <div className="space-y-3 text-sm"><p>Creator checkout is currently unavailable. Please check back later.</p><Link href={authHref("/sign-up", "/create-story")} className={button + " block text-center"}>Start free trial</Link></div>;
   return (
     <div className="space-y-3 text-sm">
-      {enabled && <Script src="https://checkout.razorpay.com/v1/checkout.js" onReady={() => setReady(true)} onError={() => setMessage("Checkout could not load. Refresh to retry.")} />}
+      {enabled && <Script src="https://checkout.razorpay.com/v1/checkout.js" onReady={() => setReady(true)} onError={() => setMessage("Secure checkout couldn't load. Check your connection, then reload this page.")} />}
       {userDetail?.plan === "creator" ? (
         <>
-          <p>Creator active{userDetail.paidThrough ? ` until ${new Date(userDetail.paidThrough).toLocaleDateString()}` : ""}.</p>
+          <p>{userDetail.cancelAtPeriodEnd ? "Creator access ends" : "Creator is active. Current paid period ends"}{userDetail.paidThrough ? ` on ${new Date(userDetail.paidThrough).toLocaleDateString()}` : " at the end of your billing period"}.</p>
+          <Link href="/create-story" className={button + " block bg-emerald-200 text-center text-emerald-950"}>Create a story</Link>
           <button className={button} onClick={() => void update("cancel")} disabled={busy || userDetail.cancelAtPeriodEnd}>
             {userDetail.cancelAtPeriodEnd ? "Renewal cancelled" : "Cancel automatic renewal"}
           </button>
@@ -137,11 +145,11 @@ export default function CreatorCheckout() {
             {!ready && <p role="status" className="mt-2 text-xs">Loading secure checkout...</p>}
           </div>
         </>
-      ) : <div className="space-y-3"><p>{loaded ? "Creator is coming soon. Payments are not open yet." : "Loading subscription..."}</p>{loaded && <Link href="/create-story" className={button + " block text-center"}>Start with Free trial</Link>}</div>}
-      {userDetail?.subscriptionStatus && <button className={button} disabled={busy} onClick={() => void update("refresh")}>Refresh status</button>}
+      ) : <div className="space-y-3"><p>Creator checkout is currently unavailable. Please check back later.</p><Link href="/create-story" className={button + " block text-center"}>Create a Classic story</Link></div>}
+      {userDetail?.subscriptionStatus && <button className={button} disabled={busy} onClick={() => void update("refresh")}>{busy ? "Checking..." : "Check payment status"}</button>}
       {userDetail?.subscriptionStatus && userDetail.plan !== "creator" && !["cancelled", "expired", "completed"].includes(userDetail.subscriptionStatus) &&
         <button className={button} disabled={busy || userDetail.cancelAtPeriodEnd} onClick={() => void update("cancel")}>Cancel subscription</button>}
-      {message && <p role="status" className="text-xs leading-5">{message}</p>}
+      {message && <div className="text-xs leading-5"><p role="status">{message}</p><a className="mt-2 inline-block text-emerald-200 underline" href={`mailto:${legalContactEmail}`}>Contact support</a></div>}
     </div>
   );
 }

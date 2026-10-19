@@ -6,18 +6,24 @@ import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/neon-auth/client";
 import AuthShell, { authButtonClass, authInputClass } from "../../AuthShell";
 import SocialAuthOptions from "../../SocialAuthOptions";
+import { authHref, returnPathFromSearch } from "@/lib/auth-navigation";
+import { useAuthDestination } from "@/lib/use-auth-destination";
+import { userErrorMessage } from "@/lib/user-messages";
 
 export default function SignInPage() {
   const router = useRouter();
+  const destination = useAuthDestination();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     const search = new URLSearchParams(window.location.search);
     const provider = search.get("error");
     const reason = search.get("reason");
+    if (search.get("password") === "reset") setNotice("Your password has been updated. Sign in with your new password.");
 
     if (reason === "session-expired") {
       setError("Your session expired. Sign in again to continue.");
@@ -36,19 +42,14 @@ export default function SignInPage() {
     try {
       const result = await authClient.signIn.email({ email, password });
       if (result.error) {
-        setError(result.error.message ?? "Sign in failed");
+        setError(userErrorMessage(result.error, "We couldn't sign you in. Check your email and password, or try the sign-in method you used to create your account."));
         return;
       }
 
-      const redirectTo = new URLSearchParams(window.location.search).get(
-        "redirect",
-      );
-      const isLocalPath =
-        Boolean(redirectTo?.startsWith("/")) && !redirectTo?.startsWith("//");
-      router.push(isLocalPath && redirectTo ? redirectTo : "/dashboard");
+      router.push(returnPathFromSearch(window.location.search));
       router.refresh();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Sign in failed");
+      setError(userErrorMessage(caught, "We couldn't sign you in. Please try again."));
     } finally {
       setPending(false);
     }
@@ -57,11 +58,12 @@ export default function SignInPage() {
   return (
     <AuthShell
       title="Welcome back"
-      subtitle="Sign in to continue creating and reading your stories."
+      subtitle={destination.startsWith("/pricing") ? "Sign in to continue with Creator. You'll review the subscription before paying." : "Sign in to return to your stories."}
       alternateHref="/sign-up"
       alternateLabel="New here? Create an account"
     >
       <form className="space-y-3" onSubmit={signIn}>
+        {notice && <p role="status" className="text-sm text-emerald-200">{notice}</p>}
         <label className="block text-sm font-medium">
           Email
           <input
@@ -87,7 +89,7 @@ export default function SignInPage() {
         <div className="text-right">
           <Link
             className="text-sm text-[#d8c69e] hover:text-[#f1eadb]"
-            href="/forgot-password"
+            href={authHref("/forgot-password", destination)}
           >
             Forgot password?
           </Link>

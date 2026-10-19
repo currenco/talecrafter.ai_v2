@@ -1,4 +1,5 @@
 import { refreshAccessToken } from "@/lib/neon-auth/client";
+import { apiErrorMessage } from "@/lib/user-messages";
 
 const API_BASE_URL = "/api/v1";
 const inFlightGetRequests = new Map<string, Promise<unknown>>();
@@ -87,7 +88,7 @@ export const apiFetch = async <T>(
 
     if (!response.ok || !payload?.success) {
       throw new ApiClientError(
-        payload?.message || "API request failed",
+        apiErrorMessage(payload?.message, response.status, payload?.errors?.[0]?.code),
         response.status,
         response.headers.has("retry-after")
           ? Math.max(0, Number(response.headers.get("retry-after")) * 1000) ||

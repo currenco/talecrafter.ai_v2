@@ -8,7 +8,7 @@ import {
   useState,
   type RefObject,
 } from "react";
-import { toast } from "react-toastify";
+import { userErrorMessage } from "@/lib/user-messages";
 import { UserDetailContext } from "@/app/_context/UserDetailContext";
 import { apiFetch } from "@/lib/api-client";
 import { getAccessToken } from "@/lib/neon-auth/client";
@@ -61,6 +61,7 @@ const UserStoryList = () => {
   });
   const [completed, setCompleted] = useState<StoryCollection>(emptyCollection);
   const [drafts, setDrafts] = useState<StoryCollection>(emptyCollection);
+  const [errors, setErrors] = useState<Record<StoryStatus, string>>({ draft: "", published: "" });
   const [loading, setLoading] = useState<Record<StoryStatus, boolean>>({
     draft: false,
     published: false,
@@ -78,12 +79,13 @@ const UserStoryList = () => {
       const requestUserId = userId;
       loadingRef.current[status] = true;
       setLoading((current) => ({ ...current, [status]: true }));
+      setErrors(current => ({ ...current, [status]: "" }));
 
       try {
         const token = await getAccessToken();
         const result = await apiFetch<StoryPage>(
           `/stories/me?status=${status}&limit=${PAGE_SIZE}&offset=${offset}`,
-          { token },
+          { token, cache: "no-store" },
         );
 
         if (userIdRef.current !== requestUserId) return;
@@ -104,12 +106,8 @@ const UserStoryList = () => {
         } else {
           setDrafts(updateCollection);
         }
-      } catch {
-        toast.error(
-          status === "published"
-            ? "Unable to load your stories"
-            : "Unable to load draft stories",
-        );
+      } catch (error) {
+        if (userIdRef.current === requestUserId) setErrors(current => ({ ...current, [status]: userErrorMessage(error, "We couldn't load your stories. Please try again.") }));
       } finally {
         loadingRef.current[status] = false;
         if (userIdRef.current === requestUserId) {
@@ -133,7 +131,7 @@ const UserStoryList = () => {
   }, [isAuthLoaded, loadStories, userId]);
 
   useEffect(() => {
-    if (!drafts.hasMore || loading.draft) return;
+    if (!drafts.hasMore || loading.draft || errors.draft) return;
     const trigger = draftTriggerRef.current;
     if (!trigger) return;
 
@@ -148,10 +146,10 @@ const UserStoryList = () => {
 
     observer.observe(trigger);
     return () => observer.disconnect();
-  }, [drafts.hasMore, drafts.items.length, loadStories, loading.draft]);
+  }, [drafts.hasMore, drafts.items.length, loadStories, loading.draft, errors.draft]);
 
   useEffect(() => {
-    if (!completed.hasMore || loading.published) return;
+    if (!completed.hasMore || loading.published || errors.published) return;
     const trigger = publishedTriggerRef.current;
     if (!trigger) return;
 
@@ -171,6 +169,7 @@ const UserStoryList = () => {
     completed.items.length,
     loadStories,
     loading.published,
+    errors.published,
   ]);
 
   const handleStoryDeleted = (storyId: string) => {
@@ -214,7 +213,7 @@ const UserStoryList = () => {
           </h3>
           <p className="mt-1 text-sm text-[#c3cbd4]/70">{description}</p>
         </div>
-        {(isAuthLoaded && !loading[status]) || collection.totalCount > 0 ? (
+        {(isAuthLoaded && !loading[status] && !errors[status]) || collection.totalCount > 0 ? (
           <p className="text-sm text-[#c3cbd4]/60">
             {collection.totalCount}{" "}
             {collection.totalCount === 1 ? "story" : "stories"}
@@ -233,11 +232,15 @@ const UserStoryList = () => {
             />
           ))}
         </div>
-      ) : isAuthLoaded && !loading[status] ? (
+      ) : isAuthLoaded && !loading[status] && !errors[status] ? (
         <p className="mt-6 text-sm leading-6 text-[#c3cbd4]/70 sm:text-base">{emptyMessage}</p>
       ) : null}
 
       <StoryGridSkeleton isLoading={!isAuthLoaded || loading[status]} count={4} />
+      {errors[status] && <div role="alert" className="mt-4 text-sm text-[#c3cbd4]">
+        <p>{errors[status]}</p>
+        <button className="mt-2 min-h-11 text-[#d8c69e] underline" onClick={() => void loadStories(status, collection.items.length)}>Try again</button>
+      </div>}
 
       <div ref={loadTriggerRef} className="h-6" aria-hidden="true" />
     </section>
@@ -255,7 +258,7 @@ const UserStoryList = () => {
       })}
       {renderSection({
         title: "Your Stories",
-        description: "All your completed Classic and Interactive stories.",
+        description: "Your completed Classic and Plot Twist stories.",
         emptyMessage: "You have not completed a story yet.",
         collection: completed,
         status: "published",

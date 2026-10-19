@@ -4,6 +4,8 @@ import { FormEvent, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { authClient } from '@/lib/neon-auth/client'
 import AuthShell, { authButtonClass, authInputClass } from '../AuthShell'
+import { authHref, returnPathFromSearch } from '@/lib/auth-navigation'
+import { userErrorMessage } from '@/lib/user-messages'
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
@@ -21,12 +23,12 @@ export default function ForgotPasswordPage() {
     try {
       const result = await authClient.emailOtp.requestPasswordReset({ email })
       if (result.error) {
-        setError(result.error.message ?? 'Unable to send reset code')
+        setError(userErrorMessage(result.error, "We couldn't send a reset code. Please try again shortly."))
         return
       }
       setCodeSent(true)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unable to send reset code')
+      setError(userErrorMessage(caught, "We couldn't send a reset code. Please try again shortly."))
     } finally {
       setPending(false)
     }
@@ -39,19 +41,19 @@ export default function ForgotPasswordPage() {
     try {
       const result = await authClient.emailOtp.resetPassword({ email, otp, password })
       if (result.error) {
-        setError(result.error.message ?? 'Unable to reset password')
+        setError(userErrorMessage(result.error, "We couldn't reset your password. Check the code and choose a password with at least 8 characters."))
         return
       }
-      router.push('/sign-in')
+      router.push(`${authHref('/sign-in', returnPathFromSearch(window.location.search))}&password=reset`)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unable to reset password')
+      setError(userErrorMessage(caught, "We couldn't reset your password. Please try again."))
     } finally {
       setPending(false)
     }
   }
 
   return (
-    <AuthShell title="Reset your password" subtitle={codeSent ? 'Enter the code from your email and choose a new password.' : 'We will send a reset code to your email.'} alternateHref="/sign-in" alternateLabel="Return to sign in">
+    <AuthShell title="Reset your password" subtitle={codeSent ? 'If an eligible account exists, a code will arrive in your inbox. Check spam too, then enter the code and choose a new password.' : 'Enter the email you use for TaleCrafter. If you joined with Google or GitHub, use that sign-in button instead.'} alternateHref="/sign-in" alternateLabel="Return to sign in">
       <form className="space-y-4" onSubmit={codeSent ? resetPassword : requestCode}>
         <label className="block text-sm font-medium">Email<input className={authInputClass} type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} disabled={codeSent} required /></label>
         {codeSent ? <>
@@ -60,6 +62,7 @@ export default function ForgotPasswordPage() {
         </> : null}
         {error ? <p role="alert" className="text-sm text-red-300">{error}</p> : null}
         <button className={authButtonClass} type="submit" disabled={pending}>{pending ? 'Please wait...' : codeSent ? 'Set new password' : 'Send reset code'}</button>
+        {codeSent && <button type="button" className="min-h-11 w-full text-sm text-[#d8c69e]" disabled={pending} onClick={() => { setCodeSent(false); setOtp(''); setError(''); }}>Change email or request a new code</button>}
       </form>
     </AuthShell>
   )
