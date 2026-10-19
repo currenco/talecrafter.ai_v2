@@ -38,7 +38,11 @@ export const getCurrentUserInteractiveStories = asyncHandler(
 
 export const getInteractiveRequest = asyncHandler(async (req, res) => {
   res.set('Cache-Control', 'private, no-store');
-  const result = await getInteractiveRequestStatus({ userId: req.auth.userId, storyId: req.params.storyId, key: req.params.key });
+  const result = await getInteractiveRequestStatus({
+    userId: req.auth.userId,
+    storyId: req.params.storyId,
+    key: req.params.key,
+  });
   return res.json(new ApiResponse(200, result));
 });
 

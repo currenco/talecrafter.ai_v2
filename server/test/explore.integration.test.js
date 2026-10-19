@@ -34,7 +34,9 @@ test('public genre and art filters combine before pagination and exclude drafts'
         slug: `genre-${index}`,
         title: `Story ${index}`,
         storyType,
-        imageStyle: ['Watercolor', 'Watercolor', 'Anime', 'Secret style', '  '][index],
+        imageStyle: ['Watercolor', 'Watercolor', 'Anime', 'Secret style', '  '][
+          index
+        ],
         status,
       });
       await db
@@ -43,20 +45,46 @@ test('public genre and art filters combine before pagination and exclude drafts'
     }
     assert.deepEqual(await listPublicGenres(), ['Fantasy', 'Mystery']);
     assert.deepEqual(await listPublicArtStyles(), ['Anime', 'Watercolor']);
-    assert.equal((await listPublicStories({ artStyle: 'watercolor' })).length, 2);
-    const filtered = await listPublicStories({ genre: 'fantasy', artStyle: 'watercolor' });
+    assert.equal(
+      (await listPublicStories({ artStyle: 'watercolor' })).length,
+      2
+    );
+    const filtered = await listPublicStories({
+      genre: 'fantasy',
+      artStyle: 'watercolor',
+    });
     assert.equal(filtered.length, 1);
     assert.equal(filtered[0].imageStyle, 'Watercolor');
-    assert.deepEqual(await listPublicStories({ genre: 'Mystery', artStyle: 'Anime' }), []);
+    assert.deepEqual(
+      await listPublicStories({ genre: 'Mystery', artStyle: 'Anime' }),
+      []
+    );
     assert.deepEqual(await listPublicStories({ artStyle: 'Secret style' }), []);
     assert.deepEqual(await listPublicStories({ artStyle: "' OR 1=1 --" }), []);
-    const artFirst = await listPublicStories({ artStyle: 'Watercolor', limit: 1 });
-    const artSecond = await listPublicStories({ artStyle: 'Watercolor', limit: 1, offset: 1 });
+    const artFirst = await listPublicStories({
+      artStyle: 'Watercolor',
+      limit: 1,
+    });
+    const artSecond = await listPublicStories({
+      artStyle: 'Watercolor',
+      limit: 1,
+      offset: 1,
+    });
     assert.notEqual(artFirst[0].storyId, artSecond[0].storyId);
-    assert.deepEqual(await listPublicStories({ artStyle: 'Watercolor', offset: 2 }), []);
-    assert.equal(publicStoriesQuerySchema.parse({ query: { artStyle: ' Anime ' } }).query.artStyle, 'Anime');
+    assert.deepEqual(
+      await listPublicStories({ artStyle: 'Watercolor', offset: 2 }),
+      []
+    );
+    assert.equal(
+      publicStoriesQuerySchema.parse({ query: { artStyle: ' Anime ' } }).query
+        .artStyle,
+      'Anime'
+    );
     for (const artStyle of [['Anime'], 'a'.repeat(81)]) {
-      assert.equal(publicStoriesQuerySchema.safeParse({ query: { artStyle } }).success, false);
+      assert.equal(
+        publicStoriesQuerySchema.safeParse({ query: { artStyle } }).success,
+        false
+      );
     }
     const all = await listPublicStories({});
     assert.equal(all.length, 4);
@@ -113,8 +141,15 @@ test('public genre and art filters combine before pagination and exclude drafts'
       1
     );
     assert.deepEqual(await listPublicStories({ preview: true, offset: 8 }), []);
-    assert.equal((await listPublicStories({ preview: true, artStyle: 'Anime', limit: 50 })).length, 8);
-    assert.deepEqual(await listPublicStories({ preview: true, artStyle: 'Anime', offset: 8 }), []);
+    assert.equal(
+      (await listPublicStories({ preview: true, artStyle: 'Anime', limit: 50 }))
+        .length,
+      8
+    );
+    assert.deepEqual(
+      await listPublicStories({ preview: true, artStyle: 'Anime', offset: 8 }),
+      []
+    );
     assert.equal(
       (await listPublicStories({ preview: true, genre: 'Fantasy', limit: 50 }))
         .length,

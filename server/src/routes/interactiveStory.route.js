@@ -22,7 +22,11 @@ import {
 const router = Router();
 
 router.use(requireAuth);
-router.get('/:storyId/requests/:key', validate(interactiveRequestStatusSchema), getInteractiveRequest);
+router.get(
+  '/:storyId/requests/:key',
+  validate(interactiveRequestStatusSchema),
+  getInteractiveRequest
+);
 
 router.post(
   '/',

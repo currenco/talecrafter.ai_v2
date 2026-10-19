@@ -468,14 +468,27 @@ export const deleteCurrentUserInteractiveStory = async ({
 };
 
 export const getInteractiveRequestStatus = async ({ userId, storyId, key }) => {
-  if (!/^[a-zA-Z0-9._:-]{8,255}$/.test(key ?? '')) throw new ApiError(400, 'Invalid request key');
+  if (!/^[a-zA-Z0-9._:-]{8,255}$/.test(key ?? ''))
+    throw new ApiError(400, 'Invalid request key');
   const { user, story } = await ensureOwnedStory({ userId, storyId });
-  const [job] = await db.select({ status: GenerationJobs.status })
+  const [job] = await db
+    .select({ status: GenerationJobs.status })
     .from(GenerationJobs)
-    .where(and(eq(GenerationJobs.ownerId, user.id), eq(GenerationJobs.storyId, story.id), eq(GenerationJobs.idempotencyKey, key)))
+    .where(
+      and(
+        eq(GenerationJobs.ownerId, user.id),
+        eq(GenerationJobs.storyId, story.id),
+        eq(GenerationJobs.idempotencyKey, key)
+      )
+    )
     .limit(1);
   const status = job?.status ?? 'not_found';
-  return { status, ...(status === 'succeeded' ? { state: await getInteractiveState(story) } : {}) };
+  return {
+    status,
+    ...(status === 'succeeded'
+      ? { state: await getInteractiveState(story) }
+      : {}),
+  };
 };
 
 export const completeInteractiveStory = async ({
