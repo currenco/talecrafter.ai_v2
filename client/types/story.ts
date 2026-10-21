@@ -27,7 +27,7 @@ export type StoryItem = {
   totalPages?: number | null;
   userName?: string | null;
   userImage?: string | null;
-  userEmail: string;
+  userEmail?: string;
 };
 
 export type StorySelection = {

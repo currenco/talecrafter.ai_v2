@@ -12,7 +12,8 @@ export type StoryRecord = {
   output: StoryOutput | null;
   userName: string | null;
   userImage: string | null;
-  userEmail: string | null;
+  userEmail?: string | null;
+  ownerId?: string;
   createdAt?: string | Date | null;
   updatedAt?: string | Date | null;
 };

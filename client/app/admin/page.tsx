@@ -6,6 +6,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { apiFetch } from "@/lib/api-client";
 import shimmer from "@/components/StoryGridSkeleton.module.css";
+import Link from "next/link";
+import { Trash2 } from "lucide-react";
+import UserSummary, { type AdminUser } from "./_components/UserSummary";
 
 function SkeletonValue() {
   return <span role="status" aria-label="Loading count" className={`${shimmer.card} relative mx-auto block h-8 w-16 overflow-hidden rounded bg-white/10`} />;
@@ -38,13 +41,7 @@ type StoryItemType = {
   userName: string | null;
 };
 
-type UserType = {
-  id: string;
-  userName: string | null;
-  userEmail: string;
-  userImage?: string | null;
-  plan: 'free' | 'creator';
-};
+type UserType = AdminUser;
 
 type Pagination = {
   limit: number;
@@ -72,7 +69,7 @@ const AdminDashboard = () => {
   const userTriggerRef = useRef<HTMLDivElement>(null);
   const loadingStoriesRef = useRef(false);
   const loadingUsersRef = useRef(false);
-  const [activeTab, setActiveTab] = useState<"stories" | "users">("stories");
+  const [activeTab, setActiveTab] = useState<"stories" | "users">("users");
   const [stories, setStories] = useState<StoryItemType[]>([]);
   const [users, setUsers] = useState<UserType[]>([]);
   const [loadingStories, setLoadingStories] = useState(true);
@@ -164,6 +161,7 @@ const AdminDashboard = () => {
   );
 
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("tab") === "stories") setActiveTab("stories");
     void fetchStories();
     void fetchUsers();
   }, [fetchStories, fetchUsers]);
@@ -220,7 +218,7 @@ const AdminDashboard = () => {
   };
 
   const handleDeleteUser = async (userId: string) => {
-
+    if (!window.confirm("Delete this user and their stories? This cannot be undone.")) return;
     try {
       const token = await getAuthToken();
       await apiFetch(`/admin/users/${encodeURIComponent(userId)}`, {
@@ -411,7 +409,7 @@ const AdminDashboard = () => {
         )}
 
         {activeTab === "users" && (
-          <div className="tc-glass-panel-soft mt-4 p-5">
+          <div className="mt-4 py-5">
             <div className="mb-4">
               <input
                 type="text"
@@ -423,38 +421,13 @@ const AdminDashboard = () => {
             </div>
 
             <div className="overflow-x-auto">
-              <table aria-busy={loadingUsers} className="min-w-full text-sm text-[#c3cbd4]">
-                <thead className="bg-[#d8c69e]/[0.08] text-left">
-                  <tr>
-                    <th className="px-3 py-2">Name</th>
-                    <th className="px-3 py-2">Email</th>
-                    <th className="px-3 py-2">Plan</th>
-                    <th className="px-3 py-2">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredUsers.map((u) => (
-                    <tr key={u.id} className="border-t border-[#d8c69e]/10">
-                      <td className="px-3 py-2">{u.userName ?? "-"}</td>
-                      <td className="px-3 py-2">{u.userEmail ?? "-"}</td>
-                      <td className="px-3 py-2">
-                        <span className="capitalize">{u.plan}</span>
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => handleDeleteUser(u.id)}
-                            className="rounded-lg bg-red-500 px-3 py-1 font-semibold text-white hover:bg-red-600"
-                          >
-                            Delete User
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {loadingUsers && <SkeletonRows columns={4} count={users.length ? 3 : 6} />}
-                </tbody>
-              </table>
+              <div aria-busy={loadingUsers} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {filteredUsers.map(user => <article key={user.id} className="relative min-w-0">
+                  <Link href={`/admin/users/${user.id}`} className="block h-full rounded-lg transition hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-200"><UserSummary user={user} /></Link>
+                  <button title="Delete user" aria-label={`Delete ${user.userName || user.userEmail}`} onClick={() => void handleDeleteUser(user.id)} className={`absolute right-0 top-0 flex h-11 w-11 items-center justify-center rounded-md ${user.plan === "creator" ? "text-[#101a28] hover:bg-black/10" : "text-[#c3cbd4] hover:bg-red-400/10 hover:text-red-300"}`}><Trash2 className="h-4 w-4" /></button>
+                </article>)}
+                {loadingUsers && Array.from({ length: users.length ? 3 : 6 }, (_, index) => <div key={index} role={index === 0 ? "status" : undefined} aria-label={index === 0 ? "Loading users" : undefined} className={`${shimmer.card} relative h-72 overflow-hidden rounded-lg bg-[#172331]`} />)}
+              </div>
               {userError && (
                 <div role="alert" className="mt-4 text-center text-sm text-[#c3cbd4]">
                   <p>{userError}</p>

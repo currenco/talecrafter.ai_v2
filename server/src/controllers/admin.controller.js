@@ -6,7 +6,16 @@ import {
   deleteAdminUser,
   listAdminStories,
   listAdminUsers,
+  getAdminUserLibrary,
 } from '../services/admin.service.js';
+
+export const getAdminUserStories = asyncHandler(async (req, res) => {
+  const result = await getAdminUserLibrary(
+    req.validated.params.userId,
+    req.validated.query
+  );
+  return res.json(new ApiResponse(200, result, 'User library fetched'));
+});
 
 export const getAdminStories = asyncHandler(async (req, res) => {
   const stories = await listAdminStories(req.validated.query);

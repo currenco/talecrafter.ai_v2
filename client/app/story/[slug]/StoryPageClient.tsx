@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { LockKeyhole } from "lucide-react";
+import { LockKeyhole, UserRound } from "lucide-react";
 import dynamic from "next/dynamic";
 import { IoIosArrowDropleftCircle, IoIosArrowDroprightCircle } from "react-icons/io";
 import { toast } from "react-toastify";
@@ -100,6 +100,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
   const RELATED_PAGE_SIZE = 10;
   const bookRef = useRef<FlipBookHandle | null>(null);
   const [story] = useState<StoryRecord>(initialStory);
+  const [authorImageFailed, setAuthorImageFailed] = useState(false);
   const [count, setCount] = useState(0);
   const [copied, setCopied] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
@@ -262,6 +263,10 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
       <div className="relative">
         <div className="tc-glass-panel px-5 py-6 text-center shadow-[0_16px_45px_rgba(0,0,0,0.35)] md:px-8">
           <h1 className="font-serif text-4xl font-medium tracking-tight text-[#f1eadb] sm:text-5xl md:text-6xl">{title}</h1>
+          {story.ownerId && <Link href={`/creators/${story.ownerId}`} className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm text-[#d8c69e] underline-offset-4 hover:underline">
+            {story.userImage && !authorImageFailed ? <Image src={story.userImage} alt="" width={28} height={28} unoptimized className="h-7 w-7 rounded-full object-cover" onError={() => setAuthorImageFailed(true)} /> : <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#273340]"><UserRound size={18} aria-hidden="true" /></span>}
+            By {story.userName || "Story creator"}
+          </Link>}
           <p className="mx-auto mt-4 max-w-4xl text-sm leading-relaxed text-[#c3cbd4]/80 md:text-base">
             {introText}
           </p>

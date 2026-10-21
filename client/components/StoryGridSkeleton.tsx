@@ -1,11 +1,11 @@
 import styles from "./StoryGridSkeleton.module.css";
 
-export default function StoryGridSkeleton({ isLoading, count = 12, variant = "library" }: { isLoading: boolean; count?: number; variant?: "library" | "related" }) {
+export default function StoryGridSkeleton({ isLoading, count = 12, variant = "library", className = "mt-4", gridClassName }: { isLoading: boolean; count?: number; variant?: "library" | "related"; className?: string; gridClassName?: string }) {
   if (!isLoading) return null;
   return (
-    <div role="status" aria-label="Loading stories" className="mt-4">
+    <div role="status" aria-label="Loading stories" className={className}>
       <span className="sr-only">Loading stories</span>
-      <div aria-hidden="true" className={variant === "related" ? "grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5" : "grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"}>
+      <div aria-hidden="true" className={gridClassName ?? (variant === "related" ? "grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5" : "grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4")}>
         {Array.from({ length: count }, (_, index) => (
           variant === "related" ? <div key={index} className={`${styles.card} relative overflow-hidden rounded-lg border border-[#d8c69e]/20 bg-[#111d2b]/70 p-3`}>
             <div className="h-40 w-full rounded-lg bg-[#172535]" />

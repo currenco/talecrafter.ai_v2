@@ -13,6 +13,62 @@ import {
 } from '../utils/pagination.js';
 import { deleteStoryAssets, deleteUserAssets } from './asset.service.js';
 
+const adminUserFields = {
+  id: UserProfiles.id,
+  userEmail: UserProfiles.userEmail,
+  userName: UserProfiles.userName,
+  userImage: UserProfiles.userImage,
+  role: UserProfiles.role,
+  signInMethods: sql`ARRAY(
+    SELECT DISTINCT a."providerId"
+    FROM neon_auth.account a
+    WHERE a."userId"::text = ${UserProfiles.authUserId}
+      AND a."providerId" IS NOT NULL AND a."providerId" <> ''
+    ORDER BY a."providerId"
+  )`,
+  storyCount: sql`(SELECT count(*)::int FROM app.stories s WHERE s.owner_id = ${UserProfiles.id})`,
+  plan: sql`CASE WHEN ${CreatorSubscriptions.paidThrough} > now() AND ${CreatorSubscriptions.periodStart} <= now() AND NOT ${CreatorSubscriptions.revoked} THEN 'creator' ELSE 'free' END`,
+};
+
+export const getAdminUserLibrary = async (userId, query) => {
+  const [user] = await db
+    .select(adminUserFields)
+    .from(UserProfiles)
+    .leftJoin(
+      CreatorSubscriptions,
+      eq(CreatorSubscriptions.userId, UserProfiles.id)
+    )
+    .where(eq(UserProfiles.id, userId))
+    .limit(1);
+  if (!user) throw new ApiError(404, 'User not found');
+  const { limit, offset } = normalizePagination(query);
+  const items = await db
+    .select({
+      id: Stories.id,
+      storyId: Stories.storyId,
+      title: Stories.title,
+      slug: Stories.slug,
+      coverImage: Stories.coverImage,
+      status: Stories.status,
+      kind: Stories.kind,
+      storyType: Stories.storyType,
+    })
+    .from(Stories)
+    .where(eq(Stories.ownerId, userId))
+    .orderBy(desc(Stories.updatedAt), desc(Stories.id))
+    .limit(limit)
+    .offset(offset);
+  return {
+    user,
+    ...createPaginatedResult({
+      items,
+      limit,
+      offset,
+      totalCount: user.storyCount,
+    }),
+  };
+};
+
 export const listAdminStories = async query => {
   const { limit, offset } = normalizePagination(query);
   const [items, aggregateRows, storyTypeRows] = await Promise.all([
@@ -60,14 +116,7 @@ export const listAdminUsers = async query => {
   const { limit, offset } = normalizePagination(query);
   const [items, aggregateRows] = await Promise.all([
     db
-      .select({
-        id: UserProfiles.id,
-        userEmail: UserProfiles.userEmail,
-        userName: UserProfiles.userName,
-        userImage: UserProfiles.userImage,
-        role: UserProfiles.role,
-        plan: sql`CASE WHEN ${CreatorSubscriptions.paidThrough} > now() AND ${CreatorSubscriptions.periodStart} <= now() AND NOT ${CreatorSubscriptions.revoked} THEN 'creator' ELSE 'free' END`,
-      })
+      .select(adminUserFields)
       .from(UserProfiles)
       .leftJoin(
         CreatorSubscriptions,

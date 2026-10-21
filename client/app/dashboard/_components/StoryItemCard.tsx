@@ -18,6 +18,8 @@ import { useRouter } from "next/navigation";
 type StoryItemType = {
   story: StoryItem;
   canDelete?: boolean;
+  readOnly?: boolean;
+  requireSignIn?: boolean;
   onDeleteSuccess?: (storyId: string) => void;
 };
 
@@ -57,12 +59,15 @@ const removeStoryFromCachedLists = (storyId: string) => {
 const StoryItemCard = ({
   story,
   canDelete = false,
+  readOnly = false,
+  requireSignIn = false,
   onDeleteSuccess,
 }: StoryItemType) => {
   const [imgFailed, setImgFailed] = useState(false);
   const [resuming, setResuming] = useState(false);
   const router = useRouter();
   const isDraft = story.status === "draft";
+  const isReadOnlyUnpublished = readOnly && story.status !== "published";
   const isInteractive = story.kind === "interactive";
   const chapterImages =
     story.output?.chapters?.filter((chapter) => Boolean(chapter.imageUrl))
@@ -113,11 +118,11 @@ const StoryItemCard = ({
     <Card
       isFooterBlurred
       radius="lg"
-      className="cursor-pointer overflow-hidden border border-[#d8c69e]/15 bg-[#111d2b] transition-all hover:-translate-y-1 hover:border-[#d8c69e]/35"
+      className={`${isReadOnlyUnpublished ? "" : "cursor-pointer hover:-translate-y-1"} overflow-hidden border border-[#d8c69e]/15 bg-[#111d2b] transition-all hover:border-[#d8c69e]/35`}
     >
       {imgFailed || !story?.coverImage ? (
         <div className="flex h-[200px] w-full items-center justify-center bg-[#172535] px-4 text-center text-sm text-[#c3cbd4]/70">
-          {isDraft
+          {isReadOnlyUnpublished ? "Cover image unavailable." : isDraft
             ? "This draft is waiting for its remaining images."
             : "Cover image is unavailable. You can still open and read this story."}
         </div>
@@ -140,16 +145,16 @@ const StoryItemCard = ({
           <p className="truncate text-base font-semibold leading-6 text-[#f1eadb]">
             {story?.output?.title}
           </p>
-          {isDraft && (
+          {(isDraft || isReadOnlyUnpublished) && (
             <p className="text-xs text-[#c3cbd4]/70">
-              {isInteractive
+              {readOnly ? (story.status === "archived" ? "Archived" : "Draft") : isInteractive
                 ? `Draft - ${story.totalPages ?? story.output?.chapters?.length ?? 0} pages`
                 : `Draft - ${completedImages}/${totalImages} images`}
             </p>
           )}
         </div>
         <div className="flex shrink-0 gap-1">
-          {isDraft && isInteractive ? (
+          {readOnly ? null : isDraft && isInteractive ? (
             <Button
               as={Link}
               href={`/interactive-story/${story.storyId}`}
@@ -173,7 +178,7 @@ const StoryItemCard = ({
               Resume
             </Button>
           ) : null}
-          {canDelete ? (
+          {canDelete && !readOnly ? (
             <Button
               onClick={handleDelete}
               className="text-tiny text-white bg-black/20"
@@ -184,7 +189,7 @@ const StoryItemCard = ({
               Delete
             </Button>
           ) : (
-            !isDraft && (
+            !isDraft && !isReadOnlyUnpublished && !requireSignIn && (
               <Button
                 className="text-tiny text-white bg-black/20"
                 variant="flat"
@@ -200,8 +205,8 @@ const StoryItemCard = ({
     </Card>
   );
 
-  if (isDraft) return storyCard;
-  return <Link href={storyHref}>{storyCard}</Link>;
+  if (isDraft || isReadOnlyUnpublished) return storyCard;
+  return <Link href={requireSignIn ? `/sign-in?redirect=${encodeURIComponent(storyHref)}` : storyHref}>{storyCard}</Link>;
 };
 
 export default StoryItemCard;

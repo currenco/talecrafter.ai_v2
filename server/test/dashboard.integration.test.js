@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test, { mock } from 'node:test';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { subscriptionDb } from './helpers/subscription-db.js';
 
 test('dashboard uses current interactive page totals instead of starter chapters', async () => {
@@ -14,6 +14,7 @@ test('dashboard uses current interactive page totals instead of starter chapters
     GenerationJobs,
   } = await import('../src/db/schema.js');
   const ownerId = randomUUID();
+  const ownerAuthId = randomUUID();
   const userService = await import('../src/services/user.service.js');
   mock.module('../src/services/user.service.js', {
     namedExports: {
@@ -28,7 +29,7 @@ test('dashboard uses current interactive page totals instead of starter chapters
   try {
     await db.insert(UserProfiles).values({
       id: ownerId,
-      authUserId: randomUUID(),
+      authUserId: ownerAuthId,
       userEmail: 'draft@example.invalid',
       userName: 'Draft reader',
     });
@@ -139,6 +140,54 @@ test('dashboard uses current interactive page totals instead of starter chapters
     assert.equal(
       results.items.find(item => item.id === classicId).totalPages,
       null
+    );
+    const { listAdminUsers, getAdminUserLibrary } =
+      await import('../src/services/admin.service.js');
+    const { CreatorSubscriptions } = await import('../src/db/schema.js');
+    await db.insert(CreatorSubscriptions).values({
+      userId: ownerId,
+      providerPlanId: 'test-plan',
+      periodStart: new Date(Date.now() - 1000),
+      paidThrough: new Date(Date.now() + 86400000),
+    });
+    const users = await listAdminUsers({});
+    assert.deepEqual(
+      users.items.find(user => user.id === ownerId).signInMethods,
+      []
+    );
+    await db.execute(sql`INSERT INTO neon_auth.account ("userId", "providerId") VALUES
+      (${ownerAuthId}, 'google'), (${ownerAuthId}, 'github'), (${ownerAuthId}, 'google'), (${randomUUID()}, 'credential')`);
+    const linkedUsers = await listAdminUsers({});
+    assert.deepEqual(
+      linkedUsers.items.find(user => user.id === ownerId).signInMethods,
+      ['github', 'google']
+    );
+    assert.deepEqual(
+      linkedUsers.items.find(user => user.id === otherOwner).signInMethods,
+      []
+    );
+    assert.equal(users.items.find(user => user.id === ownerId).storyCount, 2);
+    assert.equal(users.items.find(user => user.id === ownerId).plan, 'creator');
+    assert.equal(users.items.find(user => user.id === otherOwner).plan, 'free');
+    const library = await getAdminUserLibrary(ownerId, { limit: 1 });
+    assert.equal(library.user.id, ownerId);
+    assert.deepEqual(library.user.signInMethods, ['github', 'google']);
+    assert.equal(library.user.authUserId, undefined);
+    assert.equal(library.pagination.totalCount, 2);
+    assert.equal(library.pagination.hasMore, true);
+    assert.equal(library.items.length, 1);
+    assert.notEqual(library.items[0].id, otherId);
+    assert.equal(library.items[0].status, 'draft');
+    const next = await getAdminUserLibrary(ownerId, { limit: 1, offset: 1 });
+    assert.notEqual(next.items[0].id, library.items[0].id);
+    assert.equal(next.pagination.hasMore, false);
+    assert.equal(
+      (await getAdminUserLibrary(ownerId, { offset: 2 })).items.length,
+      0
+    );
+    await assert.rejects(
+      getAdminUserLibrary(randomUUID(), {}),
+      error => error.statusCode === 404
     );
   } finally {
     await pg.close();

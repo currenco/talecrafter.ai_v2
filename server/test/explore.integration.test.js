@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import test from 'node:test';
 import { subscriptionDb } from './helpers/subscription-db.js';
 import { publicStoriesQuerySchema } from '../src/validations/story.validation.js';
@@ -7,7 +8,7 @@ import { sitemapQuerySchema } from '../src/validations/story.validation.js';
 
 test('public genre filtering paginates, excludes drafts and ignores retired art filters', async () => {
   const { pg, db } = await subscriptionDb();
-  const { Stories, StoryVersions, UserProfiles } =
+  const { CreatorSubscriptions, Stories, StoryVersions, UserProfiles } =
     await import('../src/db/schema.js');
   const { listPublicStories, listPublicGenres } =
     await import('../src/services/story.service.js');
@@ -136,6 +137,57 @@ test('public genre filtering paginates, excludes drafts and ignores retired art 
       14
     );
     const sitemap = await listSitemapStories();
+    const { getPublicProfile } =
+      await import('../src/services/publicProfile.service.js');
+    const { publicStory } = await import('../src/utils/publicStory.js');
+    const profile = await getPublicProfile(ownerId, { limit: 50 });
+    assert.equal(profile.user.storyCount, 14);
+    assert.equal(profile.items.length, 14);
+    assert.equal(profile.user.plan, 'free');
+    await db.insert(CreatorSubscriptions).values({
+      userId: ownerId,
+      providerPlanId: 'test-plan',
+      periodStart: new Date(Date.now() - 86400000),
+      paidThrough: new Date(Date.now() + 86400000),
+    });
+    assert.equal((await getPublicProfile(ownerId, {})).user.plan, 'creator');
+    await db
+      .update(CreatorSubscriptions)
+      .set({ revoked: true })
+      .where(eq(CreatorSubscriptions.userId, ownerId));
+    assert.equal((await getPublicProfile(ownerId, {})).user.plan, 'free');
+    await db
+      .update(CreatorSubscriptions)
+      .set({ revoked: false, paidThrough: new Date(Date.now() - 1000) })
+      .where(eq(CreatorSubscriptions.userId, ownerId));
+    assert.equal((await getPublicProfile(ownerId, {})).user.plan, 'free');
+    assert.deepEqual(Object.keys(profile.user).sort(), [
+      'id',
+      'plan',
+      'storyCount',
+      'userImage',
+      'userName',
+    ]);
+    assert.ok(profile.items.every(story => story.status === 'published'));
+    assert.ok(!JSON.stringify(profile).includes('genres@example.invalid'));
+    const preview = await getPublicProfile(ownerId, { limit: 50 }, true);
+    assert.equal(preview.items.length, 8);
+    assert.equal(preview.pagination.hasMore, true);
+    assert.equal(
+      (await getPublicProfile(ownerId, { offset: 8 }, true)).items.length,
+      0
+    );
+    const page = await getPublicProfile(ownerId, { offset: 12, limit: 12 });
+    assert.equal(page.items.length, 2);
+    assert.equal(page.pagination.hasMore, false);
+    await assert.rejects(getPublicProfile(randomUUID(), {}), {
+      statusCode: 404,
+    });
+    assert.equal(publicStory(all[0]).userEmail, undefined);
+    assert.equal(
+      publicStory({ userEmail: 'private', output: null }).userEmail,
+      undefined
+    );
     assert.equal(sitemap.totalCount, 14);
     assert.equal(sitemap.items.length, 14);
     assert.equal(sitemap.pageSize, 1000);
@@ -146,6 +198,40 @@ test('public genre filtering paginates, excludes drafts and ignores retired art 
     ]);
     assert.deepEqual((await listSitemapStories(1)).items, []);
     assert.equal(sitemapQuerySchema.parse({ query: {} }).query.page, 0);
+    const otherOwner = randomUUID();
+    await db.insert(UserProfiles).values({
+      id: otherOwner,
+      authUserId: randomUUID(),
+      userEmail: 'other@example.invalid',
+      userName: 'Other creator',
+    });
+    await db.insert(Stories).values([
+      {
+        id: randomUUID(),
+        ownerId: otherOwner,
+        title: 'Other creator',
+        slug: 'other-creator-story',
+        status: 'published',
+      },
+      {
+        id: randomUUID(),
+        ownerId,
+        title: 'Archived secret',
+        slug: 'archived-secret-story',
+        status: 'archived',
+      },
+    ]);
+    const privateCheck = await getPublicProfile(ownerId, { limit: 50 });
+    assert.equal(privateCheck.user.storyCount, 14);
+    assert.ok(
+      privateCheck.items.every(
+        story =>
+          !['Other creator', 'Archived secret'].includes(story.output.title)
+      )
+    );
+    const otherProfile = await getPublicProfile(otherOwner, {});
+    assert.equal(otherProfile.items.length, 1);
+    assert.equal(otherProfile.items[0].output.title, 'Other creator');
     for (const page of ['-1', '1.5', 'invalid', '100001']) {
       assert.equal(
         sitemapQuerySchema.safeParse({ query: { page } }).success,

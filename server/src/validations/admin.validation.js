@@ -7,6 +7,11 @@ export const adminListSchema = z.object({
   query: paginationQuerySchema,
 });
 
+export const adminUserLibrarySchema = z.object({
+  params: z.object({ userId: z.string().uuid('Valid user ID is required') }),
+  query: paginationQuerySchema,
+});
+
 export const adminBackfillSlugsSchema = z.object({
   body: z
     .object({ limit: z.coerce.number().int().min(1).max(1000).optional() })

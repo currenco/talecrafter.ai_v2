@@ -297,7 +297,7 @@ const Hero = () => {
                 ["Begin your way", "Prompt or image"],
                 ["Choose the journey", "Classic or Plot Twist"],
                 ["Keep the whole book", "Read, listen, and export"],
-                ["Coming soon", "Characters, scenes, and video"],
+                ["Coming soon", "Video generation"],
               ].map(([label, value], index) => (
                 <div
                   key={label}
@@ -642,7 +642,7 @@ const Hero = () => {
             >
               <div className="inline-flex items-center gap-2 rounded-full border border-[#d8c69e]/30 bg-[#d8c69e]/[0.08] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#d8c69e]">
                 <Clapperboard className="h-3.5 w-3.5" aria-hidden="true" />
-                Coming soon
+                Video generation coming soon
               </div>
               <h2
                 id="creator-suite-heading"
@@ -666,9 +666,9 @@ const Hero = () => {
                 repeat character descriptions, scene planning, and prompts by hand.
               </p>
               <p>
-                TaleCrafter is growing into a centralized workspace that will carry
-                creative decisions from the first sentence to production-ready scene
-                assets, while keeping characters and visual direction consistent.
+                Character descriptions, scenes, image prompts, and illustrations
+                are already available in TaleCrafter. Video generation is the next
+                step and is not included in the current plans.
               </p>
             </MotionDiv>
           </div>
