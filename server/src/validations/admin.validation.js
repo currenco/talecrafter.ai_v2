@@ -12,14 +12,6 @@ export const adminUserLibrarySchema = z.object({
   query: paginationQuerySchema,
 });
 
-export const adminBackfillSlugsSchema = z.object({
-  body: z
-    .object({ limit: z.coerce.number().int().min(1).max(1000).optional() })
-    .optional(),
-  params: z.object({}).optional(),
-  query: z.object({}).optional(),
-});
-
 export const adminStoryIdParamSchema = z.object({
   body: z.object({}).optional(),
   params: z.object({ storyId: nonEmptyString('Story ID') }),

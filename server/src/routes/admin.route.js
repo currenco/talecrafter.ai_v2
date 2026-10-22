@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import {
-  backfillAdminStorySlugs,
   getAdminStories,
   getAdminUsers,
   getAdminUserStories,
@@ -10,7 +9,6 @@ import {
 import { requireAdmin, requireAuth } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import {
-  adminBackfillSlugsSchema,
   adminListSchema,
   adminUserLibrarySchema,
   adminStoryIdParamSchema,
@@ -31,11 +29,6 @@ router.get(
   '/users/:userId/stories',
   validate(adminUserLibrarySchema),
   getAdminUserStories
-);
-router.post(
-  '/stories/backfill-slugs',
-  validate(adminBackfillSlugsSchema),
-  backfillAdminStorySlugs
 );
 router.delete(
   '/stories/:storyId',

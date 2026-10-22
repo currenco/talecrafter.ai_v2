@@ -426,7 +426,7 @@ const AdminDashboard = () => {
                   <Link href={`/admin/users/${user.id}`} className="block h-full rounded-lg transition hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-200"><UserSummary user={user} /></Link>
                   <button title="Delete user" aria-label={`Delete ${user.userName || user.userEmail}`} onClick={() => void handleDeleteUser(user.id)} className={`absolute right-0 top-0 flex h-11 w-11 items-center justify-center rounded-md ${user.plan === "creator" ? "text-[#101a28] hover:bg-black/10" : "text-[#c3cbd4] hover:bg-red-400/10 hover:text-red-300"}`}><Trash2 className="h-4 w-4" /></button>
                 </article>)}
-                {loadingUsers && Array.from({ length: users.length ? 3 : 6 }, (_, index) => <div key={index} role={index === 0 ? "status" : undefined} aria-label={index === 0 ? "Loading users" : undefined} className={`${shimmer.card} relative h-72 overflow-hidden rounded-lg bg-[#172331]`} />)}
+                {loadingUsers && Array.from({ length: users.length ? 4 : 8 }, (_, index) => <div key={index} role={index === 0 ? "status" : undefined} aria-label={index === 0 ? "Loading users" : undefined} className={`${shimmer.card} relative h-48 overflow-hidden rounded-lg bg-[#172331]`} />)}
               </div>
               {userError && (
                 <div role="alert" className="mt-4 text-center text-sm text-[#c3cbd4]">

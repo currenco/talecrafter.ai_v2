@@ -189,6 +189,35 @@ test('dashboard uses current interactive page totals instead of starter chapters
       getAdminUserLibrary(randomUUID(), {}),
       error => error.statusCode === 404
     );
+    const importedId = randomUUID();
+    const newestId = randomUUID();
+    await db.insert(UserProfiles).values([
+      {
+        id: importedId,
+        authUserId: 'legacy:storybook:99',
+        userEmail: 'old@example.invalid',
+        userName: 'Imported user',
+        createdAt: new Date('2099-01-01'),
+      },
+      {
+        id: newestId,
+        authUserId: randomUUID(),
+        userEmail: 'new@example.invalid',
+        userName: 'New version user',
+        createdAt: new Date('2098-01-01'),
+      },
+    ]);
+    const orderedUsers = await listAdminUsers({ limit: 50 });
+    assert.equal(orderedUsers.items[0].id, newestId);
+    assert.equal(orderedUsers.items.at(-1).id, importedId);
+    assert.equal(
+      (await listAdminUsers({ limit: 1, offset: 0 })).items[0].id,
+      newestId
+    );
+    assert.equal(
+      (await listAdminUsers({ limit: 1, offset: 3 })).items[0].id,
+      importedId
+    );
   } finally {
     await pg.close();
   }

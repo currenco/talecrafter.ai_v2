@@ -1,7 +1,6 @@
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import {
-  backfillStorySlugs,
   deleteAdminStory,
   deleteAdminUser,
   listAdminStories,
@@ -35,13 +34,4 @@ export const removeAdminStory = asyncHandler(async (req, res) => {
 export const removeAdminUser = asyncHandler(async (req, res) => {
   const user = await deleteAdminUser(req.validated.params.userId);
   return res.status(200).json(new ApiResponse(200, user, 'User deleted'));
-});
-
-export const backfillAdminStorySlugs = asyncHandler(async (req, res) => {
-  const result = await backfillStorySlugs({
-    limit: req.validated.body?.limit,
-  });
-  return res
-    .status(200)
-    .json(new ApiResponse(200, result, 'Story slugs backfilled'));
 });

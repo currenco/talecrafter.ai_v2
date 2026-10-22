@@ -122,7 +122,13 @@ export const listAdminUsers = async query => {
         CreatorSubscriptions,
         eq(CreatorSubscriptions.userId, UserProfiles.id)
       )
-      .orderBy(desc(UserProfiles.createdAt), desc(UserProfiles.id))
+      .orderBy(
+        asc(
+          sql`CASE WHEN ${UserProfiles.authUserId} LIKE 'legacy:storybook:%' THEN 1 ELSE 0 END`
+        ),
+        desc(UserProfiles.createdAt),
+        desc(UserProfiles.id)
+      )
       .limit(limit)
       .offset(offset),
     db
@@ -209,9 +215,3 @@ export const deleteAdminUser = async userId => {
 
   return deleted;
 };
-
-export const backfillStorySlugs = async () => ({
-  scanned: 0,
-  updated: 0,
-  remaining: 0,
-});

@@ -3,6 +3,7 @@ import { db } from '../db/index.js';
 import { UserProfiles } from '../db/schema.js';
 import ApiError from '../utils/ApiError.js';
 import { getEntitlement } from './entitlement.service.js';
+import { claimLegacyProfile } from './legacy-profile.service.js';
 
 const selectUserByAuthId = async authUserId => {
   const rows = await db
@@ -43,7 +44,7 @@ export const getCurrentAuthUser = async userId => {
   if (!userId)
     throw new ApiError(401, 'Unauthorized', [{ code: 'AUTH_SESSION_INVALID' }]);
   const result = await db.execute(sql`
-    SELECT id, email, name, image
+    SELECT id, email, name, image, "emailVerified"
     FROM neon_auth."user"
     WHERE id = ${userId}
     LIMIT 1
@@ -85,6 +86,10 @@ export const syncUserFromAuth = async userId => {
       },
     })
     .returning({ id: UserProfiles.id });
+
+  if (authUser.emailVerified === true) {
+    await claimLegacyProfile(userId, userEmail);
+  }
 
   const user = await selectUserByAuthId(userId);
   if (!user) throw new ApiError(500, 'Unable to initialize user profile');

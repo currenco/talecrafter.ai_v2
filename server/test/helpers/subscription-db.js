@@ -22,7 +22,7 @@ export const subscriptionDb = async () => {
     await pg.exec(migration);
   }
   await pg.exec(`CREATE SCHEMA neon_auth;
-    CREATE TABLE neon_auth."user" (id text PRIMARY KEY, email text, name text, image text);
+    CREATE TABLE neon_auth."user" (id text PRIMARY KEY, email text, name text, image text, "emailVerified" boolean DEFAULT false);
     CREATE TABLE neon_auth.account ("userId" uuid, "providerId" text);`);
   const db = drizzle(pg, { schema });
   const dialect = new PgDialect();

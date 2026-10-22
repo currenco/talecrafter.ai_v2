@@ -37,6 +37,7 @@ client/next-env.d.ts
 
 # hosting/tooling
 .tools/
+server/.migration-backups/
 client/.vercel/
 .vercel/
 .neon
