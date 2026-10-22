@@ -10,6 +10,7 @@ import {
   getStoryIdDetail,
   getStorySlugDetail,
   getStoryGenerationStatus,
+  streamStoryGeneration,
   resumeStoryGeneration,
   getCreatorPack,
 } from '../controllers/story.controller.js';
@@ -35,6 +36,12 @@ router.get(
   requireAuth,
   validate(currentUserStoriesQuerySchema),
   getCurrentUserStories
+);
+router.get(
+  '/me/:storyId/events',
+  requireAuth,
+  validate(storyIdParamSchema),
+  streamStoryGeneration
 );
 router.get(
   '/me/:storyId/status',

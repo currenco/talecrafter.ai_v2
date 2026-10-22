@@ -9,7 +9,8 @@ import {
   normalizeGeneratedSource,
 } from './image.service.js';
 import { reserveImage } from './entitlement.service.js';
-import { getPollinationsAccessTokenForProfile } from './pollinations.service.js';
+import { getPollinationsCredentialsForProfile } from './pollinations.service.js';
+import { imageFundingError } from '../utils/pollinationsBalance.js';
 
 const normalizePathPart = value =>
   String(value ?? '')
@@ -43,27 +44,45 @@ const uploadOne = async ({
   sourceUrl,
   sourceHeaders,
   purpose,
+  generationCredentials,
 }) => {
   const storage = getObjectStorage();
   const id = randomUUID();
   const generated = isPollinationsImageUrl(sourceUrl);
+  let credentials;
   if (generated) {
     sourceUrl = normalizeGeneratedSource(sourceUrl);
     // Always choose credentials on the server, including resumed and direct image calls.
+    credentials =
+      generationCredentials ??
+      (await getPollinationsCredentialsForProfile(ownerId));
     sourceHeaders = {
-      Authorization: `Bearer ${await getPollinationsAccessTokenForProfile(ownerId)}`,
+      Authorization: `Bearer ${credentials.token}`,
     };
-    await reserveImage(ownerId);
+    await reserveImage(ownerId, credentials);
   }
-  const uploaded = await storage.uploadFromUrl(sourceUrl, {
-    objectKey: buildAssetObjectKey({
-      ownerId,
-      publicStoryId,
-      assetId: id,
-      purpose,
-    }),
-    sourceHeaders,
-  });
+  const uploaded = await storage
+    .uploadFromUrl(sourceUrl, {
+      objectKey: buildAssetObjectKey({
+        ownerId,
+        publicStoryId,
+        assetId: id,
+        purpose,
+      }),
+      sourceHeaders,
+    })
+    .catch(error => {
+      if (generated && error?.statusCode === 402)
+        throw imageFundingError(credentials.plan);
+      if (
+        generated &&
+        credentials.plan === 'creator' &&
+        [401, 403].includes(error?.statusCode)
+      ) {
+        throw imageFundingError('creator');
+      }
+      throw error;
+    });
   return {
     id,
     provider: uploaded.provider,
@@ -99,17 +118,19 @@ export const uploadAssetBatch = async ({
   publicStoryId,
   images,
   concurrency = 3,
+  generationCredentials,
 }) => {
   const requests = Array.isArray(images) ? images : [];
   const results = new Array(requests.length);
   let cursor = 0;
+  let stopped = false;
 
   const workers = Array.from(
     {
       length: Math.min(Math.max(1, concurrency), Math.max(1, requests.length)),
     },
     async () => {
-      while (cursor < requests.length) {
+      while (!stopped && cursor < requests.length) {
         const index = cursor;
         cursor += 1;
         try {
@@ -119,9 +140,11 @@ export const uploadAssetBatch = async ({
               ownerId,
               publicStoryId,
               ...requests[index],
+              generationCredentials,
             }),
           };
         } catch (reason) {
+          stopped = true;
           results[index] = { status: 'rejected', reason };
         }
       }

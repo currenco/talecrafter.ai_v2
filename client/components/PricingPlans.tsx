@@ -6,12 +6,11 @@ const plans = [
   {
     name: "Free trial",
     price: "$0",
-    description: "Try Classic story creation with GitHub and your own Pollinations key.",
+    description: "Try Classic story creation with your own Pollinations key.",
     features: [
       "Read all public stories",
       "Sign in with Google or GitHub",
       "Classic story creation",
-      "GitHub account required to create",
       "Images use your connected Pollinations balance",
     ],
     note: "No TaleCrafter subscription required. Images need a valid Pollinations key with available balance; free provider credits are not guaranteed. If your key expires or its balance runs out, generation stops. Choose Creator for platform-funded images.",

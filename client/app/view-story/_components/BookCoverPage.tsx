@@ -8,12 +8,13 @@ const BookCoverPage = ({ imageUrl }: { imageUrl?: string | null }) => {
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#001230]">
       {/* Loader (Spinner) */}
-      {!imageLoaded && !hasError && (
+      {imageUrl && !imageLoaded && !hasError && (
         <div className="absolute inset-0 flex items-center justify-center bg-[#001230]">
           <span className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></span>
         </div>
       )}
 
+      {!imageUrl && <div className="flex h-full items-center justify-center px-6 text-center text-sm text-white">Cover illustration pending. Turn the page to start reading.</div>}
       {imageUrl ? (
         <Image
           src={imageUrl}

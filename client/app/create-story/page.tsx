@@ -1,5 +1,7 @@
 "use client";
 import { userErrorMessage } from "@/lib/user-messages";
+import { waitForStoryPublication } from "@/lib/story-generation";
+import { PollinationsUpgradeNotice, usePollinationsUpgrade } from "@/components/PollinationsUpgrade";
 import { useContext, useEffect, useRef, useState } from "react";
 import StorySubjectInput from "./(component)/StorySubjectInput";
 import StoryType from "./(component)/StoryType";
@@ -19,9 +21,7 @@ import {
 } from "@/lib/api-client";
 import type { UserDetail } from "@/app/_context/UserDetailContext";
 import type { StorySelection } from "@/types/story";
-import { waitForStoryPublication } from "@/lib/story-generation";
 import { CircleCheck, KeyRound, Link2, LoaderCircle, LockKeyhole } from "lucide-react";
-import ConnectGithub from "@/components/ConnectGithub";
 const MotionDiv = motion.div;
 
 export interface FormDataType {
@@ -31,7 +31,7 @@ export interface FormDataType {
 }
 
 const primaryButtonClass =
-  "h-auto min-h-11 max-w-full whitespace-normal rounded-full border border-[#e2d2ae] bg-gradient-to-br from-[#eee0c0] to-[#cbb789] px-4 py-2 text-sm font-semibold leading-5 text-[#101a28] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_12px_35px_rgba(0,0,0,0.22)] transition hover:from-[#f5e8ca] hover:to-[#d8c69e] disabled:cursor-not-allowed disabled:opacity-60 sm:px-8 sm:py-6 sm:text-base";
+  "h-auto min-h-11 max-w-full whitespace-normal rounded-full border border-[#e2d2ae] bg-gradient-to-br from-[#eee0c0] to-[#cbb789] px-4 py-2 text-sm font-semibold leading-5 text-[#101a28] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_12px_35px_rgba(0,0,0,0.22)] transition hover:from-[#f5e8ca] hover:to-[#d8c69e] disabled:cursor-not-allowed disabled:opacity-60";
 
 type ClassicStoryResponse = {
   slug?: string;
@@ -46,6 +46,7 @@ type InteractiveStoryResponse = {
 };
 
 type PollinationsStatus = {
+  balanceExhausted?: boolean;
   state:
     | "connected"
     | "disconnected"
@@ -59,6 +60,9 @@ type PollinationsStatus = {
 };
 
 const CreateStory = () => {
+  const progressController = useRef<AbortController | null>(null);
+  useEffect(() => () => progressController.current?.abort(), []);
+  const { handleFundingError, upgradeDialog } = usePollinationsUpgrade();
   const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
   const [formData, setFormData] = useState<Partial<FormDataType>>({});
@@ -173,10 +177,6 @@ const CreateStory = () => {
       return;
     }
 
-    if (!userDetail.canCreate) {
-      notifyError("Connect GitHub to create on Free trial, or choose Creator.");
-      return;
-    }
     if (mode === "interactive" && !userDetail.canBranch) {
       router.push("/pricing");
       return;
@@ -232,18 +232,23 @@ const CreateStory = () => {
           throw new Error("Story response did not include a story ID");
         }
 
-        notify("Story draft created. Generating its images now.");
-        const published = await waitForStoryPublication({
-          storyId: classicResult.storyId,
-          token,
-          onProgress: (status) =>
-            setGenerationMessage(
-              `Creating images ${status.completedImages}/${status.totalImages}...`,
-            ),
-        });
         generationRequestRef.current = null;
-        notify("Your illustrated story is ready!");
-        router.push(`/story/${published.slug}`);
+        const controller = new AbortController();
+        progressController.current = controller;
+        try {
+          const published = await waitForStoryPublication({
+            storyId: classicResult.storyId,
+            token,
+            signal: controller.signal,
+            onProgress: (status) => setGenerationMessage(`Creating images ${status.completedImages}/${status.totalImages}...`),
+          });
+          notify("Your illustrated story is ready!");
+          router.push(`/story/${published.slug}`);
+        } catch {
+          if (controller.signal.aborted) return;
+          // The text is already saved; the reader can show progress or recovery.
+          router.push(`/draft-story/${classicResult.storyId}`);
+        }
         return;
       }
 
@@ -257,7 +262,7 @@ const CreateStory = () => {
       if (!shouldRetainIdempotencyKey(error))
         generationRequestRef.current = null;
       console.error("Error generating story:", error);
-      notifyError(userErrorMessage(error, "We couldn't finish your story. Check My Stories for a saved draft before starting again."));
+      if (!handleFundingError(error)) notifyError(userErrorMessage(error, "We couldn't finish your story. Check My Stories for a saved draft before starting again."));
     } finally {
       setLoading(false);
       setGenerationMessage("Writing your story draft...");
@@ -280,6 +285,7 @@ const CreateStory = () => {
       />
 
       <div className="relative mx-auto max-w-7xl">
+        {upgradeDialog}
         <MotionDiv
           initial="hidden"
           animate="show"
@@ -311,18 +317,17 @@ const CreateStory = () => {
           </div>
         </MotionDiv>
 
-        {authUser && userDetail?.plan === "free" && !userDetail.githubConnected && <ConnectGithub />}
         {authUser && userDetail?.plan === "free" && (
-          <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-[#d8c69e]/15 bg-[#111d2b]/65 px-4 py-4 sm:mt-6 sm:gap-4 sm:px-5 sm:py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-4 flex flex-col gap-3 rounded-lg border border-[#d8c69e]/15 bg-[#111d2b]/65 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#d8c69e]/10 text-[#d8c69e]">
-                <KeyRound size={20} aria-hidden="true" />
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d8c69e]/10 text-[#d8c69e]">
+                <KeyRound size={18} aria-hidden="true" />
               </span>
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-[#f1eadb]">
                   Pollinations key
                 </p>
-                <p className="text-sm leading-5 text-[#c3cbd4]/65">
+                <p className="break-words text-xs leading-5 text-[#c3cbd4]/65 sm:text-sm">
                   {walletLoading
                     ? "Checking key connection..."
                     : walletStatus?.connected
@@ -341,12 +346,12 @@ const CreateStory = () => {
             </div>
             {walletLoading ? (
               <LoaderCircle
-                className="animate-spin text-[#d8c69e]"
+                className="my-3 shrink-0 animate-spin text-[#d8c69e]"
                 size={20}
                 aria-label="Checking Pollinations key connection"
               />
             ) : walletStatus?.connected ? (
-              <span className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-300">
+              <span className="inline-flex min-h-11 shrink-0 items-center gap-2 text-sm font-semibold text-emerald-300">
                 <CircleCheck size={18} aria-hidden="true" />
                 Connected
               </span>
@@ -354,7 +359,7 @@ const CreateStory = () => {
               <Button
                 type="button"
                 disabled={walletPending}
-                className={primaryButtonClass}
+                className={`${primaryButtonClass} h-11 w-auto shrink-0 self-start whitespace-nowrap sm:self-center`}
                 onClick={connectPollinations}
               >
                 {walletPending ? (
@@ -366,6 +371,12 @@ const CreateStory = () => {
               </Button>
             )}
           </div>
+        )}
+
+        {authUser && userDetail?.plan === "free" && walletStatus?.balanceExhausted && (
+          <section className="mt-4 border-l-2 border-[#d8c69e] pl-4" aria-label="Pollinations balance">
+            <PollinationsUpgradeNotice />
+          </section>
         )}
 
         <MotionDiv

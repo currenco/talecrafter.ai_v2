@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test, { mock } from 'node:test';
 import { subscriptionDb } from './helpers/subscription-db.js';
+import { imageFundingError } from '../src/utils/pollinationsBalance.js';
 
 test('generation checks permissions without user quotas and preserves the platform budget', async () => {
   const { pg, db } = await subscriptionDb();
@@ -49,16 +50,11 @@ test('generation checks permissions without user quotas and preserves the platfo
       userEmail: 'free@example.invalid',
       userName: 'Free',
     });
-    await assert.rejects(
-      jobs.reserveGenerationForProfile({
-        ...options,
-        idempotencyKey: 'no-github',
-      }),
-      e => e.statusCode === 403
-    );
+    assert.equal((await access.getEntitlement(profileId)).canCreate, true);
+    assert.equal((await access.assertGenerationAccess(profileId)).plan, 'free');
     await pg.query('INSERT INTO neon_auth.account VALUES ($1,$2)', [
       authUserId,
-      'github',
+      'google',
     ]);
     await assert.rejects(
       jobs.reserveGenerationForProfile({
@@ -123,6 +119,24 @@ test('generation checks permissions without user quotas and preserves the platfo
         )
       ).rows[0]?.used ?? 0;
     assert.equal(await used(), 0);
+    const exhausted = await jobs.reserveGenerationForProfile({
+      ...options,
+      idempotencyKey: 'exhausted-balance',
+    });
+    await jobs.failGenerationJob({
+      jobId: exhausted.job.id,
+      error: imageFundingError('free'),
+      startedAt: Date.now(),
+    });
+    const fundingFailure = await pg.query(
+      'SELECT status, error_code FROM app.generation_jobs WHERE id = $1',
+      [exhausted.job.id]
+    );
+    assert.equal(fundingFailure.rows[0].status, 'failed');
+    assert.equal(
+      fundingFailure.rows[0].error_code,
+      'POLLINATIONS_BALANCE_EXHAUSTED'
+    );
     const concurrent = await Promise.allSettled(
       [1, 2, 3].map(() =>
         jobs.reserveGenerationForProfile({
@@ -176,13 +190,10 @@ test('generation checks permissions without user quotas and preserves the platfo
     assert.equal(await access.reserveImage(profileId), null);
     await generateIdea();
     await pg.exec('DELETE FROM app.plan_usage_buckets');
-    // Creator needs no GitHub but still requires an active paid period.
+    // Creation permissions do not depend on the sign-in provider.
     await pg.exec('DELETE FROM neon_auth.account');
-    await assert.rejects(
-      access.reserveImage(profileId),
-      e => e.statusCode === 403
-    );
-    await assert.rejects(generateIdea(), e => e.statusCode === 403);
+    assert.equal(await access.reserveImage(profileId), null);
+    await generateIdea();
     await db.insert(CreatorSubscriptions).values({
       userId: profileId,
       providerPlanId: 'plan_test',

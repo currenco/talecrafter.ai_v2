@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { EventEmitter } from 'node:events';
+import { publishStoryProgress } from '../src/utils/storyProgress.js';
 import test, { mock } from 'node:test';
 import { eq, sql } from 'drizzle-orm';
 import { subscriptionDb } from './helpers/subscription-db.js';
@@ -19,10 +21,12 @@ test('dashboard uses current interactive page totals instead of starter chapters
   mock.module('../src/services/user.service.js', {
     namedExports: {
       ...userService,
-      syncUserFromAuth: async () => ({ id: ownerId }),
+      syncUserFromAuth: async userId => ({
+        id: userId === 'stranger' ? randomUUID() : ownerId,
+      }),
     },
   });
-  const { listCurrentUserStories } =
+  const { listCurrentUserStories, getCurrentUserStoryStatus } =
     await import('../src/services/story.service.js');
   const { getInteractiveRequestStatus } =
     await import('../src/services/interactiveStory.service.js');
@@ -58,6 +62,20 @@ test('dashboard uses current interactive page totals instead of starter chapters
     const first = await listCurrentUserStories(query);
     assert.equal(first.items[0].totalPages, 11);
     assert.equal(first.items[0].output.chapters.length, 8);
+    const progress = await getCurrentUserStoryStatus({
+      userId: 'owner',
+      storyId: first.items[0].storyId,
+    });
+    assert.equal(progress.content.output.chapters.length, 8);
+    assert.equal(progress.content.storyId, first.items[0].storyId);
+    assert.equal(progress.content.userEmail, undefined);
+    await assert.rejects(
+      getCurrentUserStoryStatus({
+        userId: 'stranger',
+        storyId: first.items[0].storyId,
+      }),
+      error => error.statusCode === 404
+    );
     const key = randomUUID();
     const request = { userId: 'owner', storyId: first.items[0].storyId, key };
     assert.deepEqual(await getInteractiveRequestStatus(request), {
@@ -74,6 +92,46 @@ test('dashboard uses current interactive page totals instead of starter chapters
     assert.deepEqual(await getInteractiveRequestStatus(request), {
       status: 'running',
     });
+    const { streamStoryGeneration } =
+      await import('../src/controllers/story.controller.js');
+    const response = new EventEmitter();
+    const frames = [];
+    response.set = () => response;
+    response.flushHeaders = () => {};
+    response.end = () => response.emit('close');
+    const firstFrame = new Promise((resolve, reject) => {
+      response.write = value => {
+        frames.push(value);
+        resolve();
+        return true;
+      };
+      streamStoryGeneration(
+        { auth: { userId: 'owner' }, params: { storyId: request.storyId } },
+        response,
+        reject
+      );
+    });
+    try {
+      await firstFrame;
+      assert.match(frames[0], /"generationStatus":"running"/);
+      await new Promise(resolve => setTimeout(resolve, 20));
+      assert.equal(frames.length, 1);
+      const changed = new Promise(resolve => {
+        response.write = value => {
+          frames.push(value);
+          resolve();
+          return true;
+        };
+      });
+      publishStoryProgress(request.storyId);
+      await changed;
+      assert.equal(frames.length, 2);
+    } finally {
+      response.end();
+    }
+    publishStoryProgress(request.storyId);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(frames.length, 2);
     await db
       .update(GenerationJobs)
       .set({ status: 'failed' })

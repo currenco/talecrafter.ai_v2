@@ -17,6 +17,72 @@ import ApiError from '../utils/ApiError.js';
 import { getIdempotencyKey } from '../utils/idempotency.js';
 import { publicStory } from '../utils/publicStory.js';
 import { syncUserFromAuth } from '../services/user.service.js';
+import { subscribeStoryProgress } from '../utils/storyProgress.js';
+
+export const streamStoryGeneration = asyncHandler(async (req, res) => {
+  const user = await syncUserFromAuth(req.auth.userId);
+  const options = { profileId: user.id, storyId: req.params.storyId };
+  // Authenticate ownership before opening a stream; never send another user's draft.
+  await getCurrentUserStoryStatus(options);
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'private, no-store, no-transform',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders();
+  let closed = false;
+  let reading = false;
+  let dirty = false;
+  const refresh = async () => {
+    dirty = true;
+    if (reading || closed) return;
+    reading = true;
+    try {
+      while (dirty && !closed) {
+        dirty = false;
+        const progress = await getCurrentUserStoryStatus(options);
+        if (closed) break;
+        if (!res.write(`data: ${JSON.stringify(progress)}\n\n`)) {
+          await new Promise(resolve => {
+            const ready = () => {
+              res.off('drain', ready);
+              res.off('close', ready);
+              resolve();
+            };
+            res.once('drain', ready);
+            res.once('close', ready);
+          });
+        }
+        if (progress.generationStatus !== 'running') {
+          res.end();
+          break;
+        }
+      }
+    } catch {
+      if (!closed) {
+        res.write(
+          'event: error\ndata: {"message":"Progress connection interrupted"}\n\n'
+        );
+        res.end();
+      }
+    } finally {
+      reading = false;
+    }
+  };
+  const unsubscribe = subscribeStoryProgress(req.params.storyId, refresh);
+  const heartbeat = setInterval(() => {
+    if (!closed) res.write(': heartbeat\n\n');
+  }, 15000);
+  const expiry = setTimeout(() => res.end(), 12 * 60 * 1000);
+  res.on('close', () => {
+    closed = true;
+    clearInterval(heartbeat);
+    clearTimeout(expiry);
+    unsubscribe();
+  });
+  // Read after subscribing so a save during connection setup cannot be missed.
+  await refresh();
+});
 
 export const getCreatorPack = asyncHandler(async (req, res) => {
   const user = await syncUserFromAuth(req.auth.userId);
@@ -142,6 +208,7 @@ export const createStory = asyncHandler(async (req, res) => {
 });
 
 export const getStoryGenerationStatus = asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
   const status = await getCurrentUserStoryStatus({
     userId: req.auth.userId,
     storyId: req.params.storyId,

@@ -149,14 +149,14 @@ test('access expires by paid period, not cached active status', () => {
   assert.equal(hasCreatorAccess({ status: 'active' }, now), false);
   assert.equal(monthlyPeriod(now), '2026-10');
 });
-test('only Free creation requires linked GitHub; branching is Creator-only', () => {
+test('Free creation supports any sign-in provider; branching is Creator-only', () => {
   assert.equal(
     generationPermission({
       creator: false,
       githubConnected: false,
       kind: 'classic',
     }),
-    'GITHUB_REQUIRED'
+    null
   );
   assert.equal(
     generationPermission({

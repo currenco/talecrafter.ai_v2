@@ -5,7 +5,7 @@ import { Button } from "@nextui-org/react";
 import Link from "next/link";
 import Image from "next/image";
 import { toast } from "react-toastify";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { getAccessToken } from "@/lib/neon-auth/client";
 import {
   apiFetch,
@@ -65,6 +65,8 @@ const StoryItemCard = ({
 }: StoryItemType) => {
   const [imgFailed, setImgFailed] = useState(false);
   const [resuming, setResuming] = useState(false);
+  const progressController = useRef<AbortController | null>(null);
+  useEffect(() => () => progressController.current?.abort(), []);
   const router = useRouter();
   const isDraft = story.status === "draft";
   const isReadOnlyUnpublished = readOnly && story.status !== "published";
@@ -93,22 +95,19 @@ const StoryItemCard = ({
   };
 
   const handleResume = async () => {
+    const controller = new AbortController();
+    progressController.current = controller;
     setResuming(true);
     try {
       const token = await getAccessToken();
       await apiFetch(`/stories/${story.storyId}/resume`, {
-        method: "POST",
-        token,
-        idempotencyKey: createIdempotencyKey(),
+        method: "POST", token, idempotencyKey: createIdempotencyKey(),
       });
-      const published = await waitForStoryPublication({
-        storyId: story.storyId,
-        token,
-      });
-      toast.success("Your illustrated story is ready!");
+      const published = await waitForStoryPublication({ storyId: story.storyId, token, signal: controller.signal });
       router.push(`/story/${published.slug}`);
-    } catch (error) {
-      toast.error(userErrorMessage(error, "We couldn't resume your story. Your draft is still available in My Stories."));
+    } catch {
+      if (controller.signal.aborted) return;
+      router.push(`/draft-story/${story.storyId}`);
     } finally {
       setResuming(false);
     }

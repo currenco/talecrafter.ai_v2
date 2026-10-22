@@ -1,5 +1,60 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { runImageTasks, createSerialWriter } from '../src/utils/imageTasks.js';
+import {
+  publishStoryProgress,
+  subscribeStoryProgress,
+} from '../src/utils/storyProgress.js';
+
+test('image workers overlap two tasks but serialize durable updates', async () => {
+  let active = 0;
+  let peak = 0;
+  let writers = 0;
+  const saved = [];
+  const persist = createSerialWriter();
+  await runImageTasks([1, 2, 3, 4], async value => {
+    active += 1;
+    peak = Math.max(peak, active);
+    await new Promise(resolve => setTimeout(resolve, 5));
+    await persist(async () => {
+      assert.equal(writers++, 0);
+      await new Promise(resolve => setTimeout(resolve, 2));
+      saved.push(value);
+      writers -= 1;
+    });
+    active -= 1;
+  });
+  assert.equal(peak, 2);
+  assert.deepEqual(saved.sort(), [1, 2, 3, 4]);
+});
+
+test('a failed image stops scheduling while in-flight successes finish saving', async () => {
+  const started = [];
+  const saved = [];
+  await assert.rejects(
+    runImageTasks([1, 2, 3, 4], async value => {
+      started.push(value);
+      if (value === 1) throw new Error('provider budget');
+      await new Promise(resolve => setTimeout(resolve, 5));
+      saved.push(value);
+    }),
+    /provider budget/
+  );
+  assert.deepEqual(started, [1, 2]);
+  assert.deepEqual(saved, [2]);
+});
+
+test('progress notifications are scoped and unsubscribe cleanly', () => {
+  let count = 0;
+  const unsubscribe = subscribeStoryProgress('one', () => count++);
+  publishStoryProgress('other');
+  assert.equal(count, 0);
+  publishStoryProgress('one');
+  assert.equal(count, 1);
+  unsubscribe();
+  publishStoryProgress('one');
+  assert.equal(count, 1);
+});
 import {
   buildPollinationsImageRequest,
   buildPollinationsImageUrl,
@@ -7,6 +62,43 @@ import {
 } from '../src/services/image.service.js';
 import { decryptSecret, encryptSecret } from '../src/utils/secretBox.js';
 import { hasImagePermission } from '../src/utils/pollinationsPermissions.js';
+import {
+  isPollinationsBalanceExhausted,
+  imageFundingError,
+} from '../src/utils/pollinationsBalance.js';
+
+test('only a known empty account or key budget signals exhaustion', () => {
+  for (const balance of [
+    null,
+    {},
+    { balance: null },
+    { balance: '0' },
+    { balance: NaN },
+    { balance: 1 },
+  ]) {
+    assert.equal(isPollinationsBalanceExhausted(balance), false);
+  }
+  for (const balance of [
+    { balance: 0 },
+    { balance: -1 },
+    { balance: 5, accountBalance: { total: 0 } },
+  ]) {
+    assert.equal(isPollinationsBalanceExhausted(balance), true);
+  }
+});
+
+test('only personal image funding failures offer an upgrade', () => {
+  assert.equal(imageFundingError('free').statusCode, 402);
+  assert.equal(
+    imageFundingError('free').error[0].code,
+    'POLLINATIONS_BALANCE_EXHAUSTED'
+  );
+  assert.equal(imageFundingError('creator').statusCode, 503);
+  assert.equal(
+    imageFundingError('creator').error[0].code,
+    'PLATFORM_IMAGE_UNAVAILABLE'
+  );
+});
 
 test('generated persistence URLs cannot override model, dimensions or billing parameters', () => {
   const normalized = new URL(

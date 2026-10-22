@@ -13,10 +13,9 @@ export const hasCreatorAccess = (subscription, now = new Date()) =>
     !subscription.revoked
   );
 
-export const generationPermission = ({ creator, githubConnected, kind }) => {
+export const generationPermission = ({ creator, kind }) => {
   if (creator) return null;
   if (kind.startsWith('interactive')) return 'CREATOR_REQUIRED';
-  if (!githubConnected) return 'GITHUB_REQUIRED';
   return null;
 };
 

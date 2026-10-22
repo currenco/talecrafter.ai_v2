@@ -178,12 +178,12 @@ const faqs = [
   {
     question: "Can I try TaleCrafter before subscribing?",
     answer:
-      "Yes. You can preview public stories without a subscription. To create Classic stories on the Free trial, link a GitHub account and connect your own Pollinations key. Images use your Pollinations balance, so creation depends on a valid key and available balance. The trial is not a promise of free images forever.",
+      "Yes. You can preview public stories without a subscription. To create Classic stories on the Free trial, sign in and connect your own Pollinations key. Images use your Pollinations balance, so creation depends on a valid key and available balance. The trial is not a promise of free images forever.",
   },
   {
     question: "Do I need GitHub or an image-generation key?",
     answer:
-      "You can sign in with Google or GitHub on either plan. Free trial creation requires a linked GitHub account and your own Pollinations key. With Creator, you can create using Google or GitHub without connecting a separate image-generation key.",
+      "You can sign in and create with Google or GitHub on either plan. Free trial creation uses your own Pollinations key. With Creator, you can create without connecting a separate image-generation key.",
   },
   {
     question: "What do I get with Creator?",

@@ -7,6 +7,7 @@ import { getCleanChapterText } from "@/lib/story-text";
 
 type StoryPagesProps = {
   storyChapter: StoryChapter;
+  pendingImage?: boolean;
   chapterKey: number;
   activeNarrationKey?: number | null;
   onStartNarration?: (chapterKey: number) => void;
@@ -15,6 +16,7 @@ type StoryPagesProps = {
 
 const StoryPages = ({
   storyChapter,
+  pendingImage = false,
   chapterKey,
   activeNarrationKey,
   onStartNarration,
@@ -81,12 +83,12 @@ const StoryPages = ({
         </button>
       </h2>
       <div className="relative w-full min-h-[300px] mt-2">
-        {!imageLoaded && !imageError && (
+        {!pendingImage && !imageLoaded && !imageError && (
           <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-blue-50">
             <span className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></span>
           </div>
         )}
-        {imageError ? (
+        {pendingImage ? <div className="flex min-h-[300px] items-center justify-center rounded-lg bg-blue-50 px-6 text-center text-sm text-slate-600">Illustration pending. You can read this page now.</div> : imageError ? (
           <div className="flex min-h-[300px] w-full items-center justify-center rounded-lg border border-blue-200/40 bg-blue-50 px-6 text-center text-sm text-slate-600">
             We couldn’t load this illustration right now. You can still continue reading this page.
           </div>

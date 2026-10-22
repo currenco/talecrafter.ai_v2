@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from 'cloudinary';
 import ApiError from '../utils/ApiError.js';
+import { logger } from '../utils/logger.js';
 import { assertObjectStorage } from './objectStorage.js';
 
 const DEFAULT_MAX_SOURCE_BYTES = 15 * 1024 * 1024;
@@ -76,6 +77,7 @@ export const createCloudinaryStorage = (options = {}) => {
     container: config.cloudName,
 
     async uploadFromUrl(sourceUrl, uploadOptions = {}) {
+      const sourceStartedAt = Date.now();
       const safeUrl = validateSourceUrl(String(sourceUrl ?? '').trim());
       const objectKey = String(uploadOptions.objectKey ?? '').trim();
       if (!objectKey) throw new ApiError(400, 'Object key is required');
@@ -94,6 +96,12 @@ export const createCloudinaryStorage = (options = {}) => {
       if (!sourceResponse.ok) {
         if (sourceResponse.status === 401) {
           throw new ApiError(401, 'Reconnect your Pollinations wallet');
+        }
+        if (sourceResponse.status === 403) {
+          throw new ApiError(
+            403,
+            'Reconnect your Pollinations wallet and allow image generation'
+          );
         }
         if (sourceResponse.status === 402) {
           throw new ApiError(
@@ -126,6 +134,7 @@ export const createCloudinaryStorage = (options = {}) => {
       }
 
       const sourceBytes = await sourceResponse.arrayBuffer();
+      const sourceDurationMs = Date.now() - sourceStartedAt;
       if (sourceBytes.byteLength > maxSourceBytes) {
         throw new ApiError(413, 'Source image is too large');
       }
@@ -156,6 +165,7 @@ export const createCloudinaryStorage = (options = {}) => {
       formData.append('unique_filename', signatureParams.unique_filename);
       formData.append('overwrite', signatureParams.overwrite);
 
+      const uploadStartedAt = Date.now();
       const uploadResponse = await fetchWithTimeout(
         fetchImpl,
         `https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`,
@@ -171,6 +181,11 @@ export const createCloudinaryStorage = (options = {}) => {
       }
 
       const payload = await uploadResponse.json();
+      logger.info('Story image timing', {
+        sourceDurationMs,
+        uploadDurationMs: Date.now() - uploadStartedAt,
+        byteSize: sourceBytes.byteLength,
+      });
       const uploadedKey = String(payload?.public_id ?? '').trim();
       if (!uploadedKey) {
         throw new ApiError(502, 'Cloudinary upload returned no object key');

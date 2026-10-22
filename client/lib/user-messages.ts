@@ -1,6 +1,7 @@
 const messages: Record<string, string> = {
+  POLLINATIONS_BALANCE_EXHAUSTED: "Your connected image balance is used up. Upgrade to Creator for included image generation. Your saved draft stays in My Stories.",
+  PLATFORM_IMAGE_UNAVAILABLE: "Image generation is temporarily unavailable. You don't need to upgrade or connect a key. Please try later; any saved draft is in My Stories.",
   AUTH_SESSION_INVALID: "Your session has ended. Sign in again to continue.",
-  GITHUB_REQUIRED: "Connect GitHub to create a Classic story on the Free trial, or choose Creator to use your current sign-in method.",
   CREATOR_REQUIRED: "This feature is included with Creator. View Plans to upgrade.",
   PLATFORM_BUDGET_REACHED: "Image generation is temporarily unavailable. Please try later. Check My Stories for any saved draft before starting again.",
   INVALID_EMAIL_OR_PASSWORD: "The email or password doesn't match. Try again or use Forgot password.",

@@ -77,8 +77,8 @@ export const termsAndConditions: LegalDocument = {
       "Keep your account and connected credentials secure, provide accurate information, and use only accounts and images you are authorized to use. You are responsible for activity you authorize through your account. Do not share passwords, payment details, or API keys in public stories or support messages.",
     ] },
     { id: "plans", title: "Free trial and Creator access", paragraphs: [
-      "Both plans offer Google and GitHub sign-in. Free trial creation requires a linked GitHub account, supports Classic stories, and uses your own connected Pollinations key and available provider balance. The label Free trial does not promise free Pollinations credits, a fixed number of days, or an automatic paid upgrade.",
-      "Creator requires active paid access and includes Classic and Plot Twist generation, platform-funded illustrations, character and scene material, and PDF export. Creator does not require a personal Pollinations key or linked GitHub account for creation.",
+      "Both plans offer Google and GitHub sign-in. Free trial creation supports Classic stories and uses your own connected Pollinations key and available provider balance. The label Free trial does not promise free Pollinations credits, a fixed number of days, or an automatic paid upgrade.",
+      "Creator requires active paid access and includes Classic and Plot Twist generation, platform-funded illustrations, character and scene material, and PDF export. Creator does not require a personal Pollinations key for creation.",
       "Neither plan has per-user monthly project, image, or image-to-story quotas. This is not a promise of unlimited or uninterrupted output: generation depends on provider restrictions, availability, and, for Creator images, shared platform capacity. Complete short-film generation is not included in the current subscription.",
     ] },
     { id: "billing", title: "Subscriptions, renewal, and delivery", paragraphs: [

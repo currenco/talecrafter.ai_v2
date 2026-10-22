@@ -151,11 +151,13 @@ export const buildGenerationSuccessUpdate = ({
 
 export const failGenerationJob = async ({ jobId, error, startedAt }) => {
   const statusCode = Number(error?.statusCode);
-  const errorCode = Number.isInteger(statusCode)
-    ? `HTTP_${statusCode}`
-    : String(error?.code || error?.name || 'GENERATION_FAILED')
-        .toUpperCase()
-        .slice(0, 80);
+  const errorCode =
+    error?.error?.[0]?.code ||
+    (Number.isInteger(statusCode)
+      ? `HTTP_${statusCode}`
+      : String(error?.code || error?.name || 'GENERATION_FAILED')
+          .toUpperCase()
+          .slice(0, 80));
   const errorMessage = String(error?.message || 'Generation failed').slice(
     0,
     1000

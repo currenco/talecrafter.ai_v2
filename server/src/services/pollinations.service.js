@@ -8,6 +8,7 @@ import {
 import ApiError from '../utils/ApiError.js';
 import { decryptSecret, encryptSecret } from '../utils/secretBox.js';
 import { hasImagePermission } from '../utils/pollinationsPermissions.js';
+import { isPollinationsBalanceExhausted } from '../utils/pollinationsBalance.js';
 import { syncUserFromAuth } from './user.service.js';
 import { assertGenerationAccess } from './entitlement.service.js';
 
@@ -238,13 +239,13 @@ export const completePollinationsConnection = async ({
   return getPollinationsConnectionStatus({ userId });
 };
 
-export const getPollinationsAccessTokenForProfile = async profileId => {
+export const getPollinationsCredentialsForProfile = async profileId => {
   const access = await assertGenerationAccess(profileId);
   if (access.plan === 'creator') {
     const key = String(process.env.POLLINATIONS_PLATFORM_KEY ?? '').trim();
     if (!key.startsWith('sk_'))
       throw new ApiError(503, 'Platform image generation is not configured');
-    return key;
+    return { token: key, plan: access.plan };
   }
   const connection = await findConnection(profileId);
   const state = connectionState(connection);
@@ -264,8 +265,11 @@ export const getPollinationsAccessTokenForProfile = async profileId => {
       'Reconnect your Pollinations wallet to authorize the current image model'
     );
   }
-  return accessToken;
+  return { token: accessToken, plan: access.plan };
 };
+
+export const getPollinationsAccessTokenForProfile = async profileId =>
+  (await getPollinationsCredentialsForProfile(profileId)).token;
 
 export const getPollinationsConnectionStatus = async ({ userId }) => {
   const user = await syncUserFromAuth(userId);
@@ -277,6 +281,7 @@ export const getPollinationsConnectionStatus = async ({ userId }) => {
     username: connection?.providerUsername ?? null,
     expiresAt: connection?.expiresAt ?? null,
     balance: null,
+    balanceExhausted: false,
   };
 
   if (state !== 'connected') return result;
@@ -302,9 +307,11 @@ export const getPollinationsConnectionStatus = async ({ userId }) => {
       Authorization: `Bearer ${accessToken}`,
     },
     cache: 'no-store',
-  });
-  if (response.ok) {
+    signal: globalThis.AbortSignal.timeout(5000),
+  }).catch(() => null);
+  if (response?.ok) {
     result.balance = await response.json().catch(() => null);
+    result.balanceExhausted = isPollinationsBalanceExhausted(result.balance);
   }
 
   return result;

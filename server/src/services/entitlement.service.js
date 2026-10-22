@@ -27,7 +27,7 @@ export const getEntitlement = async profileId => {
   return {
     plan: creator ? 'creator' : 'free',
     githubConnected: row.githubConnected,
-    canCreate: creator || row.githubConnected,
+    canCreate: true,
     canBranch: creator,
     canExport: creator,
     period: creator ? new Date(row.periodStart).toISOString() : null,
@@ -41,15 +41,12 @@ export const assertGenerationAccess = async (profileId, kind = 'classic') => {
   const access = await getEntitlement(profileId);
   const reason = generationPermission({
     creator: access.plan === 'creator',
-    githubConnected: access.githubConnected,
     kind,
   });
   if (reason) {
     throw new ApiError(
       403,
-      reason === 'GITHUB_REQUIRED'
-        ? 'Connect GitHub to create on the Free trial plan'
-        : 'Creator subscription required for branching stories',
+      'Creator subscription required for branching stories',
       [{ code: reason }]
     );
   }
@@ -70,8 +67,8 @@ export const reserveUsage = async ({ id = randomUUID(), bucket, limit }) => {
   return id;
 };
 
-export const reserveImage = async profileId => {
-  const access = await assertGenerationAccess(profileId);
+export const reserveImage = async (profileId, verifiedAccess) => {
+  const access = verifiedAccess ?? (await assertGenerationAccess(profileId));
   if (access.plan !== 'creator') return null;
   const limit = Number(process.env.POLLINATIONS_PLATFORM_MONTHLY_ATTEMPT_LIMIT);
   if (!Number.isInteger(limit) || limit < 1) {

@@ -22,6 +22,8 @@ import { getAccessToken } from "@/lib/neon-auth/client";
 
 type StoryPageClientProps = {
   initialStory: StoryRecord;
+  isDraft?: boolean;
+  generationNotice?: React.ReactNode;
 };
 
 const SHOW_STORY_LAYOUT_SWITCH = false;
@@ -95,11 +97,11 @@ const getStorySummary = (story: StoryRecord) => {
   return `Read '${getOutputTitle(story)}', an AI generated story created with TaleCrafter AI.`;
 };
 
-export default function StoryPageClient({ initialStory }: StoryPageClientProps) {
+export default function StoryPageClient({ initialStory, isDraft = false, generationNotice }: StoryPageClientProps) {
   const { userDetail, isSignedIn, isAuthLoaded } = useContext(UserDetailContext);
   const RELATED_PAGE_SIZE = 10;
   const bookRef = useRef<FlipBookHandle | null>(null);
-  const [story] = useState<StoryRecord>(initialStory);
+  const story = initialStory;
   const [authorImageFailed, setAuthorImageFailed] = useState(false);
   const [count, setCount] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -116,6 +118,8 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
   const title = getOutputTitle(story);
   const summary = useMemo(() => getStorySummary(story), [story]);
   const chapters = story?.output?.chapters ?? [];
+  const relatedStoryId = story.storyId;
+  const relatedStoryType = story.storyType;
 
   const introText = useMemo(() => {
     const clean = summary.endsWith(".") ? summary : `${summary}.`;
@@ -123,7 +127,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
   }, [summary]);
 
   const getRelatedStories = useCallback(async (page: number) => {
-    if (!story?.storyId) {
+    if (!relatedStoryId || isDraft) {
       setRelatedLoading(false);
       return;
     }
@@ -134,7 +138,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
     try {
       const safePage = Math.max(1, page);
       const offset = (safePage - 1) * RELATED_PAGE_SIZE;
-      const storyType = String(story?.storyType ?? "").trim();
+      const storyType = String(relatedStoryType ?? "").trim();
       const params = new URLSearchParams({
         limit: String(RELATED_PAGE_SIZE),
         offset: String(offset),
@@ -142,7 +146,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
       if (storyType) params.set("storyType", storyType);
 
       const result = await apiFetch<{ stories: StoryRecord[]; totalCount: number }>(
-        `/stories/${story.storyId}/related?${params.toString()}`
+        `/stories/${relatedStoryId}/related?${params.toString()}`
       );
 
       if (request !== relatedRequest.current) return;
@@ -159,7 +163,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
     } finally {
       if (request === relatedRequest.current) setRelatedLoading(false);
     }
-  }, [story]);
+  }, [relatedStoryId, relatedStoryType, isDraft]);
 
   useEffect(() => {
     setRelatedPage(1);
@@ -185,7 +189,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
   };
 
   const onShareStory = async () => {
-    const storyUrl = typeof window !== "undefined" ? window.location.href : "";
+    const storyUrl = typeof window !== "undefined" && story.slug ? `${window.location.origin}/story/${encodeURIComponent(story.slug)}` : "";
     if (!storyUrl) return;
 
     if (navigator.share) {
@@ -210,6 +214,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
   const getChapterImageUrl = (chapter: StoryChapter) => {
     const persistedImage = String(chapter?.imageUrl ?? "").trim();
     if (persistedImage) return persistedImage;
+    if (isDraft) return "";
 
     return buildPollinationsImageUrl(
       chapter?.imagePrompt ?? chapter?.title ?? "Story illustration",
@@ -270,6 +275,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
           <p className="mx-auto mt-4 max-w-4xl text-sm leading-relaxed text-[#c3cbd4]/80 md:text-base">
             {introText}
           </p>
+          {generationNotice}
         </div>
 
         {contentMode === "flipbook" && (
@@ -293,6 +299,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
                   <div key={index} className="bg-white p-4 md:p-5">
                     <StoryPages
                       storyChapter={chapter}
+                      pendingImage={isDraft && !chapter.imageUrl}
                       chapterKey={index}
                       activeNarrationKey={activeNarrationKey}
                       onStartNarration={(key: number) => setActiveNarrationKey(key)}
@@ -321,7 +328,7 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
               </button>
 
               <div className="flex items-center gap-2">
-                <button onClick={onShareStory} className="tc-btn-primary px-5 py-2 text-sm">
+                <button onClick={onShareStory} disabled={isDraft} className="tc-btn-primary px-5 py-2 text-sm disabled:opacity-50">
                   {copied ? "Link Copied!" : "Share Story"}
                 </button>
               </div>
@@ -356,14 +363,14 @@ export default function StoryPageClient({ initialStory }: StoryPageClientProps) 
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={onDownloadPdf}
-                  disabled={downloadingPdf || !story || !userDetail?.canExport}
+                  disabled={isDraft || downloadingPdf || !story || !userDetail?.canExport}
                   title={!userDetail?.canExport ? "Creator subscription required" : undefined}
                   className="tc-btn-ghost inline-flex items-center gap-2 px-5 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {!userDetail?.canExport && <LockKeyhole size={18} className="shrink-0" aria-hidden="true" />}
                   {downloadingPdf ? "Generating PDF..." : userDetail?.canExport ? "Download PDF" : "PDF export - Creator Only"}
                 </button>
-                <CreatorStoryPack storyId={story.storyId} />
+                {!isDraft && <CreatorStoryPack storyId={story.storyId} />}
                 {SHOW_STORY_LAYOUT_SWITCH && <div className="tc-toggle-wrap">
                   <button
                     onClick={() => {

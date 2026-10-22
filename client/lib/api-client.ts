@@ -35,6 +35,7 @@ export class ApiClientError extends Error {
     message: string,
     public readonly statusCode: number,
     public readonly retryAfterMs?: number,
+    public readonly code?: string,
   ) {
     super(message);
     this.name = "ApiClientError";
@@ -94,6 +95,7 @@ export const apiFetch = async <T>(
           ? Math.max(0, Number(response.headers.get("retry-after")) * 1000) ||
               undefined
           : undefined,
+        payload?.errors?.[0]?.code,
       );
     }
 
