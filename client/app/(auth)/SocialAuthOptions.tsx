@@ -29,9 +29,6 @@ export default function SocialAuthOptions() {
         </a>
       </div>
 
-      <p className="mt-3 text-xs leading-5 text-[#c3cbd4]/80 text-center">
-        Both plans support Google and GitHub sign-in. Free trial images use your connected Pollinations key.
-      </p>
     </div>
   );
 }

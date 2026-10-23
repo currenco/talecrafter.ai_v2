@@ -43,12 +43,12 @@ export default function HowToUsePage() {
         <div className="min-w-0">
           <section id="getting-started" className={sectionClass} aria-labelledby="getting-started-heading">
             <h2 id="getting-started-heading" className={headingClass}>1. Set up your account</h2>
-            <p className="mt-3 text-sm leading-6 sm:text-base sm:leading-7"><Link className={linkClass} href="/sign-up">Create an account</Link> or <Link className={linkClass} href="/sign-in">sign in</Link>. Google and GitHub are available on both plans. Your plan determines how you create and which account funds the images.</p>
+            <p className="mt-3 text-sm leading-6 sm:text-base sm:leading-7"><Link className={linkClass} href="/sign-up">Create an account</Link> or <Link className={linkClass} href="/sign-in">sign in</Link> to start creating and save your stories.</p>
             <dl className="mt-5 grid gap-5 sm:grid-cols-2">
-              <div className="border-l-2 border-[#d8c69e]/50 pl-4"><dt className="font-semibold text-[#f1eadb]">Free trial</dt><dd className="mt-2 text-sm leading-6">Sign in with Google or GitHub and create Classic stories with your own funded Pollinations key. Image generation uses your Pollinations balance and depends on a valid key and provider availability. Pollinations limits still apply; TaleCrafter does not impose monthly generation quotas on the Free trial.</dd></div>
-              <div className="border-l-2 border-emerald-300/50 pl-4"><dt className="font-semibold text-[#f1eadb]">Creator</dt><dd className="mt-2 text-sm leading-6">Create Classic and Plot Twist stories with Google or GitHub. Images use TaleCrafter&apos;s generation account subject to provider availability and shared platform capacity. Creator also includes the story pack and PDF export.</dd></div>
+              <div className="border-l-2 border-[#d8c69e]/50 pl-4"><dt className="font-semibold text-[#f1eadb]">Free trial</dt><dd className="mt-2 text-sm leading-6">Try Classic story creation. Open Create Story to complete the setup and begin.</dd></div>
+              <div className="border-l-2 border-emerald-300/50 pl-4"><dt className="font-semibold text-[#f1eadb]">Creator</dt><dd className="mt-2 text-sm leading-6">Create Classic and Plot Twist stories with illustrations included. Creator also includes the story pack and PDF export.</dd></div>
             </dl>
-            <p className="mt-4 text-sm leading-6">Check <Link className={linkClass} href="/pricing">Plans</Link> for current prices and subscription details. Free trial images depend on your Pollinations key and balance.</p>
+            <p className="mt-4 text-sm leading-6">Check <Link className={linkClass} href="/pricing">Plans</Link> for current prices and subscription details.</p>
           </section>
 
           <section id="classic" className={sectionClass} aria-labelledby="classic-heading">

@@ -9,7 +9,7 @@ export const SITE_IMAGE = `${SITE_URL}/talecrafter-symbol.png`;
 export const PUBLIC_PAGES = [
   { path: privacyPolicy.path, title: privacyPolicy.title, description: privacyPolicy.description },
   { path: termsAndConditions.path, title: termsAndConditions.title, description: termsAndConditions.description },
-  { path: "/how-to-use", title: "How to Use TaleCrafter AI: Stories and Subscriptions", description: "Learn how to create illustrated stories, connect your Pollinations key, resume drafts, export PDFs, and manage your TaleCrafter AI Creator subscription." },
+  { path: "/how-to-use", title: "How to Use TaleCrafter AI: Stories and Subscriptions", description: "Learn how to create illustrated stories, resume drafts, export PDFs, and manage your TaleCrafter AI Creator subscription." },
   { path: "/", title: "Narration-Led AI Story Generator", description: SITE_DESCRIPTION },
   { path: "/about", title: "About Our Narration-Led Story Creator", description: "Discover TaleCrafter AI: illustrated prose stories, browser-based read-aloud, character development, and interactive storytelling, not screenplay formatting." },
   { path: "/pricing", title: "Free trial and Creator Plans", description: "Compare TaleCrafter AI plans for illustrated storytelling. Start with your own image-generation key or choose Creator for branching stories, character bibles, and PDF export." },

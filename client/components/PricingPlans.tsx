@@ -6,13 +6,12 @@ const plans = [
   {
     name: "Free trial",
     price: "$0",
-    description: "Try Classic story creation with your own Pollinations key.",
+    description: "Turn an idea into your first Classic story.",
     features: [
       "Read all public stories",
       "Classic story creation",
-      "Images use your connected Pollinations balance",
     ],
-    note: "No TaleCrafter subscription required. Images need a valid Pollinations key with available balance; free provider credits are not guaranteed. If your key expires or its balance runs out, generation stops. Choose Creator for platform-funded images.",
+    note: "No subscription required. Image generation needs a connected key with available balance. Set it up in Create Story.",
   },
   {
     name: "Creator",
@@ -21,7 +20,7 @@ const plans = [
     features: [
       "Public story library",
       "Create Classic and Plot Twist stories",
-      "AI illustrations with no external key required",
+      "AI illustrations included",
       "Complete character bible",
       "Scene-by-scene story and prompts",
       "PDF export",
