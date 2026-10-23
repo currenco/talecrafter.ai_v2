@@ -416,6 +416,7 @@ export default function StoryPageClient({ initialStory, isDraft = false, generat
           </div>
         )}
 
+        {!isDraft && <>
         <div className="tc-glass-panel-soft mt-10 p-5 md:p-7 text-center">
           <h2 className="font-serif text-3xl font-medium text-[#f1eadb]">Generate Your Own AI Story</h2>
           <p className="mx-auto mt-2 max-w-2xl text-sm text-[#c3cbd4]/75 md:text-base">
@@ -514,6 +515,7 @@ export default function StoryPageClient({ initialStory, isDraft = false, generat
             </div>
           )}
         </div>
+        </>}
 
       </div>
     </div>

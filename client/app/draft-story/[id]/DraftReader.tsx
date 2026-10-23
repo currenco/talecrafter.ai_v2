@@ -6,6 +6,7 @@ import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from
 import { Info, LoaderCircle, RefreshCw } from "lucide-react";
 import { UserDetailContext } from "@/app/_context/UserDetailContext";
 import StoryPageClient from "@/app/story/[slug]/StoryPageClient";
+import StoryReaderSkeleton from "@/components/StoryReaderSkeleton";
 import { apiFetch, createIdempotencyKey } from "@/lib/api-client";
 import { getAccessToken } from "@/lib/neon-auth/client";
 import { apiErrorMessage, userErrorMessage } from "@/lib/user-messages";
@@ -54,7 +55,7 @@ export default function DraftReader({ storyId }: { storyId: string }) {
     } finally { setResuming(false); }
   };
 
-  if (!isAuthLoaded) return <p className="p-6">Opening your story...</p>;
+  if (!isAuthLoaded) return <StoryReaderSkeleton />;
   if (!isSignedIn) return <div className="p-6"><Link href={`/sign-in?redirect=${encodeURIComponent(`/draft-story/${storyId}`)}`}>Sign in to open your story</Link></div>;
   const published = progress?.status === "published";
   const running = progress?.generationStatus === "running";
@@ -86,8 +87,8 @@ export default function DraftReader({ storyId }: { storyId: string }) {
         </ModalFooter>
       </ModalContent>
     </Modal>
-    {story ? <StoryPageClient initialStory={story} isDraft={!published} generationNotice={notice} /> : <div className="mx-auto max-w-xl px-5 py-8 text-center text-sm text-[#c3cbd4]">
-      <p role="status">{error || "Opening your story..."}</p>
+    {story ? <StoryPageClient initialStory={story} isDraft={!published} generationNotice={notice} /> : !error ? <StoryReaderSkeleton /> : <div className="mx-auto max-w-xl px-5 py-8 text-center text-sm text-[#c3cbd4]">
+      <p role="alert">{error}</p>
       {error && <Button variant="light" startContent={<RefreshCw size={16} />} onPress={() => setAttempt(value => value + 1)} className="mt-3 text-[#d8c69e]">Try again</Button>}
     </div>}
   </>;

@@ -61,11 +61,16 @@ const UserStoryList = () => {
   });
   const [completed, setCompleted] = useState<StoryCollection>(emptyCollection);
   const [drafts, setDrafts] = useState<StoryCollection>(emptyCollection);
+  const [loadedFor, setLoadedFor] = useState<Record<StoryStatus, string | undefined>>({ draft: undefined, published: undefined });
   const [errors, setErrors] = useState<Record<StoryStatus, string>>({ draft: "", published: "" });
   const [loading, setLoading] = useState<Record<StoryStatus, boolean>>({
     draft: false,
     published: false,
   });
+  const initialLoading = !isAuthLoaded || Boolean(userId && (
+    (loadedFor.draft !== userId && !errors.draft) ||
+    (loadedFor.published !== userId && !errors.published)
+  ));
 
   useEffect(() => {
     userIdRef.current = userId;
@@ -106,6 +111,7 @@ const UserStoryList = () => {
         } else {
           setDrafts(updateCollection);
         }
+        setLoadedFor(current => ({ ...current, [status]: requestUserId }));
       } catch (error) {
         if (userIdRef.current === requestUserId) setErrors(current => ({ ...current, [status]: userErrorMessage(error, "We couldn't load your stories. Please try again.") }));
       } finally {
@@ -124,6 +130,7 @@ const UserStoryList = () => {
     if (!userId) {
       setCompleted(emptyCollection());
       setDrafts(emptyCollection());
+      setLoadedFor({ draft: undefined, published: undefined });
       return;
     }
 
@@ -131,7 +138,7 @@ const UserStoryList = () => {
   }, [isAuthLoaded, loadStories, userId]);
 
   useEffect(() => {
-    if (!drafts.hasMore || loading.draft || errors.draft) return;
+    if (initialLoading || !drafts.hasMore || loading.draft || errors.draft) return;
     const trigger = draftTriggerRef.current;
     if (!trigger) return;
 
@@ -146,10 +153,10 @@ const UserStoryList = () => {
 
     observer.observe(trigger);
     return () => observer.disconnect();
-  }, [drafts.hasMore, drafts.items.length, loadStories, loading.draft, errors.draft]);
+  }, [initialLoading, drafts.hasMore, drafts.items.length, loadStories, loading.draft, errors.draft]);
 
   useEffect(() => {
-    if (!completed.hasMore || loading.published || errors.published) return;
+    if (initialLoading || !completed.hasMore || loading.published || errors.published) return;
     const trigger = publishedTriggerRef.current;
     if (!trigger) return;
 
@@ -165,6 +172,7 @@ const UserStoryList = () => {
     observer.observe(trigger);
     return () => observer.disconnect();
   }, [
+    initialLoading,
     completed.hasMore,
     completed.items.length,
     loadStories,
@@ -193,14 +201,12 @@ const UserStoryList = () => {
   const renderSection = ({
     title,
     description,
-    emptyMessage,
     collection,
     status,
     loadTriggerRef,
   }: {
     title: string;
     description: string;
-    emptyMessage: string;
     collection: StoryCollection;
     status: StoryStatus;
     loadTriggerRef: RefObject<HTMLDivElement>;
@@ -232,8 +238,6 @@ const UserStoryList = () => {
             />
           ))}
         </div>
-      ) : isAuthLoaded && !loading[status] && !errors[status] ? (
-        <p className="mt-6 text-sm leading-6 text-[#c3cbd4]/70 sm:text-base">{emptyMessage}</p>
       ) : null}
 
       <StoryGridSkeleton isLoading={!isAuthLoaded || loading[status]} count={4} />
@@ -246,20 +250,30 @@ const UserStoryList = () => {
     </section>
   );
 
+  const isEmpty = (status: StoryStatus, collection: StoryCollection) =>
+    Boolean(userId) && loadedFor[status] === userId &&
+    !loading[status] && !errors[status] && collection.totalCount === 0;
+
+  if (initialLoading) {
+    return <StoryGridSkeleton isLoading count={4} className="mt-8" />;
+  }
+
+  if (isEmpty("draft", drafts) && isEmpty("published", completed)) {
+    return <p className="mt-8 text-center text-sm leading-6 text-[#c3cbd4]/70 sm:text-base">You haven&apos;t created any stories yet.</p>;
+  }
+
   return (
     <div>
-      {renderSection({
+      {!isEmpty("draft", drafts) && renderSection({
         title: "Draft Stories",
         description: "Continue any story that is still in progress.",
-        emptyMessage: "You have no unfinished stories.",
         collection: drafts,
         status: "draft",
         loadTriggerRef: draftTriggerRef,
       })}
-      {renderSection({
+      {!isEmpty("published", completed) && renderSection({
         title: "Your Stories",
         description: "Your completed Classic and Plot Twist stories.",
-        emptyMessage: "You have not completed a story yet.",
         collection: completed,
         status: "published",
         loadTriggerRef: publishedTriggerRef,

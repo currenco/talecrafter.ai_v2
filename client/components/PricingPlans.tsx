@@ -9,7 +9,6 @@ const plans = [
     description: "Try Classic story creation with your own Pollinations key.",
     features: [
       "Read all public stories",
-      "Sign in with Google or GitHub",
       "Classic story creation",
       "Images use your connected Pollinations balance",
     ],
@@ -21,8 +20,7 @@ const plans = [
     description: "Narration-led stories with illustrations, character bibles, and PDF exports in one monthly plan.",
     features: [
       "Public story library",
-      "Sign in and create with Google or GitHub",
-      "Create classic and branching stories",
+      "Create Classic and Plot Twist stories",
       "AI illustrations with no external key required",
       "Complete character bible",
       "Scene-by-scene story and prompts",

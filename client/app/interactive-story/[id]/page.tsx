@@ -10,6 +10,7 @@ import { toast } from "react-toastify";
 import { useParams, useRouter } from "next/navigation";
 import { getAccessToken } from "@/lib/neon-auth/client";
 import CustomLoader from "@/app/create-story/(component)/CustomLoader";
+import StoryReaderSkeleton, { StoryBookSkeleton } from "@/components/StoryReaderSkeleton";
 import BookCoverPage from "@/app/view-story/_components/BookCoverPage";
 import {
   apiFetch,
@@ -20,11 +21,7 @@ const MAX_DEPTH = 7;
 
 const HTMLFlipBook = dynamic(() => import("react-pageflip"), {
   ssr: false,
-  loading: () => (
-    <div className="flex h-[420px] w-full max-w-[380px] items-center justify-center rounded-lg bg-blue-50 text-sm text-slate-600">
-      Loading book...
-    </div>
-  ),
+  loading: () => <StoryBookSkeleton />,
 });
 
 type InteractivePage = {
@@ -552,15 +549,7 @@ const InteractiveStoryPage = () => {
   }, [treeGraph]);
 
   if (loading || !story) {
-    return (
-      <div role="status" aria-label="Opening your story" aria-busy="true" className="min-h-screen bg-[#0b1522] px-5 py-8 md:px-16 lg:px-28 xl:px-40">
-        <div aria-hidden="true" className="motion-safe:animate-pulse">
-          <div className="mx-auto h-10 w-2/3 rounded bg-white/10" />
-          <div className="mx-auto mt-4 h-4 w-1/3 rounded bg-white/10" />
-          <div className="mx-auto mt-8 aspect-[340/620] w-full max-w-[340px] rounded-lg bg-white/10" />
-        </div>
-      </div>
-    );
+    return <StoryReaderSkeleton />;
   }
 
   return (

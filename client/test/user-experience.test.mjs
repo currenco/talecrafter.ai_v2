@@ -110,9 +110,26 @@ test('recovery performs one status read without timer-based polling', () => {
 test('opening an interactive draft does not display the generation overlay', () => {
   const source = readFileSync(new URL('../app/interactive-story/[id]/page.tsx', import.meta.url), 'utf8');
   assert.match(source, /\[loading, setLoading\] = useState\(true\)/);
-  assert.match(source, /aria-label="Opening your story"/);
+  assert.match(source, /return <StoryReaderSkeleton \/>/);
   assert.match(source, /CustomLoader isLoading=\{generatingNext\}/);
   assert.doesNotMatch(source, /isLoading=\{loading \|\| generatingNext\}/);
+});
+
+test('draft readers hide creation promotion and related stories', () => {
+  const source = readFileSync(new URL('../app/story/[slug]/StoryPageClient.tsx', import.meta.url), 'utf8');
+  assert.match(source, /\{!isDraft && <>[\s\S]*Generate Your Own AI Story[\s\S]*More Stories Like This[\s\S]*<\/>\}/);
+  assert.match(source, /if \(!relatedStoryId \|\| isDraft\)/);
+});
+
+test('draft readers use shimmer instead of visible opening text', () => {
+  for (const path of ['../app/draft-story/[id]/DraftReader.tsx', '../app/interactive-story/[id]/page.tsx']) {
+    const source = readFileSync(new URL(path, import.meta.url), 'utf8');
+    assert.match(source, /<StoryReaderSkeleton \/>/);
+    assert.doesNotMatch(source, /Opening your story\.\.\.|Loading book\.\.\./);
+  }
+  const skeleton = readFileSync(new URL('../components/StoryReaderSkeleton.tsx', import.meta.url), 'utf8');
+  assert.match(skeleton, /StoryGridSkeleton.module.css/);
+  assert.match(skeleton, /aria-busy="true"/);
 });
 
 test('plan and story destinations survive encoded auth links and legacy redirects', () => {
