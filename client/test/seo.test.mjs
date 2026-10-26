@@ -25,7 +25,7 @@ registerHooks({
   },
 });
 
-const { publicPageMetadata, rootMetadata } = await import('../lib/seo/metadata.ts');
+const { pageMetadata, publicPageMetadata, rootMetadata } = await import('../lib/seo/metadata.ts');
 const { storyMetadata, storyStructuredData } = await import('../lib/seo/story.ts');
 const { serializeJsonLd } = await import('../lib/seo/structured-data.ts');
 const { sitemapIndex, sitemapXml, staticSitemapXml, storySitemapXml, sitemapUnavailable } = await import('../lib/seo/sitemap.ts');
@@ -59,6 +59,24 @@ test('only explicitly public pages opt into indexing with production canonical U
     assert.equal(metadata.openGraph.url, metadata.alternates.canonical);
   }
   assert.throws(() => publicPageMetadata('/dashboard'));
+});
+
+test('sign-in variants consolidate to a non-indexable sign-in page', () => {
+  const layout = readFileSync(new URL('../app/(auth)/sign-in/layout.tsx', import.meta.url), 'utf8');
+  assert.match(layout, /path: "\/sign-in"/);
+  assert.match(layout, /index: false/);
+  const metadata = pageMetadata({ title: 'Sign in', description: 'Account access', path: '/sign-in', index: false });
+  assert.equal(metadata.alternates.canonical, 'https://www.talecrafterai.com/sign-in');
+  assert.equal(metadata.robots.index, false);
+});
+
+test('public stories provide readable chapter text while the client-only reader loads', () => {
+  const reader = readFileSync(new URL('../app/story/[slug]/StoryPageClient.tsx', import.meta.url), 'utf8');
+  assert.match(reader, /loading: ReadableBookFallback/);
+  assert.match(reader, /<BookTextContext.Provider value=\{chapters\}>/);
+  const fallback = reader.slice(reader.indexOf('function ReadableBookFallback'), reader.indexOf('type FlipBookHandle'));
+  assert.match(fallback, /getCleanChapterText\(chapter\)/);
+  assert.match(fallback, /aria-label="Story text"/);
 });
 
 test('story metadata uses public content and JSON-LD cannot inject executable scripts', () => {
