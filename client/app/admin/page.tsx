@@ -9,6 +9,7 @@ import shimmer from "@/components/StoryGridSkeleton.module.css";
 import Link from "next/link";
 import { Trash2 } from "lucide-react";
 import UserSummary, { type AdminUser } from "./_components/UserSummary";
+import DeleteStoryDialog from "@/components/DeleteStoryDialog";
 
 function SkeletonValue() {
   return <span role="status" aria-label="Loading count" className={`${shimmer.card} relative mx-auto block h-8 w-16 overflow-hidden rounded bg-white/10`} />;
@@ -202,6 +203,7 @@ const AdminDashboard = () => {
     return () => observer.disconnect();
   }, [activeTab, fetchUsers, loadingUsers, userHasMore, users.length]);
 
+  const [deleteStoryId, setDeleteStoryId] = useState<string | null>(null);
   const handleDeleteStory = async (storyId: string) => {
     try {
       const token = await getAuthToken();
@@ -212,8 +214,10 @@ const AdminDashboard = () => {
       setStories((prev) => prev.filter((s) => s.storyId !== storyId));
       setStoryTotal((previous) => Math.max(0, previous - 1));
       toast.success("Story deleted successfully");
+      return true;
     } catch (error) {
       toast.error(userErrorMessage(error, "We couldn't delete this story. Please try again."));
+      return false;
     }
   };
 
@@ -376,7 +380,7 @@ const AdminDashboard = () => {
                       </td>
                       <td className="px-3 py-2">
                         <button
-                          onClick={() => handleDeleteStory(story.storyId)}
+                          onClick={() => setDeleteStoryId(story.storyId)}
                           className="rounded-lg bg-red-500 px-3 py-1 font-semibold text-white hover:bg-red-600"
                         >
                           Delete
@@ -449,6 +453,7 @@ const AdminDashboard = () => {
           </div>
         )}
       </div>
+      <DeleteStoryDialog isOpen={deleteStoryId !== null} onClose={() => setDeleteStoryId(null)} onConfirm={() => deleteStoryId ? handleDeleteStory(deleteStoryId) : Promise.resolve(false)} />
     </div>
   );
 };

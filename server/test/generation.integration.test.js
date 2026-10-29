@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import test, { mock } from 'node:test';
+import test from 'node:test';
 import { subscriptionDb } from './helpers/subscription-db.js';
 import { imageFundingError } from '../src/utils/pollinationsBalance.js';
 
@@ -8,34 +8,10 @@ test('generation checks permissions without user quotas and preserves the platfo
   const { pg, db } = await subscriptionDb();
   const jobs = await import('../src/services/generationJob.service.js');
   const access = await import('../src/services/entitlement.service.js');
-  const users = await import('../src/services/user.service.js');
-  mock.module('../src/services/user.service.js', {
-    namedExports: {
-      ...users,
-      syncUserFromAuth: async () => ({ id: profileId }),
-    },
-  });
-  mock.module('../src/services/generation.service.js', {
-    namedExports: {
-      generateNarrativeText: async () => 'An idea',
-    },
-  });
-  const { generateGemini } =
-    await import('../src/controllers/ai.controller.js');
   const { UserProfiles, CreatorSubscriptions } =
     await import('../src/db/schema.js');
   const profileId = randomUUID();
   const authUserId = randomUUID();
-  const generateIdea = () =>
-    new Promise((resolve, reject) => {
-      generateGemini(
-        { auth: { userId: authUserId }, validated: { body: {} } },
-        {
-          status: () => ({ json: resolve }),
-        },
-        reject
-      );
-    });
   const options = {
     profileId,
     kind: 'classic',
@@ -162,9 +138,6 @@ test('generation checks permissions without user quotas and preserves the platfo
     for (let i = 0; i < 25; i++) {
       assert.equal(await access.reserveImage(profileId), null);
     }
-    for (let i = 0; i < 7; i++) {
-      await generateIdea();
-    }
     assert.equal(
       (await pg.query('SELECT * FROM app.plan_usage_buckets')).rows.length,
       0
@@ -173,7 +146,6 @@ test('generation checks permissions without user quotas and preserves the platfo
     for (const [kind, limit] of [
       ['projects', 3],
       ['images', 24],
-      ['ideas', 6],
     ]) {
       await pg.query(
         'INSERT INTO app.plan_usage_buckets (key, used) VALUES ($1, $2)',
@@ -188,12 +160,10 @@ test('generation checks permissions without user quotas and preserves the platfo
       idempotencyKey: 'old-quota-story',
     });
     assert.equal(await access.reserveImage(profileId), null);
-    await generateIdea();
     await pg.exec('DELETE FROM app.plan_usage_buckets');
     // Creation permissions do not depend on the sign-in provider.
     await pg.exec('DELETE FROM neon_auth.account');
     assert.equal(await access.reserveImage(profileId), null);
-    await generateIdea();
     await db.insert(CreatorSubscriptions).values({
       userId: profileId,
       providerPlanId: 'plan_test',
@@ -236,7 +206,6 @@ test('generation checks permissions without user quotas and preserves the platfo
     for (const [kind, limit] of [
       ['projects', 15],
       ['images', 120],
-      ['ideas', 60],
     ]) {
       await pg.query(
         'INSERT INTO app.plan_usage_buckets (key, used) VALUES ($1, $2)',
@@ -248,14 +217,13 @@ test('generation checks permissions without user quotas and preserves the platfo
         ...options,
         idempotencyKey: `creator-story-${i}`,
       });
-    for (let i = 0; i < 61; i++) await generateIdea();
     for (let i = 0; i < 121; i++) await access.reserveImage(profileId);
     const counters = await pg.query(
       "SELECT used FROM app.plan_usage_buckets WHERE key LIKE 'user:%' ORDER BY used"
     );
     assert.deepEqual(
       counters.rows.map(row => row.used),
-      [15, 60, 120]
+      [15, 120]
     );
     // Many simultaneous reservations cannot overspend a bounded bucket.
     const reservations = await Promise.allSettled(
@@ -266,6 +234,5 @@ test('generation checks permissions without user quotas and preserves the platfo
     assert.equal(reservations.filter(r => r.status === 'fulfilled').length, 3);
   } finally {
     await pg.close();
-    mock.restoreAll();
   }
 });

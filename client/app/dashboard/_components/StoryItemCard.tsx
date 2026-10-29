@@ -14,6 +14,7 @@ import {
 import { waitForStoryPublication } from "@/lib/story-generation";
 import type { StoryItem } from "@/types/story";
 import { useRouter } from "next/navigation";
+import DeleteStoryDialog from "@/components/DeleteStoryDialog";
 
 type StoryItemType = {
   story: StoryItem;
@@ -64,6 +65,7 @@ const StoryItemCard = ({
   onDeleteSuccess,
 }: StoryItemType) => {
   const [imgFailed, setImgFailed] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [resuming, setResuming] = useState(false);
   const progressController = useRef<AbortController | null>(null);
   useEffect(() => () => progressController.current?.abort(), []);
@@ -80,17 +82,17 @@ const StoryItemCard = ({
     ? `/story/${story.slug}`
     : `/view-story/${story?.storyId}`;
 
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault(); // prevent navigating via <Link>
+  const handleDelete = async () => {
     try {
       const token = await getAccessToken();
       await apiFetch(`/stories/${story.storyId}`, { method: "DELETE", token });
       toast.success("Story deleted successfully");
       removeStoryFromCachedLists(story.storyId);
       onDeleteSuccess?.(story.storyId);
+      return true;
     } catch (error) {
       toast.error(userErrorMessage(error, "We couldn't delete this story. Please try again."));
+      return false;
     }
   };
 
@@ -179,7 +181,7 @@ const StoryItemCard = ({
           ) : null}
           {canDelete && !readOnly ? (
             <Button
-              onClick={handleDelete}
+              onClick={event => { event.preventDefault(); event.stopPropagation(); setDeleteOpen(true); }}
               className="text-tiny text-white bg-black/20"
               variant="flat"
               radius="full"
@@ -204,8 +206,10 @@ const StoryItemCard = ({
     </Card>
   );
 
-  if (isDraft || isReadOnlyUnpublished) return storyCard;
-  return <Link href={requireSignIn ? `/sign-in?redirect=${encodeURIComponent(storyHref)}` : storyHref}>{storyCard}</Link>;
+  return <>
+    {isDraft || isReadOnlyUnpublished ? storyCard : <Link href={requireSignIn ? `/sign-in?redirect=${encodeURIComponent(storyHref)}` : storyHref}>{storyCard}</Link>}
+    {canDelete && !readOnly && <DeleteStoryDialog isOpen={deleteOpen} onClose={() => setDeleteOpen(false)} onConfirm={handleDelete} />}
+  </>;
 };
 
 export default StoryItemCard;

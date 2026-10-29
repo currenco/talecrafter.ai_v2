@@ -1,7 +1,7 @@
 "use client";
 import type { StorySelectionProps } from "@/types/story";
 
-const StorySubjectInput = ({ userSelection }: StorySelectionProps) => {
+const StorySubjectInput = ({ userSelection, error }: StorySelectionProps & { error?: string }) => {
   return (
     <div>
       <label
@@ -16,6 +16,8 @@ const StorySubjectInput = ({ userSelection }: StorySelectionProps) => {
       </p>
       <textarea
         id="story-subject"
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? "story-subject-error" : undefined}
         className="mt-4 min-h-40 w-full resize-y rounded-2xl border border-[#d8c69e]/20 bg-[#0b1522]/80 px-3 py-3 text-base leading-6 text-[#f1eadb] outline-none transition placeholder:text-[#c3cbd4]/35 focus:border-[#d8c69e]/60 focus:ring-2 focus:ring-[#d8c69e]/15 sm:mt-6 sm:px-5 sm:py-4 sm:leading-7"
         placeholder="A young cartographer discovers a map whose islands move beneath the moonlight..."
         onChange={(e) =>
@@ -25,6 +27,11 @@ const StorySubjectInput = ({ userSelection }: StorySelectionProps) => {
           })
         }
       />
+      {error && (
+        <p id="story-subject-error" role="alert" className="mt-2 text-sm text-red-300">
+          {error}
+        </p>
+      )}
     </div>
   );
 };

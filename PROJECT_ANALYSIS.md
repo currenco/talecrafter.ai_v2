@@ -12,7 +12,7 @@ The product addresses the workflow of turning an idea into a short illustrated b
 
 The repository is undergoing an in-place product migration. Its current runtime is Next.js + Express + PostgreSQL on Neon + Neon Managed Auth. It is **not a React Native application**: there are no application iOS/Android projects, Expo configuration, native navigation stack, or native modules. Mobile support here means responsive browser UI.
 
-Current access rules, from `server/src/utils/plans.js`, `server/src/services/entitlement.service.js`, and `server/src/controllers/ai.controller.js`:
+Current access rules, from `server/src/utils/plans.js`, `server/src/services/entitlement.service.js`:
 
 | Capability | Free | Creator |
 | --- | --- | --- |
@@ -22,7 +22,6 @@ Current access rules, from `server/src/utils/plans.js`, `server/src/services/ent
 | Interactive creation/continuation/completion | Denied | Allowed while entitlement is valid |
 | Projects | No monthly per-user quota | No monthly per-user quota |
 | Generated images | User provider balance and restrictions | Shared platform budget and provider restrictions |
-| Direct Gemini/idea requests | No monthly per-user quota | No monthly per-user quota |
 | Character/scene pack and PDF action | Creator upsell | Available |
 | Configured subscription price | No subscription | USD 9 monthly (`900` minor units) |
 
@@ -51,7 +50,7 @@ Versions below are manifest declarations; lockfiles provide resolved installatio
 | Drizzle ORM / Kit | `^0.45.2` / `^0.31.10` | PostgreSQL schema/query layer and migration generation |
 | Neon serverless driver | `^1.1.0` | HTTP database access and migration transactions |
 | `jose` | `^6.2.12` | JWT verification against remote JWKS |
-| Google Generative AI SDK | `^0.24.1` | Gemini text, image analysis, structured story generation |
+| Google Generative AI SDK | `^0.24.1` | Gemini text and structured story generation |
 | Pollinations HTTP API | Native `fetch` | OAuth connection, account inspection, generated image requests |
 | Cloudinary | `^2.11.0` | Signing uploads, delivery URL generation, object deletion |
 | Razorpay | `^2.9.8` | Subscription, invoice, payment, and cancellation API calls |
@@ -127,7 +126,6 @@ Root `neon.ts` enables Auth and declares a preview `api` function pointing to `h
 | Responsive navigation | Desktop/mobile navigation, account modal, logout, role-sensitive links | `client/app/(components)/Header.tsx`, `client/components/ui/resizable-navbar.tsx` |
 | Account access | Email/password, verification OTP, reset OTP, Google/GitHub sign-in, GitHub linking | `client/app/(auth)/`, `client/app/auth/`, `client/components/ConnectGithub.tsx` |
 | Story form | Premise, genre and illustration style; fixed `All Ages` request value | `client/app/create-story/page.tsx`, its `(component)/` children |
-| Image-inspired premise | FileReader → Gemini inline image request → suggested premise callback | `client/app/create-story/(component)/UploadImage.tsx` |
 | Classic generation | Five-page text draft, persisted cover/page images, publication, progress, resume | `server/src/services/story.service.js`, `client/lib/story-generation.ts` |
 | Interactive stories | Five-page starter, two choices, 2–3-page continuations, depth limit 7, ending compilation | `server/src/services/interactiveStory.service.js`, `plottwist.service.js`, `client/app/interactive-story/[id]/page.tsx` |
 | Library | Draft and published collections, infinite scrolling, delete, resume/continue | `client/app/dashboard/_components/` |
@@ -142,7 +140,6 @@ Important scope boundaries:
 
 - Interactive UI records one chosen path and shows its history; it is not a general editor for revisiting arbitrary branches. Selecting a choice locks that node.
 - Story versions exist in the schema, but current generation updates version 1; no user-facing version history/editor was found.
-- Uploaded reference images are sent as base64 to Gemini for a premise. The UI does not persist the original upload through the storage adapter.
 - Video files are marketing assets. Story-to-video generation is roadmap work, not an implemented pipeline.
 - `backfillStorySlugs` is a no-op returning zero counts despite having an admin route.
 - Credit accounts, credit ledger, old payments/events, and legacy users remain historical data structures. Active subscription services do not grant/spend legacy credit balances. Earlier phase documents and `docs/payments-future.md` describe obsolete credit flows.
@@ -177,7 +174,7 @@ Important scope boundaries:
 
 The provider has a per-auth-user five-minute in-memory profile cache and a map of pending profile requests. It checks token availability every minute and on online/visible events. That periodic check does not itself refresh plan data every minute. `setUserDetail` updates both context and the profile cache.
 
-Forms and page state use `useState`. Story selector children report `{fieldName, fieldValue}` to the parent's functional state update. `UploadImage` reports a suggested subject through `setImageSubject`; an explicitly typed subject takes precedence. `useRef` stores flipbook handles, pending flags, DOM observers, and mutation idempotency keys without triggering rerenders. `useMemo` derives interactive node maps/ancestor paths and local admin filters. `useCallback` stabilizes fetching functions used in effects. Several effects use an ignore flag or captured user ID to reject stale async results.
+Forms and page state use `useState`. Story selector children report `{fieldName, fieldValue}` to the parent's functional state update. `useRef` stores flipbook handles, pending flags, DOM observers, and mutation idempotency keys without triggering rerenders. `useMemo` derives interactive node maps/ancestor paths and local admin filters. `useCallback` stabilizes fetching functions used in effects. Several effects use an ignore flag or captured user ID to reject stale async results.
 
 Explore caches loaded stories, offset, end-of-list state, and scroll position in sessionStorage without a TTL. The current dashboard fetches fresh collections and does not restore the old dashboard cache, although cache invalidation code for that historical key remains. Neither cache is an authorization boundary.
 
@@ -240,10 +237,6 @@ Migrations `0000`–`0009` preserve evolution: initial schema; interactive paren
 
 Interactive generation is awaited within each HTTP request; it does not share the classic background polling/resume mechanism. Completion uses the first compiled page image as the published cover when available, even though a separate starter cover was generated.
 
-### Reference image → premise
-
-The browser selects a file, previews an object URL, and converts it to base64 with FileReader. `/ai/gemini` verifies generation access, reserves an idea request, and forwards inline image data to Gemini with a 30–50-word premise prompt. The UI cleans formatting and stores the suggestion through a parent callback. On provider failure the idea reservation is released. File size/MIME validation is limited; the global API JSON limit is 2 MB including base64 overhead.
-
 ### Pollinations OAuth connection
 
 `POST /pollinations/connect` creates random state and a PKCE verifier, stores a state hash and encrypted verifier with a ten-minute expiry, and returns an authorization URL. The callback page POSTs code/state with the signed-in user's bearer token. The backend atomically consumes matching user-bound state, checks expiry and redirect URI, exchanges code/verifier, and encrypts the returned token. It checks model permission and may fetch account balance. Free generation requires an active, authorized connection; Creator instead uses the platform key. Disconnect marks the local connection revoked; no provider-side revocation request is implemented.
@@ -299,7 +292,6 @@ Failure envelope contains `success: false`, `statusCode`, `message`, `errors`, a
 | POST `/interactive-stories/:storyId/choices` | Owner + Creator + idempotency | `choice` or `selectedChoice` → updated state |
 | POST `/interactive-stories/:storyId/complete` | Owner; Creator for new generation | Optional choice, defaults to `End Story`; idempotency → completed state/slug |
 | DELETE `/interactive-stories/:storyId` | Owner | Deleted story ID |
-| POST `/ai/gemini` | Auth + generation access | `prompt`, optional mode/text/image data → `{text}` |
 | POST `/images/pollinations-url` | Auth + generation access | Prompt, optional width/height/seed → persisted `{imageUrl}`, despite route name |
 | POST `/images/persist` | Auth; provider generation enforces entitlements | `imageUrl` → `{assetId,dataUrl,secureUrl,publicId,bytes}`; dataUrl is a delivery URL |
 | GET `/pollinations/status` | Auth | Connection state, username, expiry, optional balance |
@@ -498,8 +490,7 @@ Recommendations below are separate from implemented behavior; they were not appl
 | High | Provider/database compensation is not atomic | Record cleanup/reconciliation tasks, coordinate deletion with running generation, and test failed cleanup. `asset.service.js`, story/admin services |
 | Medium | Cached classic replay omits user | `resolveExistingJob` returns no user; classic cached branch reads `reservation.user` without fallback. Fetch current profile on replay if response contract needs it. `generationJob.service.js`, `story.service.js` |
 | Medium | Classic same-key retry can change hash after draft attachment | Hash includes `storyId`; initial creation can use null while later matching draft supplies its ID. Test failed-response retries after draft creation and define a stable request identity |
-| Medium | Validation does not fully match storage/schema | Bound strings to database limits, constrain genres/styles where appropriate, validate uploaded bytes/MIME and choice membership. `validations/`, `UploadImage.tsx` |
-| Medium | Upload preview leaks object URLs | Move `URL.createObjectURL` out of render and revoke it on replacement/unmount. `UploadImage.tsx` |
+| Medium | Validation does not fully match storage/schema | Bound strings to database limits, constrain genres/styles where appropriate, validate choice membership. `validations/` |
 | Medium | API parser failures lose intended status | Normalize body parser and other known middleware errors before generic 500 handling. `error.middleware.js` |
 | Medium | Storage reads lack end-to-end timeout/streaming limit | Maintain abort deadline through body reads and stop streaming at the byte budget. `cloudinary.storage.js` |
 | Medium | Polling lacks unmount cancellation | Add AbortSignal/deadline-aware visibility waiting. Hidden tabs can retain the listener until visible even after the nominal deadline. `story-generation.ts` |

@@ -155,8 +155,6 @@ const createStoryChatSession = ({ apiKey, modelName, pageCount }) => {
 export const generateGeminiText = async ({
   prompt,
   mode = 'text',
-  imageBase64,
-  mimeType,
   timeoutMs,
   pageCount = STORY_PAGE_COUNT,
 }) => {
@@ -171,26 +169,6 @@ export const generateGeminiText = async ({
 
   if (!apiKey) {
     throw new ApiError(500, 'Gemini API key is not configured');
-  }
-
-  if (mode === 'image-analysis') {
-    if (!imageBase64) {
-      throw new ApiError(400, 'Image data is required for image analysis');
-    }
-
-    const client = new GoogleGenerativeAI(apiKey);
-    const model = client.getGenerativeModel({ model: modelName });
-    const result = await model.generateContent([
-      safePrompt,
-      {
-        inlineData: {
-          data: imageBase64,
-          mimeType: mimeType ?? 'image/jpeg',
-        },
-      },
-    ]);
-
-    return result.response.text();
   }
 
   if (mode === 'story-generation') {

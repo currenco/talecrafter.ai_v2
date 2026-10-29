@@ -66,22 +66,13 @@ export default function HowToUsePage() {
             </div>
           </section>
 
-          <section id="image-ideas" className={sectionClass} aria-labelledby="image-ideas-heading">
-            <h2 id="image-ideas-heading" className={headingClass}>3. Start from an image instead</h2>
-            <Steps items={[
-              { title: "Choose an image", text: "On Create Story, use the image upload section to choose a picture. Only upload images you have permission to use." },
-              { title: "Generate and review the idea", text: "Choose Generate Idea and read the suggested story idea. This creates an idea, not a finished book. If you type your own description in Begin with an idea, that text takes priority over the image-generated suggestion." },
-              { title: "Continue with your story", text: "Select a genre and art style, then choose Classic Story or, with Creator, Plot Twist." },
-            ]} />
-          </section>
-
           <section id="plot-twist" className={sectionClass} aria-labelledby="plot-twist-heading">
-            <h2 id="plot-twist-heading" className={headingClass}>4. Build a Plot Twist story <span className="ml-2 text-xs font-medium text-emerald-300">Creator</span></h2>
+            <h2 id="plot-twist-heading" className={headingClass}>3. Build a Plot Twist story <span className="ml-2 text-xs font-medium text-emerald-300">Creator</span></h2>
             <Steps items={plotTwistSteps} />
           </section>
 
           <section id="drafts" className={sectionClass} aria-labelledby="drafts-heading">
-            <h2 id="drafts-heading" className={headingClass}>5. Resume an unfinished story</h2>
+            <h2 id="drafts-heading" className={headingClass}>4. Resume an unfinished story</h2>
             <p className="mt-3 text-sm leading-6 sm:text-base sm:leading-7">Open <Link href="/dashboard" className={linkClass}>My Stories</Link>. Draft stories appear above your published library.</p>
             <ul className="mt-4 list-disc space-y-3 pl-5 text-sm leading-6 sm:text-base sm:leading-7">
               <li><strong className="text-[#f1eadb]">Classic draft:</strong> choose Resume to continue image generation. Resolve balance, permission, or service availability errors first.</li>
@@ -91,7 +82,7 @@ export default function HowToUsePage() {
           </section>
 
           <section id="read-and-export" className={sectionClass} aria-labelledby="read-heading">
-            <h2 id="read-heading" className={headingClass}>6. Read, share and export</h2>
+            <h2 id="read-heading" className={headingClass}>5. Read, share and export</h2>
             <ul className="mt-4 list-disc space-y-3 pl-5 text-sm leading-6 sm:text-base sm:leading-7">
               <li>Open a published story from your library and use the arrow controls to turn pages. Narration controls are available on the story pages where supported by your browser.</li>
               <li>Choose Share Story to share its public link. A reader arriving from a shared link or Google can open that story without signing in.</li>
@@ -103,7 +94,7 @@ export default function HowToUsePage() {
           </section>
 
           <section id="subscriptions" className={sectionClass} aria-labelledby="subscriptions-heading">
-            <h2 id="subscriptions-heading" className={headingClass}>7. Manage your Creator subscription</h2>
+            <h2 id="subscriptions-heading" className={headingClass}>6. Manage your Creator subscription</h2>
             <p className="mt-3 text-sm leading-6 sm:text-base sm:leading-7">Creator renews automatically each month while the subscription is active, subject to successful payment. You can manage renewal from <Link href="/pricing" className={linkClass}>Plans</Link>.</p>
             <Steps items={subscriptionSteps} />
             <p className="mt-5 text-sm leading-6">Creator access follows the paid billing period. Provider outages or shared platform capacity can interrupt generation. Check your drafts rather than repeatedly starting new projects.</p>

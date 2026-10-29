@@ -4,8 +4,10 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/neon-auth/client";
-import AuthShell, { authButtonClass, authInputClass } from "../../AuthShell";
+import AuthShell, { authButtonClass } from "../../AuthShell";
+import EmailField from "../../EmailField";
 import SocialAuthOptions from "../../SocialAuthOptions";
+import PasswordField from "../../PasswordField";
 import { authHref, returnPathFromSearch } from "@/lib/auth-navigation";
 import { useAuthDestination } from "@/lib/use-auth-destination";
 import { userErrorMessage } from "@/lib/user-messages";
@@ -64,28 +66,17 @@ export default function SignInPage() {
     >
       <form className="space-y-3" onSubmit={signIn}>
         {notice && <p role="status" className="text-sm text-emerald-200">{notice}</p>}
-        <label className="block text-sm font-medium">
-          Email
-          <input
-            className={authInputClass}
-            type="email"
-            autoComplete="email"
+          <EmailField
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
           />
-        </label>
-        <label className="block text-sm font-medium">
-          Password
-          <input
-            className={authInputClass}
-            type="password"
+          <PasswordField
             autoComplete="current-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required
           />
-        </label>
         <div className="text-right">
           <Link
             className="text-sm text-[#d8c69e] hover:text-[#f1eadb]"

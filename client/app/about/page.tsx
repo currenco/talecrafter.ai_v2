@@ -26,7 +26,7 @@ const workflow = [
     number: "01",
     title: "Start with an idea",
     description:
-      "Describe the story you want to tell or upload an image as the creative starting point. Then choose the genre, reader age, and illustration style that fit your audience.",
+      "Describe the story you want to tell. Then choose the genre and illustration style that fit your audience.",
   },
   {
     number: "02",

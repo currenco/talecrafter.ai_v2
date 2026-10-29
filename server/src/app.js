@@ -10,7 +10,6 @@ import { getTrustProxy } from './config/proxy.js';
 import { errorHandler, notFound } from './middlewares/error.middleware.js';
 import healthRouter from './routes/health.route.js';
 import userRouter from './routes/user.route.js';
-import aiRouter from './routes/ai.route.js';
 import imageRouter from './routes/image.route.js';
 import storyRouter from './routes/story.route.js';
 import interactiveStoryRouter from './routes/interactiveStory.route.js';
@@ -74,7 +73,6 @@ app.use(API_PREFIX, attachAuthIdentity);
 
 app.use(`${API_PREFIX}/health`, healthRouter);
 app.use(`${API_PREFIX}/users`, userRouter);
-app.use(`${API_PREFIX}/ai`, aiRouter);
 app.use(`${API_PREFIX}/images`, imageRouter);
 app.use(`${API_PREFIX}/stories`, storyRouter);
 app.use(`${API_PREFIX}/interactive-stories`, interactiveStoryRouter);

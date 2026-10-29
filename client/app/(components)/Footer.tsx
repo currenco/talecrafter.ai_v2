@@ -46,7 +46,7 @@ const Footer = () => {
           <nav aria-label="Contact and legal links">
             <h2 className="text-base font-bold text-[#f1eadb]">Contact &amp; Legal</h2>
             <ul className="mt-6 space-y-4">
-              <li><a href={`mailto:${legalContactEmail}`} className={footerLinkClass}>Contact us</a></li>
+              <li><a href={`mailto:${legalContactEmail}`} className="inline-block max-w-full break-all py-1 text-sm text-[#d8c69e] underline underline-offset-4 hover:text-[#f1eadb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4" aria-label={`Email support at ${legalContactEmail}`}>{legalContactEmail}</a></li>
               <li><Link href="/privacy-policy" className={footerLinkClass}>Privacy Policy</Link></li>
               <li><Link href="/terms-and-conditions" className={footerLinkClass}>Terms &amp; Conditions</Link></li>
             </ul>

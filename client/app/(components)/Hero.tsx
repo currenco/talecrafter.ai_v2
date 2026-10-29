@@ -18,7 +18,6 @@ import {
   ListTree,
   Mic2,
   RefreshCcw,
-  Upload,
   UsersRound,
   Video,
 } from "lucide-react";
@@ -35,7 +34,7 @@ const SECTION_HEADING_CLASS =
   "text-3xl font-bold leading-[1.08] tracking-[-0.025em] text-[#f1eadb] sm:text-4xl lg:text-5xl";
 
 const HERO_SUBTEXT =
-  "Begin with a prompt or an image. TaleCrafter writes, illustrates, and shapes it into a complete book you can read, hear, revisit, and share.";
+  "Begin with an idea. TaleCrafter writes, illustrates, and shapes it into a complete book you can read, hear, revisit, and share.";
 const HERO_TEXT_DURATION = 0.4;
 const HERO_TEXT_STAGGER = 0.02;
 const HERO_TEXT_START_DELAY = 0.55;
@@ -51,7 +50,7 @@ const workflow = [
     number: "01",
     title: "Set the direction",
     description:
-      "Describe your idea or upload an image, then choose the genre, reader age, and illustration style.",
+      "Describe your idea, then choose the genre and illustration style.",
   },
   {
     number: "02",
@@ -89,10 +88,10 @@ const supportedArtStyles = [
 
 const capabilities = [
   {
-    icon: Upload,
-    title: "Prompt or image to story",
+    icon: FileText,
+    title: "Turn your idea into a story",
     description:
-      "Begin with a written idea or let an uploaded image become the setting for something new.",
+      "Start with a character, a setting, or a simple idea and turn it into an illustrated story.",
   },
   {
     icon: ImageIcon,
@@ -173,7 +172,7 @@ const faqs = [
   {
     question: "Do I need to be a writer to create a story?",
     answer:
-      "No. Start with a simple idea: a character, a place, or something you want to happen. Choose a genre and illustration style, and TaleCrafter turns your idea into an illustrated story. You can also upload an image to get a starting idea.",
+      "No. Start with a simple idea: a character, a place, or something you want to happen. Choose a genre and illustration style, and TaleCrafter turns your idea into an illustrated story.",
   },
   {
     question: "Can I try TaleCrafter before subscribing?",
@@ -289,7 +288,7 @@ const Hero = () => {
               className="mx-auto mt-16 grid max-w-6xl border-y border-[#d8c69e]/15 text-left md:grid-cols-4 md:text-center"
             >
               {[
-                ["Begin your way", "Prompt or image"],
+                ["Begin your way", "Your own idea"],
                 ["Choose the journey", "Classic or Plot Twist"],
                 ["Keep the whole book", "Read, listen, and export"],
                 ["Coming soon", "Video generation"],

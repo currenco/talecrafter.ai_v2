@@ -1,7 +1,6 @@
 export const guideSections = [
   { id: "getting-started", label: "Account and plans" },
   { id: "classic", label: "Create a Classic story" },
-  { id: "image-ideas", label: "Start from an image" },
   { id: "plot-twist", label: "Create a Plot Twist story" },
   { id: "drafts", label: "Resume a draft" },
   { id: "read-and-export", label: "Read, share and export" },
@@ -32,7 +31,7 @@ export const subscriptionSteps = [
 ];
 
 export const guideFaqs = [
-  { question: "How long does the Free trial last?", answer: "There is no fixed trial duration or automatic upgrade charge. Classic generation requires a valid Pollinations key with available balance. TaleCrafter does not impose monthly project, image, or image-to-story quotas on the Free trial. Pollinations limits still apply, and free provider credits are not guaranteed. If the key expires or its balance runs out, generation stops until those requirements are met. Choose Creator to use platform-funded images instead. You can still read public stories without subscribing." },
+  { question: "How long does the Free trial last?", answer: "There is no fixed trial duration or automatic upgrade charge. Classic generation requires a valid Pollinations key with available balance. TaleCrafter does not impose monthly project or image quotas on the Free trial. Pollinations limits still apply, and free provider credits are not guaranteed. If the key expires or its balance runs out, generation stops until those requirements are met. Choose Creator to use platform-funded images instead. You can still read public stories without subscribing." },
   { question: "My Pollinations key is connected, but images will not generate.", answer: "If your connected balance or key budget is used up, choose Upgrade to Creator for included image generation without a personal key. After upgrading, resume your saved draft from My Stories. Expired keys and missing image permissions require reconnecting; temporary service errors do not require an upgrade. A connected key or positive balance does not guarantee enough credit to finish a whole story." },
   { question: "Generation stopped or I closed the page. Is my story lost?", answer: "Open My Stories and check both Draft stories and your library. A saved unfinished Classic story can be resumed, and an unfinished Plot Twist story can be continued. If the initial text generation failed before saving, there may not be a draft yet." },
   { question: "I paid, but my account still shows Free trial.", answer: "Open Plans and use Check payment status if available. Your payment may still be confirming. Avoid paying again until you have checked the status. If it remains unresolved, contact us with the payment reference and your account email, never your card details, password, or API key." },

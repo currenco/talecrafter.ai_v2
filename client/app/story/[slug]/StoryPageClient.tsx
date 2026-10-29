@@ -14,6 +14,7 @@ import { apiFetch } from "@/lib/api-client";
 import type { StoryRecord } from "@/lib/story-data";
 import type { StoryChapter } from "@/types/story";
 import { getCleanChapterText } from "@/lib/story-text";
+import { createStoryNarration, type NarrationState } from "@/lib/story-narration";
 
 import CreatorStoryPack from "@/components/CreatorStoryPack";
 import StoryGridSkeleton from "@/components/StoryGridSkeleton";
@@ -107,7 +108,8 @@ export default function StoryPageClient({ initialStory, isDraft = false, generat
   const [copied, setCopied] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [contentMode, setContentMode] = useState<"flipbook" | "story">("flipbook");
-  const [activeNarrationKey, setActiveNarrationKey] = useState<number | null>(null);
+  const [narration, setNarration] = useState<NarrationState>({ key: null, paused: false });
+  const narratorRef = useRef<ReturnType<typeof createStoryNarration> | null>(null);
   const [relatedStories, setRelatedStories] = useState<StoryRecord[]>([]);
   const [relatedPage, setRelatedPage] = useState(1);
   const [relatedTotalPages, setRelatedTotalPages] = useState(0);
@@ -244,18 +246,30 @@ export default function StoryPageClient({ initialStory, isDraft = false, generat
     } finally { setDownloadingPdf(false); }
   };
   const stopNarration = () => {
-    if (typeof window === "undefined") return;
-    window.speechSynthesis.cancel();
-    setActiveNarrationKey(null);
+    narratorRef.current?.stop();
+  };
+
+  const toggleNarration = (key: number) => {
+    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
+      toast.error("Read-aloud isn't available in this browser. Please try another browser.");
+      return;
+    }
+    narratorRef.current ??= createStoryNarration(
+      window.speechSynthesis,
+      window.SpeechSynthesisUtterance,
+      setNarration,
+      (message) => toast.error(message),
+    );
+    narratorRef.current.toggle(key, getCleanChapterText(chapters[key]));
   };
 
   useEffect(() => {
-    stopNarration();
+    narratorRef.current?.stop();
   }, [contentMode]);
 
   useEffect(() => {
     return () => {
-      if (typeof window !== "undefined") window.speechSynthesis.cancel();
+      narratorRef.current?.stop();
     };
   }, []);
 
@@ -301,11 +315,9 @@ export default function StoryPageClient({ initialStory, isDraft = false, generat
                       storyChapter={chapter}
                       pendingImage={isDraft && !chapter.imageUrl}
                       chapterKey={index}
-                      activeNarrationKey={activeNarrationKey}
-                      onStartNarration={(key: number) => setActiveNarrationKey(key)}
-                      onStopNarration={(key: number) => {
-                        setActiveNarrationKey((prev) => (prev === key ? null : prev));
-                      }}
+                      activeNarrationKey={narration.key}
+                      narrationPaused={narration.paused}
+                      onToggleNarration={toggleNarration}
                     />
                   </div>
                 ))}
@@ -428,12 +440,7 @@ export default function StoryPageClient({ initialStory, isDraft = false, generat
         </div>
 
         <div className="tc-glass-panel-soft mt-10 p-5 md:p-7">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-serif text-3xl font-medium text-[#f1eadb]">More Stories Like This</h2>
-            <Link href="/explore" prefetch={true} className="tc-btn-ghost px-4 py-2 text-sm">
-              View Explore
-            </Link>
-          </div>
+          <h2 className="font-serif text-3xl font-medium text-[#f1eadb]">More Stories Like This</h2>
 
           <div className="mt-2 min-h-5 text-sm text-[#c3cbd4]/70">
             {relatedTotalPages > 0 && <>Page {relatedPage} of {relatedTotalPages}</>}

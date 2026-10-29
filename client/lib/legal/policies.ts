@@ -79,7 +79,7 @@ export const termsAndConditions: LegalDocument = {
     { id: "plans", title: "Free trial and Creator access", paragraphs: [
       "Both plans offer Google and GitHub sign-in. Free trial creation supports Classic stories and uses your own connected Pollinations key and available provider balance. The label Free trial does not promise free Pollinations credits, a fixed number of days, or an automatic paid upgrade.",
       "Creator requires active paid access and includes Classic and Plot Twist generation, platform-funded illustrations, character and scene material, and PDF export. Creator does not require a personal Pollinations key for creation.",
-      "Neither plan has per-user monthly project, image, or image-to-story quotas. This is not a promise of unlimited or uninterrupted output: generation depends on provider restrictions, availability, and, for Creator images, shared platform capacity. Complete short-film generation is not included in the current subscription.",
+      "Neither plan has per-user monthly project or image quotas. This is not a promise of unlimited or uninterrupted output: generation depends on provider restrictions, availability, and, for Creator images, shared platform capacity. Complete short-film generation is not included in the current subscription.",
     ] },
     { id: "billing", title: "Subscriptions, renewal, and delivery", paragraphs: [
       "The price, currency, and recurring billing interval are shown on Plans and at checkout. Creator renews automatically each month until cancelled, subject to successful payment and the payment mandate. Our payment processor handles payment authorization and recurring collection. Your bank or payment provider may apply its own conversion or other charges.",

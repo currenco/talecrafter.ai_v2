@@ -12,7 +12,6 @@ import { getAccessToken } from "@/lib/neon-auth/client";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 import { UserDetailContext } from "@/app/_context/UserDetailContext";
-import UploadImage from "./(component)/UploadImage";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   apiFetch,
@@ -66,6 +65,7 @@ const CreateStory = () => {
   const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
   const [formData, setFormData] = useState<Partial<FormDataType>>({});
+  const [storyIdeaError, setStoryIdeaError] = useState("");
   const [loading, setLoading] = useState<boolean>(false);
   const [generationMessage, setGenerationMessage] = useState(
     "Writing your story draft...",
@@ -74,7 +74,6 @@ const CreateStory = () => {
   const notifyError = (msg: string) => toast.error(msg);
   const { userDetail, setUserDetail, authUser } = useContext(UserDetailContext);
   const userId = authUser?.id;
-  const [storySubject, setStorySubject] = useState("");
   const [walletStatus, setWalletStatus] = useState<PollinationsStatus>();
   const [walletPending, setWalletPending] = useState(false);
   const [walletLoading, setWalletLoading] = useState(false);
@@ -131,6 +130,9 @@ const CreateStory = () => {
   };
 
   const onHandleUserSelection = (data: StorySelection) => {
+    if (data.fieldName === "storySubject" && data.fieldValue.trim()) {
+      setStoryIdeaError("");
+    }
     setFormData((prev) => ({
       ...prev,
       [data.fieldName]: data.fieldValue,
@@ -138,11 +140,7 @@ const CreateStory = () => {
   };
 
   const buildRequestBody = () => {
-    const subject =
-      formData.storySubject ||
-      storySubject
-        .replace("Here's a short story idea based on the image:", "")
-        .trim();
+    const subject = formData.storySubject?.trim();
 
     return {
       storySubject: subject,
@@ -154,12 +152,17 @@ const CreateStory = () => {
 
   const validateStoryRequest = () => {
     const body = buildRequestBody();
+    if (!body.storySubject) {
+      setStoryIdeaError("Please enter a story idea before continuing.");
+      document.getElementById("story-subject")?.focus();
+      return null;
+    }
+    setStoryIdeaError("");
     if (
-      !body.storySubject ||
       !body.storyType ||
       !body.imageStyle
     ) {
-      notifyError(!body.storySubject ? "Add a story idea or generate one from an image first." : !body.storyType ? "Choose a genre for your story." : "Choose an illustration style for your story.");
+      notifyError(!body.storyType ? "Choose a genre for your story." : "Choose an illustration style for your story.");
       return null;
     }
 
@@ -182,13 +185,13 @@ const CreateStory = () => {
       return;
     }
 
+    const body = validateStoryRequest();
+    if (!body) return;
+
     if (userDetail.plan !== 'creator' && !walletStatus?.connected) {
       notifyError("Connect your Pollinations key before generating images");
       return;
     }
-
-    const body = validateStoryRequest();
-    if (!body) return;
 
     setLoading(true);
     setGenerationMessage("Writing your story draft...");
@@ -388,19 +391,8 @@ const CreateStory = () => {
           className="mt-4 rounded-[2rem] border border-[#d8c69e]/15 bg-[#111d2b]/70 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.18)] backdrop-blur-md sm:mt-8 sm:p-6 md:p-8"
         >
           <div className="flex flex-col justify-between gap-5">
-            <StorySubjectInput userSelection={onHandleUserSelection} />
+            <StorySubjectInput userSelection={onHandleUserSelection} error={storyIdeaError} />
           </div>
-        </MotionDiv>
-
-        <MotionDiv
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.1 }}
-          variants={fadeUp}
-          transition={{ delay: 0.12, duration: 0.5 }}
-          className="mt-4 rounded-[2rem] border border-[#d8c69e]/15 bg-[#111d2b]/70 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.18)] backdrop-blur-md sm:mt-7 sm:p-6 md:p-8"
-        >
-          <UploadImage setImageSubject={setStorySubject} />
         </MotionDiv>
 
         <MotionDiv
